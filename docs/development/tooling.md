@@ -15,12 +15,13 @@ Commit aktualisiert.
 | Werkzeug | Version | Konfiguration | Zweck |
 |---|---|---|---|
 | Node.js | 24.x LTS | `.node-version`, `engines` in `package.json` | Laufzeitumgebung |
-| pnpm | 11.x | `pnpm-workspace.yaml`, `packageManager` in `package.json` | Paket- und Arbeitsbereichsverwaltung |
+| pnpm | 11.20.0 | `pnpm-workspace.yaml`, `packageManager` in `package.json` | Paket- und Arbeitsbereichsverwaltung |
 | TypeScript | 5.9.3 exakt | `tsconfig.base.json`, `tsconfig.node.json` | Übersetzung und Typprüfung |
 | Biome | 2.5.6 | `biome.json` | Linting und Formatierung |
 | Docker Compose | – | `infra/local/compose.yaml` | Lokale Infrastruktur |
 | PostgreSQL | 18 (Alpine) | `infra/local/compose.yaml`, `infra/local/postgres/init/` | Datenhaltung |
-| Keycloak | 26.4 | `infra/local/compose.yaml`, `infra/local/keycloak/import/` | Identitätsverwaltung |
+| Keycloak | 26.4 | `infra/local/compose.yaml`, `infra/keycloak/realms/` | Identitätsverwaltung |
+| keycloak-config-cli | 6.5.1-26 | `infra/local/compose.yaml` (Profil `config`) | Idempotente Anwendung der Realm-Definition |
 | EditorConfig | – | `.editorconfig` | Editorübergreifende Grundeinstellungen |
 
 ### Warum pnpm und nicht npm oder yarn
@@ -61,6 +62,7 @@ Diagnosemeldungen führt, die sich nicht reproduzieren lassen.
 | `pnpm run infra:up` | Startet die lokale Infrastruktur |
 | `pnpm run infra:down` | Stoppt die lokale Infrastruktur, behält die Daten |
 | `pnpm run infra:reset` | Stoppt die Infrastruktur und **löscht das Datenvolumen** |
+| `pnpm run infra:realm` | Wendet die Realm-Definition auf den laufenden Keycloak an |
 
 ---
 
@@ -88,7 +90,59 @@ Zwei Regeln, deren Verletzung schwer zu diagnostizierende Fehler erzeugt:
 
 ---
 
-## 4. Geplant
+## 4. Keycloak-Realm-Verwaltung
+
+Der Realm wird **deklarativ** verwaltet, nicht über Klicks in der Admin-Konsole und nicht
+über ein imperatives Skript. Ein Skript beschreibt Schritte, eine Definition beschreibt
+den Sollzustand – nur Letzteres lässt sich im Review lesen und wiederholt anwenden.
+
+### Quelle der Wahrheit
+
+```
+infra/keycloak/realms/infrademand.json
+```
+
+Bewusst **außerhalb** von `infra/local/`: Rollen, Clients und Mapper werden in jeder
+Umgebung gebraucht, nicht nur lokal. Änderungen in der Admin-Konsole gelten als nicht
+existent, bis sie in dieser Datei stehen.
+
+### Zwei Anwendungswege
+
+| Situation | Mechanismus | Verhalten |
+|---|---|---|
+| Leerer Keycloak (Erstaufbau, `infra:reset`) | `--import-realm` beim Start | Legt den Realm an; **überspringt** ihn, wenn er bereits existiert |
+| Bestehender Keycloak (nach jeder Änderung) | `pnpm run infra:realm` | Gleicht ab und aktualisiert, beliebig oft wiederholbar |
+
+Der zweite Weg nutzt `keycloak-config-cli` und ist der maßgebliche: Er läuft lokal, in
+der CI und später in jeder Umgebung – derselbe Mechanismus, kein zweiter Codepfad, der
+auseinanderlaufen könnte.
+
+Der Dienst ist in `compose.yaml` mit `profiles: ["config"]` hinterlegt und läuft daher
+bei `infra:up` **nicht** mit. Er erscheint aus demselben Grund nicht in
+`docker compose config --services` – dafür ist `--profile config` nötig.
+
+### Tag-Schema von keycloak-config-cli
+
+Die Images sind nach `<config-cli-Version>-<keycloak-Version>` benannt, etwa
+`6.5.1-26` oder `6.5.1-26.5.5`. Ein Tag, das nur aus der Keycloak-Version besteht,
+existiert **nicht** – eine naheliegende Verwechslung, die zu
+`failed to resolve reference ... not found` führt.
+
+Verwendet wird die Linien-Variante `-26`, nicht `latest-26`: Veränderliche Tags können
+ihren Inhalt unbemerkt ändern (siehe PROD-022).
+
+### Grenzen
+
+Die Definition enthält derzeit umgebungsspezifische Werte (Weiterleitungs-URLs auf
+`localhost:3000`) und einen Testbenutzer mit Passwort. Beides ist für die lokale Umgebung
+vertretbar und in
+[production-readiness.md](../operations/production-readiness.md) als PROD-007 und
+PROD-011 erfasst. Die Auslagerung erfolgt über Variablenersetzung
+(`IMPORT_VARSUBSTITUTION_ENABLED=true`), sobald die erste nicht-lokale Umgebung entsteht.
+
+---
+
+## 5. Geplant
 
 Diese Werkzeuge sind vorgesehen, aber noch nicht eingerichtet. Sie werden mit dem
 angegebenen Meilenstein ergänzt.
@@ -109,7 +163,7 @@ angegebenen Meilenstein ergänzt.
 
 ---
 
-## 5. Konventionen
+## 6. Konventionen
 
 ### Commit-Nachrichten
 

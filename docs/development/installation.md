@@ -100,7 +100,11 @@ winget install pnpm.pnpm
 pnpm --version
 ```
 
-Erwartet: `11.x` (geprüft mit `11.18.0`).
+Erwartet: `11.x` (geprüft mit `11.20.0`).
+
+Die für das Projekt verbindliche Version steht im Feld `packageManager` der
+`package.json`. Corepack wählt sie automatisch, sobald du im Projektverzeichnis
+arbeitest – unabhängig davon, welche pnpm-Version global installiert ist.
 
 ---
 
@@ -182,6 +186,7 @@ anschließend erzeugt Keycloak sein Schema.
 | `pnpm run infra:up` | Startet die Container im Hintergrund |
 | `pnpm run infra:down` | Stoppt die Container, **behält** die Daten |
 | `pnpm run infra:reset` | Stoppt die Container und **löscht das Datenvolumen** |
+| `pnpm run infra:realm` | Wendet `infra/keycloak/realms/infrademand.json` auf den laufenden Keycloak an |
 
 > `infra:reset` verwirft die gesamte lokale Datenbank einschließlich der
 > Keycloak-Realm-Konfiguration. Das ist der Weg, um eine saubere Erstinitialisierung zu
@@ -221,7 +226,27 @@ Erwartet: `http://localhost:8080/realms/master`.
 Dies ist die wichtigste Prüfung – dieses Dokument ist die Grundlage, gegen die die
 Services ihre Token validieren.
 
-**4. Konfiguration übersteht einen Neustart**
+**4. Der Realm `infrademand` wurde importiert**
+
+```powershell
+(Invoke-RestMethod http://localhost:8080/realms/infrademand/.well-known/openid-configuration).issuer
+```
+
+Erwartet: `http://localhost:8080/realms/infrademand`.
+
+**5. Die Anspruchskette im Token ist vollständig**
+
+```powershell
+$t = Invoke-RestMethod -Method Post -Uri http://localhost:8080/realms/infrademand/protocol/openid-connect/token -Body @{client_id='frontend';username='test.author';password='test';grant_type='password'}
+$p = $t.access_token.Split('.')[1].Replace('-','+').Replace('_','/'); $p += '=' * ((4 - $p.Length % 4) % 4)
+[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($p)) | ConvertFrom-Json | Select-Object aud, @{n='roles';e={$_.realm_access.roles}}
+```
+
+Erwartet: `aud` enthält `requirement-api`, `roles` enthält `requirement-author`. Damit ist
+die Kette Realm → Client → Audience-Mapper → Rolle nachgewiesen – die Grundlage für die
+Token-Validierung in den Services.
+
+**6. Konfiguration übersteht einen Neustart**
 
 ```powershell
 pnpm run infra:down
@@ -304,6 +329,48 @@ pnpm run infra:up
 Die Anweisungen von Hand über `psql` einzuspielen behebt zwar das Symptom, verdeckt aber,
 dass die Umgebung nicht allein aus dem Repository reproduzierbar ist. Deshalb der Weg
 über den vollständigen Neuaufbau.
+
+### Der Realm `infrademand` existiert nicht
+
+`--import-realm` legt einen Realm **nur an, wenn er noch nicht existiert**, und
+protokolliert das Überspringen nur beiläufig. Nach einer Änderung an der Realm-Definition
+passiert daher scheinbar nichts.
+
+```powershell
+pnpm run infra:realm
+```
+
+Das gleicht den bestehenden Realm ab, statt ihn zu überspringen. Wurde der Realm noch nie
+angelegt, prüfe zuerst, ob die Einhängung stimmt: Der Pfad in `compose.yaml` muss
+`../keycloak/realms` lauten, nicht `./keycloak/import`.
+
+### `docker compose config --services` zeigt `keycloak-config` nicht an
+
+Kein Fehler. Dienste mit `profiles:` werden ohne aktiviertes Profil bewusst ausgeblendet:
+
+```bash
+docker compose -f infra/local/compose.yaml --profile config config --services
+```
+
+Erwartet: `postgres`, `keycloak`, `keycloak-config`. Ohne `--profile config` sind es
+korrekterweise nur die ersten beiden.
+
+### `services.keycloak additional properties 'keycloak-config' not allowed`
+
+Einrückungsfehler in `compose.yaml`. Unter `services:` stehen Dienstnamen auf zwei
+Leerzeichen, ihre Eigenschaften auf vier. Steht `keycloak-config` auf vier Leerzeichen,
+liest YAML es als Eigenschaft des `keycloak`-Dienstes. Alle Dienstnamen müssen exakt
+gleich weit eingerückt sein.
+
+### `failed to resolve reference "docker.io/adorsys/keycloak-config-cli:<tag>": not found`
+
+Das Tag-Schema lautet `<config-cli-Version>-<keycloak-Version>`, zum Beispiel
+`6.5.1-26`. Ein Tag, das ausschließlich aus der Keycloak-Version besteht, existiert
+nicht. Verfügbare Tags:
+
+```bash
+docker run --rm curlimages/curl -s "https://hub.docker.com/v2/repositories/adorsys/keycloak-config-cli/tags?page_size=40&ordering=last_updated"
+```
 
 ### `failed to connect to the docker API at npipe:////./pipe/dockerDesktopLinuxEngine`
 

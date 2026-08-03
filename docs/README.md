@@ -14,6 +14,7 @@ alle Dokumente hier verweisen darauf und ersetzen es nicht.
 | [`adr/`](adr/) | Architekturentscheidungen (Architecture Decision Records) – *warum* etwas so ist |
 | [`architecture/`](architecture/) | Systemüberblick, Servicelandschaft, Querschnittsthemen – *was* gebaut wird |
 | [`development/`](development/) | Installation, Werkzeugkette, Konventionen – *wie* gearbeitet wird |
+| [`operations/`](operations/) | Betrieb und Produktionsreife – *was fehlt noch* |
 | [`api/`](api/) | Versionierte OpenAPI-Contracts je Service (ab Meilenstein M1) |
 
 ## Einstiegspunkte
@@ -22,6 +23,7 @@ alle Dokumente hier verweisen darauf und ersetzen es nicht.
 - **Verstehen, wie das System aufgebaut ist?** → [`architecture/README.md`](architecture/README.md)
 - **Wissen, warum eine Technologie gewählt wurde?** → [`adr/README.md`](adr/README.md)
 - **Welche Werkzeuge sind im Einsatz?** → [`development/tooling.md`](development/tooling.md)
+- **Was fehlt noch bis zur Produktionsreife?** → [`operations/production-readiness.md`](operations/production-readiness.md)
 
 ## Grundsatz
 
@@ -34,6 +36,11 @@ Nachbereitung. Konkret:
   OpenAPI-Contract im selben Commit angepasst.
 - Wird ein Werkzeug hinzugefügt oder eine Version angehoben, wird
   [`development/tooling.md`](development/tooling.md) im selben Commit aktualisiert.
+- **Wird eine Entwicklungsabkürzung genommen, ein Sicherheitsmechanismus abgeschaltet
+  oder ein Punkt auf „später" vertagt, wird er im selben Arbeitsschritt in
+  [`operations/production-readiness.md`](operations/production-readiness.md)
+  eingetragen.** Diese Regel gilt ausnahmslos und für alle Beteiligten einschließlich der
+  KI in ihrer Beraterrolle: Wer eine Abkürzung vorschlägt, trägt sie dort ein.
 
 ## Stand
 

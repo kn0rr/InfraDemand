@@ -36,9 +36,15 @@ Festlegungen im Einzelnen:
    Client-Credentials-Grant abgebildet – je aufrufendem Service ein eigener Client mit
    eigenen Rollen. Kein geteilter technischer Account.
 3. **Die Realm-Konfiguration ist versionierter Bestandteil des Repositories.** Sie liegt
-   als Realm-Export unter `infra/local/keycloak/import/` und wird beim Start importiert.
-   Manuell in der Admin-Konsole vorgenommene Änderungen gelten als nicht existent, bis
-   sie exportiert und eingecheckt sind.
+   als deklarative Definition unter `infra/keycloak/realms/` – bewusst außerhalb von
+   `infra/local/`, weil sie umgebungsunabhängig ist. Manuell in der Admin-Konsole
+   vorgenommene Änderungen gelten als nicht existent, bis sie in dieser Datei stehen.
+
+   *Nachtrag 2026-08-03: Die ursprüngliche Fassung nannte `infra/local/keycloak/import/`
+   und einen Export-basierten Ablauf. Beides wurde durch den deklarativen Ansatz ersetzt;
+   die Entscheidung selbst – Realm-Konfiguration als versioniertes Artefakt – bleibt
+   unverändert. Der Anwendungsmechanismus ist in
+   [tooling.md](../development/tooling.md#4-keycloak-realm-verwaltung) beschrieben.*
 4. **Der Identity & Access Service aus §5 hält keine eigenen Benutzerdaten.** Er ist eine
    fachliche Fassade über die Keycloak-Admin-API für die Verwaltung von Rollen,
    Zuordnungen und Service Accounts sowie für die Auditierung von

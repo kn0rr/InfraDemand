@@ -2,6 +2,7 @@
   "name": "infrademand",
   "version": "0.0.0",
   "private": true,
+  "packageManager": "pnpm@11.20.0",
   "engines": {
     "node": ">=24 <25"
   },
@@ -10,11 +11,12 @@
     "format": "biome format --write .",
     "infra:up": "docker compose -f infra/local/compose.yaml up -d",
     "infra:down": "docker compose -f infra/local/compose.yaml down",
-    "infra:reset": "docker compose -f infra/local/compose.yaml down -v"
+    "infra:reset": "docker compose -f infra/local/compose.yaml down -v",
+    "infra:realm": "docker compose -f infra/local/compose.yaml --profile config run --rm keycloak-config"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.6",
     "@types/node": "^24.13.3",
-    "typescript": "^5.9.3"
+    "typescript": "5.9.3"
   }
 }

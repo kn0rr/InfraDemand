@@ -40,7 +40,21 @@ services:
       postgres:
         condition: service_healthy
     volumes:
-      - ./keycloak/import:/opt/keycloak/data/import:ro
+      - ../keycloak/realms:/opt/keycloak/data/import:ro
+
+  keycloak-config:
+    image: adorsys/keycloak-config-cli:6.5.1-26
+    container_name: id-keycloak-config
+    profiles: ["config"]
+    depends_on:
+      - keycloak
+    environment:
+      KEYCLOAK_URL: http://keycloak:8080
+      KEYCLOAK_USER: admin
+      KEYCLOAK_PASSWORD: admin
+      IMPORT_FILES_LOCATIONS: /config/*.json
+    volumes:
+      - ../keycloak/realms:/config:ro
 
 volumes:
   postgres-data:
