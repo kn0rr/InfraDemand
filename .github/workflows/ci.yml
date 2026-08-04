@@ -96,10 +96,24 @@ jobs:
           status=0
           for image in $images; do
             echo "::group::$image"
-            docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v "$PWD:/src" aquasec/trivy:latest \
-              image --severity HIGH,CRITICAL --ignore-unfixed --ignorefile /src/.trivyignore.yaml --exit-code 1 "$image" || status=1
+            if ! docker run --rm \
+              -v /var/run/docker.sock:/var/run/docker.sock \
+              -v "$PWD:/src" \
+              aquasec/trivy:latest \
+              image \
+              --severity HIGH,CRITICAL \
+              --ignore-unfixed \
+              --ignorefile /src/.trivyignore.yaml \
+              --exit-code 1 \
+              "$image"
+            then
+              echo "::error::Trivy hat für $image ein Finding geliefert."
+              status=1
+            fi
+
             echo "::endgroup::"
           done
+
           exit $status
 
   test:
