@@ -1,0 +1,23 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended", ":dependencyDashboard"],
+  "timezone": "Europe/Berlin",
+  "schedule": ["before 6am on monday"],
+  "packageRules": [
+    {
+      "description": "TypeScript bleibt exakt festgelegt (ADR-0006), Anhebung nur bewusst",
+      "matchPackageNames": ["typescript"],
+      "rangeStrategy": "pin",
+      "dependencyDashboardApproval": true
+    },
+    {
+      "description": "Container-Images gesammelt anbieten",
+      "matchManagers": ["docker-compose"],
+      "groupName": "Container-Images"
+    }
+  ],
+  "vulnerabilityAlerts": {
+    "labels": ["sicherheit"],
+    "schedule": ["at any time"]
+  }
+}

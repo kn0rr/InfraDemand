@@ -1,0 +1,68 @@
+{
+  "realm": "infrademand",
+  "displayName": "InfraDemand",
+  "enabled": true,
+  "sslRequired": "none",
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "accessTokenLifespan": 300,
+
+  "roles": {
+    "realm": [
+      { "name": "platform-admin", "description": "Vollzugriff auf die Plattformverwaltung" },
+      { "name": "requirement-author", "description": "Darf Anforderungen anlegen und bearbeiten" },
+      { "name": "requirement-reader", "description": "Darf Anforderungen lesen" }
+    ]
+  },
+
+  "clients": [
+    {
+      "clientId": "requirement-api",
+      "name": "Requirement Service (Zielgruppe)",
+      "enabled": true,
+      "publicClient": false,
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false
+    },
+    {
+      "clientId": "frontend",
+      "name": "InfraDemand Web-Oberflaeche",
+      "enabled": true,
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": true,
+      "redirectUris": ["http://localhost:3000/*"],
+      "webOrigins": ["http://localhost:3000"],
+      "attributes": {
+        "pkce.code.challenge.method": "S256"
+      },
+      "protocolMappers": [
+        {
+          "name": "audience-requirement-api",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": {
+            "included.client.audience": "requirement-api",
+            "access.token.claim": "true",
+            "id.token.claim": "false"
+          }
+        }
+      ]
+    }
+  ],
+
+  "users": [
+    {
+      "username": "test.author",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Test",
+      "lastName": "Author",
+      "email": "test.author@example.local",
+      "credentials": [{ "type": "password", "value": "test", "temporary": false }],
+      "realmRoles": ["requirement-author"]
+    }
+  ]
+}
