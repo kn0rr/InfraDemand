@@ -1,0 +1,14 @@
+# Zeilenenden verbindlich auf LF - im Repository UND im Arbeitsverzeichnis.
+# core.autocrlf wandelt nur beim Commit um, nicht beim Auschecken; ohne diese
+# Datei weicht das Arbeitsverzeichnis auf Windows dauerhaft vom Repository ab.
+* text=auto eol=lf
+
+# Binaerdateien unangetastet lassen
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.ico  binary
+*.pdf  binary
+*.woff binary
+*.woff2 binary

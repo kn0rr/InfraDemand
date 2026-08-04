@@ -362,6 +362,34 @@ Leerzeichen, ihre Eigenschaften auf vier. Steht `keycloak-config` auf vier Leerz
 liest YAML es als Eigenschaft des `keycloak`-Dienstes. Alle Dienstnamen müssen exakt
 gleich weit eingerückt sein.
 
+### `pnpm lint` schlägt lokal fehl, die CI ist grün (oder umgekehrt)
+
+Typisches Bild: Biome meldet für jede JSON-Datei „Formatter would have printed the
+following content" mit `␍` am Zeilenende, obwohl inhaltlich nichts abweicht.
+
+**Ursache:** Zeilenenden. `core.autocrlf input` wandelt CRLF beim **Commit** in LF um,
+aber nicht beim **Auschecken**. Auf Windows angelegte Dateien behalten damit CRLF im
+Arbeitsverzeichnis, während das Repository LF enthält. Biome prüft das
+Arbeitsverzeichnis, die CI prüft einen frischen Auscheckvorgang – beide sehen etwas
+anderes.
+
+**Prüfen:**
+
+```bash
+git ls-files --eol
+```
+
+`i/lf` mit `w/crlf` bestätigt die Abweichung.
+
+**Behebung:** `.gitattributes` mit `* text=auto eol=lf` erzwingt LF in **beide**
+Richtungen. Die Datei ist Bestandteil des Repositories; ohne sie hängt das Verhalten von
+lokalen Git-Einstellungen ab, die niemand mitliefert. Danach:
+
+```powershell
+pnpm format
+pnpm lint
+```
+
 ### `failed to resolve reference "docker.io/adorsys/keycloak-config-cli:<tag>": not found`
 
 Das Tag-Schema lautet `<config-cli-Version>-<keycloak-Version>`, zum Beispiel

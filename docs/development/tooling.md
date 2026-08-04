@@ -23,6 +23,7 @@ Commit aktualisiert.
 | Keycloak | 26.4 | `infra/local/compose.yaml`, `infra/keycloak/realms/` | Identitätsverwaltung |
 | keycloak-config-cli | 6.5.1-26 | `infra/local/compose.yaml` (Profil `config`) | Idempotente Anwendung der Realm-Definition |
 | EditorConfig | – | `.editorconfig` | Editorübergreifende Grundeinstellungen |
+| Git-Attribute | – | `.gitattributes` | Erzwingt LF-Zeilenenden in Repository **und** Arbeitsverzeichnis |
 
 ### Warum pnpm und nicht npm oder yarn
 
@@ -182,6 +183,18 @@ chore: Monorepo-Geruest und lokale Infrastruktur
 Der Nutzen ist nicht Kosmetik: Er ermöglicht die maschinelle Erzeugung von
 Änderungsprotokollen und die Ableitung von Versionssprüngen – beides Voraussetzung für
 die in CLAUDE.md §4 geforderten versionierten Schnittstellen.
+
+### Zeilenenden
+
+Verbindlich LF, erzwungen über `.gitattributes` (`* text=auto eol=lf`) – nicht über
+lokale Git-Einstellungen.
+
+Der Unterschied ist wesentlich: `core.autocrlf input` wandelt beim Commit um, aber nicht
+beim Auschecken. Ein Windows-Arbeitsplatz hätte damit CRLF im Arbeitsverzeichnis und LF
+im Repository. Werkzeuge, die das Arbeitsverzeichnis prüfen – Biome, später auch
+Testrunner – melden dann Fehler, die die CI nicht sieht, weil sie auf einem frischen
+Auscheckvorgang arbeitet. `.gitattributes` liegt im Repository und gilt damit für alle,
+während lokale Einstellungen jeder Beteiligte selbst setzen müsste.
 
 ### Branch-Benennung
 

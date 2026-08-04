@@ -51,10 +51,10 @@ Das gilt für alle Beteiligten, einschließlich der KI in ihrer Beraterrolle
 | B – Geheimnisse und Zugangsdaten | 5 | 5 |
 | C – Identität und Zugriff | 5 | 2 |
 | D – Daten | 4 | 3 |
-| E – Container und Lieferkette | 5 | 1 |
+| E – Container und Lieferkette | 6 | 1 |
 | F – Betrieb und Verfügbarkeit | 5 | 1 |
 | G – Anwendungssicherheit | 4 | 1 |
-| **Gesamt** | **35** | **18** |
+| **Gesamt** | **36** | **18** |
 
 Stand 2026-08-03: kein Eintrag erledigt. Das ist erwartbar – die Plattform befindet sich
 in Meilenstein M0.
@@ -286,6 +286,19 @@ Ohne Begrenzung kann ein einzelner Dienst den Knoten erschöpfen.
 
 §13 fordert Abhängigkeits-Scanning, Container-Scanning (Trivy) sowie SAST und DAST in
 CI/CD. Bislang existiert keine Pipeline.
+
+#### PROD-036 — GitHub-Actions nicht auf Commit-Prüfsumme festgelegt
+**Schwere:** Hoch · **Status:** Offen · **Betrifft:** §13 · **Fundstelle:** `.github/workflows/ci.yml`
+
+Aktionen werden über veränderliche Tags (`@v4`) eingebunden. Wer das Tag im
+Quell-Repository verschiebt, führt beliebigen Code in unserer Pipeline aus – mit Zugriff
+auf deren Berechtigungen und Geheimnisse. Das ist ein realer, mehrfach ausgenutzter
+Angriffsweg auf Lieferketten.
+
+**Zielzustand:** Einbindung über die vollständige Commit-Prüfsumme
+(`uses: actions/checkout@<sha> # v4.2.2`), Aktualisierung ausschließlich über Renovate,
+sodass jede Änderung im Review sichtbar ist. Zusätzlich `permissions:` je Arbeitsablauf
+auf das Minimum begrenzen.
 
 #### PROD-026 — Keine Stückliste, keine Signatur
 **Schwere:** Mittel · **Status:** Offen · **Betrifft:** §13

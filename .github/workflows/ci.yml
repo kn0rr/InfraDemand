@@ -1,0 +1,94 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    name: Lint und Formatierung
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+
+      - name: Abhaengigkeiten installieren
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm lint
+
+  realm:
+    name: Keycloak-Realm validieren
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Infrastruktur starten
+        run: docker compose -f infra/local/compose.yaml up -d
+
+      - name: Auf Keycloak warten
+        run: |
+          timeout 180 bash -c 'until curl -sf http://localhost:8080/realms/master/.well-known/openid-configuration >/dev/null; do sleep 3; done'
+
+      - name: Realm anwenden
+        run: docker compose -f infra/local/compose.yaml --profile config run --rm keycloak-config
+
+      - name: Wiederholte Anwendung ist idempotent
+        run: docker compose -f infra/local/compose.yaml --profile config run --rm keycloak-config
+
+      - name: Realm ist erreichbar
+        run: |
+          issuer=$(curl -sf http://localhost:8080/realms/infrademand/.well-known/openid-configuration | jq -r .issuer)
+          test "$issuer" = "http://localhost:8080/realms/infrademand"
+
+      - name: Anspruchskette im Token pruefen
+        run: |
+          token=$(curl -sf -X POST \
+            -d client_id=frontend -d username=test.author -d password=test -d grant_type=password \
+            http://localhost:8080/realms/infrademand/protocol/openid-connect/token | jq -r .access_token)
+
+          payload=$(echo "$token" | cut -d. -f2 | tr '_-' '/+')
+          case $(( ${#payload} % 4 )) in 2) payload="$payload==" ;; 3) payload="$payload=" ;; esac
+          claims=$(echo "$payload" | base64 -d)
+
+          echo "$claims" | jq -e '(.aud | if type=="array" then . else [.] end) | index("requirement-api")' >/dev/null
+          echo "$claims" | jq -e '.realm_access.roles | index("requirement-author")' >/dev/null
+
+      - name: Logs bei Fehlschlag
+        if: failure()
+        run: docker compose -f infra/local/compose.yaml logs --no-color
+
+      - name: Aufraeumen
+        if: always()
+        run: docker compose -f infra/local/compose.yaml down -v
+
+  security:
+    name: Sicherheitspruefung
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Abhaengigkeiten und Geheimnisse pruefen
+        run: |
+          docker run --rm -v "$PWD:/src" -w /src aquasec/trivy:latest \
+            fs --scanners vuln,secret --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 .
+
+      - name: Konfiguration pruefen
+        run: |
+          docker run --rm -v "$PWD:/src" -w /src aquasec/trivy:latest \
+            config --severity HIGH,CRITICAL --exit-code 1 .

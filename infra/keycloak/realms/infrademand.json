@@ -9,7 +9,7 @@
 
   "roles": {
     "realm": [
-      { "name": "platform-admin",     "description": "Vollzugriff auf die Plattformverwaltung" },
+      { "name": "platform-admin", "description": "Vollzugriff auf die Plattformverwaltung" },
       { "name": "requirement-author", "description": "Darf Anforderungen anlegen und bearbeiten" },
       { "name": "requirement-reader", "description": "Darf Anforderungen lesen" }
     ]
@@ -61,9 +61,7 @@
       "firstName": "Test",
       "lastName": "Author",
       "email": "test.author@example.local",
-      "credentials": [
-        { "type": "password", "value": "test", "temporary": false }
-      ],
+      "credentials": [{ "type": "password", "value": "test", "temporary": false }],
       "realmRoles": ["requirement-author"]
     }
   ]
