@@ -20,7 +20,7 @@ Commit aktualisiert.
 | Biome | 2.5.6 | `biome.json` | Linting und Formatierung |
 | Docker Compose | – | `infra/local/compose.yaml` | Lokale Infrastruktur |
 | PostgreSQL | 18 (Alpine) | `infra/local/compose.yaml`, `infra/local/postgres/init/` | Datenhaltung |
-| Keycloak | 26.4 | `infra/local/compose.yaml`, `infra/keycloak/realms/` | Identitätsverwaltung |
+| Keycloak | 26.7.0 | `infra/local/compose.yaml`, `infra/keycloak/realms/` | Identitätsverwaltung |
 | keycloak-config-cli | 6.5.1-26 | `infra/local/compose.yaml` (Profil `config`) | Idempotente Anwendung der Realm-Definition |
 | EditorConfig | – | `.editorconfig` | Editorübergreifende Grundeinstellungen |
 | Git-Attribute | – | `.gitattributes` | Erzwingt LF-Zeilenenden in Repository **und** Arbeitsverzeichnis |

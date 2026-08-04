@@ -28,7 +28,7 @@ das Repository festgelegt und nicht von Hand installiert:
 | TypeScript | 5.9.3 (exakt) | `package.json`, siehe [ADR-0006](../adr/0006-typescript-version-und-modulsemantik.md) |
 | Biome | 2.5.6 | `package.json` |
 | PostgreSQL | 18 (Alpine) | `infra/local/compose.yaml` |
-| Keycloak | 26.4 | `infra/local/compose.yaml` |
+| Keycloak | 26.7.0 | `infra/local/compose.yaml` |
 
 ---
 
@@ -386,6 +386,28 @@ pnpm run infra:up
 Die Anweisungen von Hand über `psql` einzuspielen behebt zwar das Symptom, verdeckt aber,
 dass die Umgebung nicht allein aus dem Repository reproduzierbar ist. Deshalb der Weg
 über den vollständigen Neuaufbau.
+
+### `Connect to keycloak:8080 failed: Connection refused` bei `infra:realm`
+
+Der Container läuft, Keycloak ist aber noch nicht bereit. Nach einem `infra:reset` braucht
+es rund 13 Sekunden für Schemamigration und Bootstrap.
+
+Vorbeugend ist im Dienst `keycloak` ein Healthcheck hinterlegt, und `keycloak-config`
+wartet über `condition: service_healthy` darauf. Tritt der Fehler trotzdem auf, prüfe:
+
+```powershell
+docker compose -f infra/local/compose.yaml ps
+```
+
+Steht Keycloak nicht auf `(healthy)`, sieh in die Logs – dann ist es kein Zeitproblem:
+
+```powershell
+docker compose -f infra/local/compose.yaml logs keycloak --tail 30
+```
+
+> Der Healthcheck spricht das Verwaltungsinterface auf Port 9000 über Bashs `/dev/tcp`
+> an, weil das Keycloak-Image **weder `curl` noch `wget`** enthält. Vorhanden sind `bash`,
+> `timeout` und `grep`. Deshalb `CMD` mit explizitem `bash` statt `CMD-SHELL`.
 
 ### Der Realm `infrademand` existiert nicht
 

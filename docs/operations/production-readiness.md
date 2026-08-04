@@ -367,6 +367,33 @@ Monate. Längere Fristen brauchen eine eigene Begründung im `statement`.
 **Ein abgelaufener Eintrag wird nicht verlängert, sondern neu bewertet.** Verlängerung
 ohne erneute Prüfung ist genau der Mechanismus, mit dem Unterdrückungen dauerhaft werden.
 
+### Die entscheidende Unterscheidung
+
+> **„Wir sind nur nicht aktuell" ist niemals ein Grund für eine Unterdrückung.**
+
+Ein Befund darf ausschließlich dann unterdrückt werden, wenn der betroffene Codepfad im
+konkreten Verwendungskontext **nicht erreichbar** ist. Ist eine behobene Fassung
+verfügbar und wir setzen sie schlicht noch nicht ein, ist die Antwort das Update – auch
+wenn es unbequem ist.
+
+Der Lauf vom 2026-08-04 hat beide Fälle nebeneinander geliefert und zeigt den Unterschied
+deutlich:
+
+| | `gosu` (postgres) | Keycloak 26.4.7 |
+|---|---|---|
+| Befunde | 15 (Go-Standardbibliothek) | 62 (11 Betriebssystem, 51 Java) |
+| Betroffene Pfade | `crypto/tls`, `net/url`, `net/mail` … | OIDC-Anmeldung, Token-Ausgabe, Scope-Durchsetzung, `redirect_uri`-Prüfung |
+| Erreichbar? | **Nein** – gosu tut nichts davon | **Ja** – das ist die Kernfunktion des Dienstes |
+| Behandlung | Befristet unterdrückt, begründet | **Aktualisiert** auf 26.7.0 |
+
+Die Keycloak-Befunde umfassten unter anderem Rechteausweitung über gefälschte
+Autorisierungscodes (CVE-2026-4282), Session Fixation im OIDC-Anmeldefluss
+(CVE-2026-7507) und die Umgehung der `redirect_uri`-Prüfung (CVE-2026-3872) – in genau
+dem Dienst, auf dem die Authentifizierung der gesamten Plattform beruht. Eine
+Unterdrückung wäre hier nicht vertretbar gewesen, unabhängig von der Begründung.
+
+**Wenn die Unterscheidung im Einzelfall unklar ist, gilt sie als erreichbar.**
+
 #### PROD-026 — Keine Stückliste, keine Signatur
 **Schwere:** Mittel · **Status:** Offen · **Betrifft:** §13
 

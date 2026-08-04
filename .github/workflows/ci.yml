@@ -40,11 +40,7 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: Infrastruktur starten
-        run: docker compose -f infra/local/compose.yaml up -d
-
-      - name: Auf Keycloak warten
-        run: |
-          timeout 180 bash -c 'until curl -sf http://localhost:8080/realms/master/.well-known/openid-configuration >/dev/null; do sleep 3; done'
+        run: docker compose -f infra/local/compose.yaml up -d --wait
 
       - name: Realm anwenden
         run: docker compose -f infra/local/compose.yaml --profile config run --rm keycloak-config
