@@ -74,3 +74,45 @@ vulnerabilities:
     paths: ["usr/local/bin/gosu"]
     statement: "mime in gosu nicht erreichbar."
     expired_at: 2026-11-04
+
+  # --- Keycloak 26.7.0: gebuendelte Bibliotheken ----------------------------
+  # Keycloak 26.7.0 ist die neueste Fassung. Ein Update ist nicht moeglich -
+  # die Fixes liegen in Bibliotheksfassungen, die Keycloak nicht bundelt.
+  # Bewertung je Eintrag: docs/operations/production-readiness.md, PROD-038.
+
+  # Nicht erreichbar
+  - id: CVE-2025-59250
+    statement: "MS-SQL-JDBC-Treiber wird nie geladen (wir nutzen PostgreSQL). Zudem entspricht die installierte Fassung 13.2.1.jre11 bereits der behobenen."
+    expired_at: 2026-09-15
+  - id: CVE-2026-55831
+    statement: "Netty SPDY-Codec; SPDY wird von Quarkus/Keycloak nicht verwendet."
+    expired_at: 2026-09-15
+  - id: CVE-2026-55833
+    statement: "Netty SPDY-Codec; SPDY wird von Quarkus/Keycloak nicht verwendet."
+    expired_at: 2026-09-15
+  - id: CVE-2026-56745
+    statement: "Netty SPDY-zu-HTTP-Codec; SPDY wird nicht verwendet."
+    expired_at: 2026-09-15
+  - id: CVE-2026-55851
+    statement: "Netty HAProxy PROXY-Protokoll; in Keycloak abgeschaltet, wir nutzen X-Forwarded-Header."
+    expired_at: 2026-09-15
+  - id: CVE-2026-59901
+    statement: "Netty bzip2-Kompression; im HTTP-Stack nicht verwendet."
+    expired_at: 2026-09-15
+  - id: CVE-2026-54291
+    statement: "pgjdbc SCRAM-SHA-256-PLUS-Downgrade; setzt TLS-Kanalbindung voraus, die Datenbankverbindung laeuft unverschluesselt. NEU BEWERTEN bei Umsetzung von PROD-004."
+    expired_at: 2026-09-15
+
+  # Risiko akzeptiert, Upstream ausstehend - NICHT als unerreichbar dokumentiert
+  - id: CVE-2026-54512
+    statement: "RISIKO AKZEPTIERT, UPSTREAM AUSSTEHEND. jackson-databind, Codeausfuehrung ueber PolymorphicTypeValidator-Umgehung. Erreichbarkeit nicht ausschliessbar. Keycloak 26.7.0 buendelt 2.21.2, Fix in 2.21.4."
+    expired_at: 2026-09-15
+  - id: CVE-2026-54513
+    statement: "RISIKO AKZEPTIERT, UPSTREAM AUSSTEHEND. jackson-databind, Umgehung einer Sicherheitspruefung mit moeglicher Codeausfuehrung."
+    expired_at: 2026-09-15
+  - id: GHSA-r7wm-3cxj-wff9
+    statement: "RISIKO AKZEPTIERT, UPSTREAM AUSSTEHEND. jackson-core, Umgehung von maxNumberLength im asynchronen Parser."
+    expired_at: 2026-09-15
+  - id: CVE-2026-56819
+    statement: "RISIKO AKZEPTIERT, UPSTREAM AUSSTEHEND. Netty, Speicherleck ueber HTTP/2-DATA-Frames. Keycloak bedient HTTP/2, also erreichbar."
+    expired_at: 2026-09-15

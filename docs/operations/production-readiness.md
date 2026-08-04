@@ -51,10 +51,10 @@ Das gilt für alle Beteiligten, einschließlich der KI in ihrer Beraterrolle
 | B – Geheimnisse und Zugangsdaten | 5 | 5 |
 | C – Identität und Zugriff | 5 | 2 |
 | D – Daten | 4 | 3 |
-| E – Container und Lieferkette | 7 | 1 |
+| E – Container und Lieferkette | 8 | 1 |
 | F – Betrieb und Verfügbarkeit | 5 | 1 |
 | G – Anwendungssicherheit | 4 | 1 |
-| **Gesamt** | **37** | **18** |
+| **Gesamt** | **38** | **18** |
 
 Stand 2026-08-03: kein Eintrag erledigt. Das ist erwartbar – die Plattform befindet sich
 in Meilenstein M0.
@@ -393,6 +393,59 @@ dem Dienst, auf dem die Authentifizierung der gesamten Plattform beruht. Eine
 Unterdrückung wäre hier nicht vertretbar gewesen, unabhängig von der Begründung.
 
 **Wenn die Unterscheidung im Einzelfall unklar ist, gilt sie als erreichbar.**
+
+### Die dritte Kategorie: Upstream hat noch nicht nachgezogen
+
+Es gibt einen Fall zwischen beiden: Wir setzen bereits die **neueste verfügbare Fassung**
+eines Fremdbestandteils ein, und diese bündelt eine Bibliothek, für die zwar ein Fix
+existiert, den der Hersteller aber noch nicht übernommen hat. Ein Update ist unmöglich –
+es gibt nichts, worauf.
+
+Das ist **keine** Unerreichbarkeit und darf nicht als solche dokumentiert werden.
+Es ist eine **befristete Risikoannahme** und wird als solche behandelt:
+
+- Status `Bewusst akzeptiert (befristet)` mit eigenem Eintrag, nicht nur eine Zeile in
+  `.trivyignore.yaml`
+- Frist gekoppelt an die **nächste Herstellerfassung**, nicht an ein rundes Datum
+- Im `statement` steht ausdrücklich „Risiko akzeptiert, Upstream ausstehend" – nicht
+  „nicht erreichbar"
+- Bei Schweregrad `Kritisch` gilt die Regel aus der Legende: **nicht akzeptierbar.** Dann
+  ist der Fremdbestandteil selbst infrage zu stellen.
+
+Der Unterschied ist nicht sprachlicher Natur. „Nicht erreichbar" heißt: Der Befund geht
+uns nichts an. „Risiko akzeptiert" heißt: Er geht uns etwas an, und wir tragen ihn
+bewusst für eine begrenzte Zeit.
+
+#### PROD-038 — Von Keycloak gebündelte Bibliotheken mit offenen Schwachstellen
+**Schwere:** Hoch · **Status:** Bewusst akzeptiert (befristet) · **Betrifft:** §13 · **Fundstelle:** `.trivyignore.yaml`
+
+Keycloak 26.7.0 – die zum 2026-08-04 neueste Fassung – bündelt Bibliotheken mit
+11 bekannten Schwachstellen (14 Meldungen, kein Befund kritisch). Ein Update ist nicht
+möglich; die Fixes liegen in Bibliotheksfassungen, die Keycloak noch nicht übernommen hat.
+
+**Nicht erreichbar (7)** – Begründungen je Eintrag in `.trivyignore.yaml`:
+CVE-2025-59250 (MS-SQL-Treiber wird nie geladen, zudem Vergleichsartefakt bei der
+`jre11`-Kennung), CVE-2026-55831/-55833/-56745 (SPDY-Codec, nicht verwendet),
+CVE-2026-55851 (PROXY-Protokoll abgeschaltet), CVE-2026-59901 (bzip2 im HTTP-Stack nicht
+verwendet), CVE-2026-54291 (setzt TLS-Kanalbindung voraus, siehe unten).
+
+**Risiko akzeptiert, Upstream ausstehend (4):**
+CVE-2026-54512 und CVE-2026-54513 (jackson-databind, Codeausführung über Umgehung des
+`PolymorphicTypeValidator`), GHSA-r7wm-3cxj-wff9 (jackson-core),
+CVE-2026-56819 (Netty, Speicherleck über HTTP/2-DATA-Frames – Keycloak bedient HTTP/2,
+also erreichbar).
+
+**Überprüfung:** Mit der nächsten Keycloak-Fassung, spätestens 2026-09-15. Renovate meldet
+neue Fassungen als Pull Request.
+
+**Kopplung zu PROD-004:** CVE-2026-54291 (Downgrade des Man-in-the-Middle-Schutzes bei
+SCRAM-SHA-256-PLUS) ist derzeit gegenstandslos, weil die Datenbankverbindung
+unverschlüsselt läuft. **Mit der Umsetzung von PROD-004 wird er relevant** und ist dann
+neu zu bewerten – die Behebung des einen Punktes aktiviert den anderen.
+
+**Einordnung:** Alle Befunde betreffen ausschließlich die lokale Entwicklungsumgebung. Vor
+einem Produktivgang greift ohnehin `PROD-025`; diese Liste ist die Voraussetzung dafür,
+dass die Bewertung dann auf einer gepflegten Grundlage steht statt bei null zu beginnen.
 
 #### PROD-026 — Keine Stückliste, keine Signatur
 **Schwere:** Mittel · **Status:** Offen · **Betrifft:** §13
