@@ -196,9 +196,26 @@ Testrunner – melden dann Fehler, die die CI nicht sieht, weil sie auf einem fr
 Auscheckvorgang arbeitet. `.gitattributes` liegt im Repository und gilt damit für alle,
 während lokale Einstellungen jeder Beteiligte selbst setzen müsste.
 
-### Branch-Benennung
+### Branch-Benennung und Arbeitsablauf
 
 `<typ>/<kurzbeschreibung>`, etwa `feat/m0-foundation`, `fix/keycloak-realm-import`.
+
+Es wird nicht direkt auf `main` gearbeitet:
+
+```
+Feature-Branch  →  Pull Request  →  CI gruen  →  Merge nach main
+```
+
+Die Pipeline wird durch den **Pull Request** ausgelöst, nicht durch den Push auf den
+Branch. Ein Push auf einen Feature-Branch startet bewusst nichts – sonst liefe die
+Pipeline bei offenem Pull Request zweimal parallel für denselben Stand. Zum Ausprobieren
+der Pipeline selbst steht `workflow_dispatch` bereit (*Actions → CI → Run workflow*).
+
+Die Jobs `lint`, `realm` und `security` sind als erforderliche Prüfungen für `main`
+gesetzt. Das ist eine Repository-Einstellung, kein Bestandteil des Repositories – ohne
+sie wäre die Pipeline eine Empfehlung statt eines Tors, und Aussagen wie „eine abweichende
+Spezifikation bricht den Build" ([ADR-0005](../adr/0005-api-first-workflow.md)) wären
+nicht belastbar.
 
 ### Testansatz
 
