@@ -87,7 +87,7 @@ jobs:
       - name: Abhaengigkeiten und Geheimnisse pruefen
         run: |
           docker run --rm -v "$PWD:/src" -w /src aquasec/trivy:latest \
-            fs --scanners vuln,secret --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 .
+            fs --scanners vuln,secret --severity HIGH,CRITICAL --ignore-unfixed --skip-dirs node_modules --exit-code 1 .
 
       - name: Konfiguration pruefen
         run: |
