@@ -86,6 +86,24 @@ zurückzuweisen.
 Änderungen wirken sich auf `pnpm-lock.yaml` aus; beide Dateien gehören in denselben
 Commit, sonst bricht `pnpm install --frozen-lockfile` in der Pipeline.
 
+### Erzwungene Abhängigkeitsversionen (Overrides)
+
+Transitive Abhängigkeiten mit bekannten Schwachstellen lassen sich nicht direkt anheben –
+sie werden über `overrides` in `pnpm-workspace.yaml` erzwungen.
+
+| Paket | Erzwungen | Grund | Entfernen, sobald |
+|---|---|---|---|
+| `find-my-way` | `>=9.7.0` | CVE-2026-47219 (HIGH, DDoS über HTTP/2) in 9.6.0; zweifach transitiv über `@nestjs/platform-fastify` und `fastify` | `@nestjs/platform-fastify` selbst ≥9.7.0 auflöst |
+
+**Ein Override ist Schulden, kein Fix.** Er erzwingt eine Version an einer Stelle, an der
+Upstream noch eine ältere deklariert. Bleibt er nach dem Nachziehen von Upstream stehen,
+wird er zu einer unsichtbaren Festlegung, die irgendwann eine notwendige Aktualisierung
+blockiert – ohne dass jemand den Zusammenhang noch kennt. Deshalb trägt jeder Eintrag eine
+Entfernungsbedingung, und die Spalte ist Pflicht.
+
+Änderungen wirken sich auf `pnpm-lock.yaml` aus; beide Dateien gehören in denselben
+Commit.
+
 ### Warum Biome und nicht ESLint mit Prettier
 
 Ein Werkzeug statt zweier, eine Konfigurationsdatei statt dreier, und deutlich schneller.
