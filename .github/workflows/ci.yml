@@ -92,12 +92,15 @@ jobs:
 
       - name: Container-Images pruefen
         run: |
-          for image in postgres:18-alpine quay.io/keycloak/keycloak:26.4 adorsys/keycloak-config-cli:6.5.1-26; do
+          images=$(docker compose -f infra/local/compose.yaml --profile config config --images | sort -u)
+          status=0
+          for image in $images; do
             echo "::group::$image"
             docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v "$PWD:/src" aquasec/trivy:latest \
-              image --severity HIGH,CRITICAL --ignore-unfixed --ignorefile /src/.trivyignore.yaml --exit-code 1 "$image"
+              image --severity HIGH,CRITICAL --ignore-unfixed --ignorefile /src/.trivyignore.yaml --exit-code 1 "$image" || status=1
             echo "::endgroup::"
           done
+          exit $status
 
   test:
     name: Typecheck und Tests

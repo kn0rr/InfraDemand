@@ -195,8 +195,15 @@ await app.getHttpAdapter().getInstance().ready();
 Der Job `test` in `.github/workflows/ci.yml` läuft über `pnpm -r test` und erfasst das
 neue Paket automatisch – **sofern** die Skriptnamen aus Schritt 1 eingehalten wurden.
 
-Ergänzt der Service ein Container-Image, gehört es in die Liste des Schritts
-„Container-Images pruefen".
+Für Container-Images ist nichts zu tun: Der Job `security` leitet die zu prüfende Liste
+über `docker compose config --images` aus `infra/local/compose.yaml` ab. Was dort steht,
+wird geprüft.
+
+> Das war nicht immer so. Bis 2026-08-04 stand die Liste fest im Workflow und lief
+> auseinander: Keycloak war in Compose bereits auf 26.7.0 angehoben, während die CI
+> weiterhin das nicht mehr verwendete 26.4 prüfte und dessen Schwachstellen meldete.
+> Deshalb gilt für jede Art von Liste in diesem Repository: **ableiten statt
+> duplizieren.**
 
 ---
 
