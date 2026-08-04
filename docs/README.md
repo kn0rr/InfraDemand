@@ -24,6 +24,7 @@ alle Dokumente hier verweisen darauf und ersetzen es nicht.
 - **Wissen, warum eine Technologie gewählt wurde?** → [`adr/README.md`](adr/README.md)
 - **Welche Werkzeuge sind im Einsatz?** → [`development/tooling.md`](development/tooling.md)
 - **Was fehlt noch bis zur Produktionsreife?** → [`operations/production-readiness.md`](operations/production-readiness.md)
+- **Einen neuen Service anlegen?** → [`development/service-setup.md`](development/service-setup.md)
 
 ## Grundsatz
 
@@ -44,6 +45,9 @@ Nachbereitung. Konkret:
 
 ## Stand
 
-Das Projekt befindet sich in Meilenstein **M0 (Fundament)**. Der aktuelle Stand und die
-geplante Reihenfolge stehen in
-[`architecture/README.md`](architecture/README.md#umsetzungsstrategie).
+Meilenstein **M0 (Fundament)** ist abgeschlossen: Monorepo, lokale Infrastruktur,
+deklarative Keycloak-Verwaltung und CI-Pipeline stehen.
+
+Laufend ist **M1 (Walking Skeleton Requirement Service)**, aktuell Teilschritt M1.1
+(Service-Gerüst und Test-Harness). Der Stand je Teilschritt und die geplante Reihenfolge
+stehen in [`architecture/README.md`](architecture/README.md#umsetzungsstrategie).

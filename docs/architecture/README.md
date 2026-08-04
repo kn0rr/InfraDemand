@@ -148,8 +148,8 @@ nacheinander. Die Begründung steht in
 
 | Meilenstein | Inhalt | Stand |
 |---|---|---|
-| **M0** | Fundament: Monorepo, lokale Infrastruktur, CI, Entscheidungen als ADRs | in Arbeit |
-| **M1** | Walking Skeleton Requirement Service: Kernentität, Authentifizierung, Migrationen, Audit-Pfad, Integrationstests | offen |
+| **M0** | Fundament: Monorepo, lokale Infrastruktur, CI, Entscheidungen als ADRs | abgeschlossen |
+| **M1** | Walking Skeleton Requirement Service: Kernentität, Authentifizierung, Migrationen, Audit-Pfad, Integrationstests | in Arbeit |
 | **M2** | Frontend-Durchstich: Anmeldung, Liste, Anlegen, generierter API-Client | offen |
 | **M3** | Dynamisches Attributmodell (§6) | offen |
 | **M4** | Workflow-Engine (§7) | offen |
@@ -157,6 +157,18 @@ nacheinander. Die Begründung steht in
 | **M6** | Infrastructure Service, Bereitstellungskategorien und Service-Katalog (§17, §18) | offen |
 | **M7** | Capacity Service, Overhead-Berechnung und Forecasting (§9, §18) | offen |
 | **M8** | Audit Service als eigenständiger Dienst, Reporting (§10), Visualisierung (§11) | offen |
+
+### M1 im Detail
+
+| | Inhalt | Beweist | Stand |
+|---|---|---|---|
+| **M1.1** | Service-Gerüst, Test-Harness, `GET /health` | Anwendung startet, Tests laufen lokal und in CI | in Arbeit |
+| **M1.2** | Authentifizierung: Guard gegen Keycloak-JWKS | Ohne Token 401, mit gültigem Token 200 | offen |
+| **M1.3** | Persistenz: ORM-Entscheidung, Migration, Kernentität, Testcontainers | Echte Daten aus echtem PostgreSQL | offen |
+| **M1.4** | Schreibpfad: `POST /v1/requirements`, Audit-Ereignisschema, OpenAPI-Contract mit Drift-Tor | Auditierung ab der ersten Schreiboperation (§16) | offen |
+
+Die ORM-Entscheidung fällt bewusst erst in M1.3 – dann liegt ein konkreter Bedarf vor,
+statt sie im Vorgriff zu treffen.
 
 ### Warum diese Reihenfolge
 

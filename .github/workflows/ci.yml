@@ -18,11 +18,11 @@ jobs:
     name: Lint und Formatierung
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version-file: .node-version
           cache: pnpm
@@ -37,7 +37,7 @@ jobs:
     name: Keycloak-Realm validieren
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Infrastruktur starten
         run: docker compose -f infra/local/compose.yaml up -d
@@ -82,7 +82,7 @@ jobs:
     name: Sicherheitspruefung
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Abhaengigkeiten und Geheimnisse pruefen
         run: |
@@ -93,3 +93,34 @@ jobs:
         run: |
           docker run --rm -v "$PWD:/src" -w /src aquasec/trivy:latest \
             config --severity HIGH,CRITICAL --exit-code 1 .
+
+      - name: Container-Images pruefen
+        run: |
+          for image in postgres:18-alpine quay.io/keycloak/keycloak:26.4 adorsys/keycloak-config-cli:6.5.1-26; do
+            echo "::group::$image"
+            docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy:latest \
+              image --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 "$image"
+            echo "::endgroup::"
+          done
+
+  test:
+    name: Typecheck und Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+
+      - name: Abhaengigkeiten installieren
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Tests
+        run: pnpm test

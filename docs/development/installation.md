@@ -258,7 +258,64 @@ Konfiguration in PostgreSQL persistiert wird und nicht bei jedem Neustart verlor
 
 ---
 
-## 9. Lokale Zugänge
+## 9. Services einrichten
+
+Ein eigener Installationsschritt je Service ist **nicht** nötig. Das `pnpm install` aus
+Abschnitt 6 richtet den gesamten Arbeitsbereich ein – Services, geteilte Pakete und
+Frontend in einem Durchgang ([ADR-0002](../adr/0002-repository-struktur.md)).
+
+### Vorhandene Services
+
+| Paket | Verzeichnis | Stand |
+|---|---|---|
+| `@infrademand/requirement` | [`services/requirement`](../../services/requirement/README.md) | M1.1 – Gerüst, noch kein Anwendungscode |
+
+### Befehle je Service
+
+```powershell
+pnpm --filter @infrademand/requirement test
+```
+
+```powershell
+pnpm --filter @infrademand/requirement typecheck
+```
+
+```powershell
+pnpm --filter @infrademand/requirement dev
+```
+
+Über alle Pakete hinweg aus dem Wurzelverzeichnis:
+
+```powershell
+pnpm test
+```
+
+```powershell
+pnpm typecheck
+```
+
+Beide laufen über `pnpm -r` und erfassen jedes Paket, dessen `package.json` das
+entsprechende Skript enthält. Ein Paket mit abweichendem Skriptnamen wird **stillschweigend
+übersprungen** – deshalb sind die Namen in
+[service-setup.md](service-setup.md) verbindlich festgelegt.
+
+### Voraussetzungen zur Laufzeit
+
+Ab Meilenstein M1.2 greift der Requirement Service auf Keycloak zu, ab M1.3 zusätzlich auf
+PostgreSQL. Die lokale Infrastruktur muss dann laufen (`pnpm run infra:up`), bevor Tests
+oder der Entwicklungsserver gestartet werden.
+
+Details zu Konfiguration, Endpunkten und bekannten Stolpersteinen stehen im
+[README des Service](../../services/requirement/README.md).
+
+### Einen neuen Service anlegen
+
+Siehe [service-setup.md](service-setup.md) – Prüfliste einschließlich Datenbank, Rolle,
+Keycloak-Client und CI-Einbindung.
+
+---
+
+## 10. Lokale Zugänge
 
 > Diese Zugangsdaten gelten **ausschließlich lokal**. Sie sind bewusst trivial und dürfen
 > in keiner anderen Umgebung verwendet werden. Für alle nicht-lokalen Umgebungen gilt
@@ -277,7 +334,7 @@ Service verwendet ausschließlich seine eigene Rolle und Datenbank – auch loka
 
 ---
 
-## 10. Häufige Fehler
+## 11. Häufige Fehler
 
 Die folgenden Fälle sind beim Aufbau der Umgebung tatsächlich aufgetreten und hier
 dokumentiert, weil ihre Fehlermeldungen nicht auf die Ursache zeigen.
@@ -362,6 +419,42 @@ Leerzeichen, ihre Eigenschaften auf vier. Steht `keycloak-config` auf vier Leerz
 liest YAML es als Eigenschaft des `keycloak`-Dienstes. Alle Dienstnamen müssen exakt
 gleich weit eingerückt sein.
 
+### `ERR_PNPM_IGNORED_BUILDS: Ignored build scripts: <paket>`
+
+pnpm führt Build-Skripte von Abhängigkeiten seit Version 10 **nicht** mehr automatisch
+aus. Ein `postinstall`-Skript führt beliebigen Code mit den Rechten des Build-Prozesses
+aus und ist einer der meistgenutzten Angriffswege auf Lieferketten; pnpm verlangt deshalb
+je Paket eine ausdrückliche Freigabe.
+
+**Behebung:** Das Paket in `pnpm-workspace.yaml` freigeben, anschließend `pnpm install`:
+
+```yaml
+allowBuilds:
+  "@swc/core": true
+```
+
+`pnpm approve-builds` schreibt denselben Eintrag über eine interaktive Auswahl. Der
+direkte Weg ist vorzuziehen, weil der Eintrag eine Sicherheitsentscheidung ist und in der
+Codeprüfung sichtbar sein soll.
+
+> **Ab pnpm 11** heißt das Feld `allowBuilds` und ist eine Zuordnung von Paketmuster auf
+> Wahrheitswert. Die früheren Felder `onlyBuiltDependencies`, `neverBuiltDependencies`,
+> `ignoredBuiltDependencies` und `ignoreDepScripts` wurden entfernt und wirken nicht mehr.
+>
+> Läuft `pnpm install` nicht interaktiv, schreibt pnpm einen Platzhalter der Form
+> `"<paket>": set this to true or false` in die Datei. Dieser muss von Hand durch `true`
+> oder `false` ersetzt werden.
+
+Der Wert `false` ist dabei eine **ausdrückliche Ablehnung**: Ein geprüftes und abgelehntes
+Build-Skript ist damit von einem unterscheidbar, das noch niemand angesehen hat.
+
+**Die Liste bleibt so kurz wie möglich.** Jeder Eintrag ist eine bewusste Entscheidung.
+Wächst sie um Pakete, deren Grund niemand mehr kennt, ist der Schutz wirkungslos.
+
+> Die Änderung wirkt sich auf `pnpm-lock.yaml` aus. Beide Dateien gehören in **denselben
+> Commit** – die Pipeline läuft mit `--frozen-lockfile` und bricht sonst ab, obwohl lokal
+> alles grün ist.
+
 ### `pnpm lint` schlägt lokal fehl, die CI ist grün (oder umgekehrt)
 
 Typisches Bild: Biome meldet für jede JSON-Datei „Formatter would have printed the
@@ -420,7 +513,7 @@ TypeScript-Konfiguration, die `"exports"`-Felder nicht auswertet. Siehe
 
 ---
 
-## 11. Nächste Schritte
+## 12. Nächste Schritte
 
 Nach erfolgreicher Verifikation:
 

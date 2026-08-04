@@ -173,6 +173,13 @@ entstehen vertrauliche Clients mit Geheimnissen.
 Service Account entsteht – nachträglich bedeutet es, ein bereits im Verlauf der
 Versionsgeschichte veröffentlichtes Geheimnis auszutauschen.
 
+> **Verschärft am 2026-08-04:** Das Repository `kn0rr/InfraDemand` ist **öffentlich**.
+> Ein versehentlich gepushtes Geheimnis ist damit keine interne Hygienefrage, sondern
+> eine sofortige Veröffentlichung – und über die Ereignis-API auch nach dem Löschen des
+> Commits weiterhin abrufbar. Die Externalisierung muss abgeschlossen sein, **bevor** der
+> erste vertrauliche Client angelegt wird, nicht danach. Dasselbe gilt sinngemäß für
+> PROD-008 und PROD-011.
+
 ---
 
 ## C – Identität und Zugriff
@@ -281,11 +288,27 @@ Ohne Begrenzung kann ein einzelner Dienst den Knoten erschöpfen.
 
 **Zielzustand:** Angeforderte und maximale Werte für CPU und Speicher je Dienst.
 
-#### PROD-025 — Kein automatisiertes Sicherheits-Scanning
-**Schwere:** Kritisch · **Status:** Offen · **Betrifft:** §13 · **Geplant:** M0, Schritt 3
+#### PROD-025 — Sicherheits-Scanning nur teilweise wirksam
+**Schwere:** Kritisch · **Status:** In Arbeit · **Betrifft:** §13 · **Fundstelle:** `.github/workflows/ci.yml`, Job `security`
 
 §13 fordert Abhängigkeits-Scanning, Container-Scanning (Trivy) sowie SAST und DAST in
-CI/CD. Bislang existiert keine Pipeline.
+CI/CD.
+
+*Stand 2026-08-04:* Die Pipeline existiert und der Job ist grün – **aber weitgehend
+gegenstandslos.** Der Geheimnis-Scanner erkennt nur bekannte Geheimnis-Formate
+(Zugangsschlüssel, Token, private Schlüssel) und schlägt bei schwachen Passwörtern wie
+`POSTGRES_PASSWORD: postgres` bewusst nicht an. `trivy config` unterstützt Docker Compose
+nicht als Zieltyp; ein Dockerfile oder Kubernetes-Manifest existiert noch nicht. Geprüft
+werden derzeit faktisch nur die Abhängigkeiten aus `pnpm-lock.yaml`.
+
+Grün bedeutet hier also „nichts zu prüfen gefunden", nicht „sicher". Diese Unterscheidung
+ist festzuhalten, weil ein grüner Sicherheitsjob sonst Vertrauen ohne Grundlage erzeugt.
+
+**Zielzustand:**
+1. Container-Image-Prüfung der eingesetzten Images (sofort möglich)
+2. `trivy config` wird mit dem ersten Dockerfile in M1 wirksam
+3. SAST, sobald Anwendungscode existiert (M1)
+4. DAST gegen eine laufende Instanz (ab M2)
 
 #### PROD-036 — GitHub-Actions nicht auf Commit-Prüfsumme festgelegt
 **Schwere:** Hoch · **Status:** Offen · **Betrifft:** §13 · **Fundstelle:** `.github/workflows/ci.yml`
