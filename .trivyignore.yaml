@@ -1,0 +1,76 @@
+# Unterdrueckte Befunde mit Begruendung und Ablaufdatum.
+# Jeder Eintrag laeuft ab und macht den Build danach wieder rot.
+# Bewertung und Verfahren: docs/operations/production-readiness.md, PROD-037.
+
+vulnerabilities:
+  # --- postgres:18-alpine, Alpine-Paket -------------------------------------
+  # Real behebbar, sobald das Basis-Image neu gebaut wird. Kurze Frist.
+  - id: CVE-2026-33630
+    statement: "c-ares in postgres:18-alpine; Fix 1.34.8-r0 liegt vor, Image noch nicht neu gebaut. Kurzfristig akzeptiert."
+    expired_at: 2026-09-04
+
+  # --- postgres:18-alpine, gosu (Go-Standardbibliothek 1.24.6) --------------
+  # gosu loest Benutzerrechte auf und fuehrt danach den Entrypoint aus.
+  # Kein Netzwerk, kein TLS, keine X.509-, URL-, MIME- oder Mail-Verarbeitung.
+  # Trivy meldet die Schwachstellen anhand der Go-Version des Binaerprogramms,
+  # nicht anhand der tatsaechlich genutzten Codepfade.
+  - id: CVE-2025-68121
+    paths: ["usr/local/bin/gosu"]
+    statement: "crypto/tls in gosu nicht erreichbar."
+    expired_at: 2026-11-04
+  - id: CVE-2025-61726
+    paths: ["usr/local/bin/gosu"]
+    statement: "net/url in gosu nicht erreichbar."
+    expired_at: 2026-11-04
+  - id: CVE-2025-61729
+    paths: ["usr/local/bin/gosu"]
+    statement: "crypto/x509 in gosu nicht erreichbar."
+    expired_at: 2026-11-04
+  - id: CVE-2026-25679
+    paths: ["usr/local/bin/gosu"]
+    statement: "net/url in gosu nicht erreichbar."
+    expired_at: 2026-11-04
+  - id: CVE-2026-27145
+    paths: ["usr/local/bin/gosu"]
+    statement: "crypto/x509 in gosu nicht erreichbar."
+    expired_at: 2026-11-04
+  - id: CVE-2026-32280
+    paths: ["usr/local/bin/gosu"]
+    statement: "crypto/x509 in gosu nicht erreichbar."
+    expired_at: 2026-11-04
+  - id: CVE-2026-32281
+    paths: ["usr/local/bin/gosu"]
+    statement: "crypto/x509 in gosu nicht erreichbar."
+    expired_at: 2026-11-04
+  - id: CVE-2026-32283
+    paths: ["usr/local/bin/gosu"]
+    statement: "crypto/tls in gosu nicht erreichbar."
+    expired_at: 2026-11-04
+  - id: CVE-2026-33811
+    paths: ["usr/local/bin/gosu"]
+    statement: "net in gosu nicht erreichbar."
+    expired_at: 2026-11-04
+  - id: CVE-2026-33814
+    paths: ["usr/local/bin/gosu"]
+    statement: "HTTP/2 in gosu nicht erreichbar."
+    expired_at: 2026-11-04
+  - id: CVE-2026-39820
+    paths: ["usr/local/bin/gosu"]
+    statement: "net/mail in gosu nicht erreichbar."
+    expired_at: 2026-11-04
+  - id: CVE-2026-39822
+    paths: ["usr/local/bin/gosu"]
+    statement: "os.Root wurde erst in Go 1.24 eingefuehrt und wird von gosu nicht genutzt."
+    expired_at: 2026-11-04
+  - id: CVE-2026-39836
+    paths: ["usr/local/bin/gosu"]
+    statement: "net in gosu nicht erreichbar."
+    expired_at: 2026-11-04
+  - id: CVE-2026-42499
+    paths: ["usr/local/bin/gosu"]
+    statement: "net/mail in gosu nicht erreichbar."
+    expired_at: 2026-11-04
+  - id: CVE-2026-42504
+    paths: ["usr/local/bin/gosu"]
+    statement: "mime in gosu nicht erreichbar."
+    expired_at: 2026-11-04

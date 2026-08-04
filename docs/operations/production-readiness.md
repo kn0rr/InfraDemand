@@ -51,10 +51,10 @@ Das gilt für alle Beteiligten, einschließlich der KI in ihrer Beraterrolle
 | B – Geheimnisse und Zugangsdaten | 5 | 5 |
 | C – Identität und Zugriff | 5 | 2 |
 | D – Daten | 4 | 3 |
-| E – Container und Lieferkette | 6 | 1 |
+| E – Container und Lieferkette | 7 | 1 |
 | F – Betrieb und Verfügbarkeit | 5 | 1 |
 | G – Anwendungssicherheit | 4 | 1 |
-| **Gesamt** | **36** | **18** |
+| **Gesamt** | **37** | **18** |
 
 Stand 2026-08-03: kein Eintrag erledigt. Das ist erwartbar – die Plattform befindet sich
 in Meilenstein M0.
@@ -322,6 +322,50 @@ Angriffsweg auf Lieferketten.
 (`uses: actions/checkout@<sha> # v4.2.2`), Aktualisierung ausschließlich über Renovate,
 sodass jede Änderung im Review sichtbar ist. Zusätzlich `permissions:` je Arbeitsablauf
 auf das Minimum begrenzen.
+
+#### PROD-037 — Basis-Image-Schwachstellen unterdrückt
+**Schwere:** Hoch · **Status:** Bewusst akzeptiert (befristet) · **Betrifft:** §13 · **Fundstelle:** `.trivyignore.yaml`
+
+Der Image-Scan meldet 16 Befunde in `postgres:18-alpine`, die wir nicht selbst beheben
+können. Sie sind in `.trivyignore.yaml` **befristet** unterdrückt.
+
+**Gruppe 1 – `gosu`, 15 Befunde (1 kritisch, 14 hoch), Ablauf 2026-11-04.**
+Alle betreffen die Go-Standardbibliothek 1.24.6, mit der das Binärprogramm gebaut wurde:
+`crypto/tls`, `crypto/x509`, `net/url`, `net/mail`, `net`, `mime`, HTTP/2.
+
+`gosu` löst im Postgres-Entrypoint Benutzer- und Gruppenrechte auf und führt danach den
+eigentlichen Prozess aus. Es öffnet keine Netzwerkverbindung und verarbeitet weder TLS,
+Zertifikate, URLs, MIME noch E-Mail-Adressen – **keiner der betroffenen Codepfade ist
+erreichbar.** Trivy meldet sie strukturell: Bei Go-Binärprogrammen wird die Version der
+Standardbibliothek ausgewertet, nicht die tatsächlich genutzten Pakete. Das betrifft jedes
+Go-Binärprogramm gleichermaßen.
+
+Gesondert geprüft: CVE-2026-39822 (`os.Root`, Verzeichnisdurchquerung). `os.Root` wurde
+erst mit Go 1.24 eingeführt und wird von gosu nicht verwendet.
+
+**Gruppe 2 – `c-ares` CVE-2026-33630 (hoch), Ablauf 2026-09-04.**
+Anders gelagert: real behebbar. Der Fix (`1.34.8-r0`) liegt vor, das Basis-Image wurde
+nur noch nicht neu gebaut. Deshalb die kurze Frist – hier ist ein Image-Update die
+Lösung, keine dauerhafte Bewertung.
+
+### Verfahren für Unterdrückungen
+
+Verbindlich für jeden Eintrag in `.trivyignore.yaml`:
+
+1. **`statement`** – warum der Befund im konkreten Verwendungskontext nicht trägt. „Nicht
+   behebbar" genügt nicht; erforderlich ist die Aussage, warum er nicht ausnutzbar ist
+   oder welcher Weg zur Behebung führt.
+2. **`expired_at`** – Pflicht, ohne Ausnahme. Nach Ablauf wird der Build wieder rot und
+   erzwingt eine Neubewertung.
+3. **`paths` oder `purls`** – so eng wie möglich eingegrenzt. Eine Unterdrückung nur über
+   die CVE-Kennung gilt für das gesamte Repository und würde denselben Befund in einem
+   anderen, sehr wohl betroffenen Bestandteil ebenfalls verbergen.
+
+Fristen als Richtwert: behebbare Befunde ein Monat, strukturell nicht erreichbare drei
+Monate. Längere Fristen brauchen eine eigene Begründung im `statement`.
+
+**Ein abgelaufener Eintrag wird nicht verlängert, sondern neu bewertet.** Verlängerung
+ohne erneute Prüfung ist genau der Mechanismus, mit dem Unterdrückungen dauerhaft werden.
 
 #### PROD-026 — Keine Stückliste, keine Signatur
 **Schwere:** Mittel · **Status:** Offen · **Betrifft:** §13
