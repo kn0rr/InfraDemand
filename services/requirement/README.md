@@ -207,7 +207,25 @@ Anwenden gegen die lokale Datenbank:
 pnpm --filter @infrademand/requirement db:migrate
 ```
 
-In Tests werden die Migrationen automatisch gegen den Testcontainer angewandt.
+In den schnellen Tests werden die Migrationen automatisch gegen den Testcontainer
+angewandt.
+
+### Integrationstests
+
+Sie laufen gegen die **echte** lokale Infrastruktur – Keycloak und die Datenbank
+`requirement`:
+
+```powershell
+pnpm run infra:up
+pnpm --filter @infrademand/requirement db:migrate
+pnpm --filter @infrademand/requirement test:integration
+```
+
+Der Umweg über die echte Datenbank statt über einen Testcontainer ist Absicht: Er weist
+nach, dass die erzeugten Migrationen **mit den Rechten der Servicerolle** durchlaufen. Der
+Testcontainer läuft mit weitreichenden Rechten; die Rolle `requirement` ist lediglich
+Eigentümerin ihrer Datenbank. Eine Migration, die mehr voraussetzt, wäre im Container grün
+und in der Zieldatenbank rot – und das fiele sonst erst beim Ausrollen auf.
 
 ### Schichtung
 

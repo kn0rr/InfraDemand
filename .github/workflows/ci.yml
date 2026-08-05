@@ -77,6 +77,11 @@ jobs:
       - name: Abhaengigkeiten installieren
         run: pnpm install --frozen-lockfile
 
+      - name: Migrationen anwenden
+        run: pnpm --filter @infrademand/requirement db:migrate
+        env:
+          DATABASE_URL: postgresql://requirement:requirement@localhost:5432/requirement
+
       - name: Integrationstests gegen Keycloak
         run: pnpm run test:integration
 
