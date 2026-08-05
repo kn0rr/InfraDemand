@@ -6,6 +6,7 @@ import { configureApp } from "../src/app.setup";
 
 const ISSUER = "http://localhost:8080/realms/infrademand";
 const AUDIENCE = "requirement-api";
+const DATABASE_URL = "postgresql://requirement:requirement@localhost:5432/requirement";
 
 async function holeToken(): Promise<string> {
   const antwort = await fetch(`${ISSUER}/protocol/openid-connect/token`, {
@@ -31,10 +32,15 @@ async function holeToken(): Promise<string> {
 }
 
 /**
- * Der einzige Test gegen echtes Keycloak. Er prueft nicht die Kryptografie - das tun die
- * schnellen Tests besser -, sondern unsere Annahmen ueber die Realm-Konfiguration:
- * Ausstellerbezeichnung, Zielgruppen-Anspruch und Rollenstruktur. Genau diese Annahmen
- * driften, wenn jemand den Realm aendert (ADR-0008).
+ * Laeuft gegen die echte lokale Infrastruktur - Keycloak und die Datenbank "requirement".
+ *
+ * Bewusst kein Testcontainer fuer die Datenbank: Der Container laeuft mit weitreichenden
+ * Rechten, die Rolle "requirement" ist lediglich Eigentuemerin ihrer Datenbank. Nur so
+ * ist nachgewiesen, dass die Migrationen mit den tatsaechlichen Rechten durchlaufen.
+ *
+ * Geprueft werden nicht kryptografische Eigenschaften - das tun die schnellen Tests
+ * besser -, sondern unsere Annahmen ueber die Realm-Konfiguration: Ausstellerbezeichnung,
+ * Zielgruppen-Anspruch und Rollenstruktur (ADR-0008).
  */
 describe("Authentifizierung gegen echtes Keycloak", () => {
   let app: NestFastifyApplication;
@@ -43,6 +49,8 @@ describe("Authentifizierung gegen echtes Keycloak", () => {
   beforeAll(async () => {
     process.env["KEYCLOAK_ISSUER_URL"] = ISSUER;
     process.env["KEYCLOAK_AUDIENCE"] = AUDIENCE;
+    // Zuweisung, nicht ??= - test/setup.ts hat bereits einen Platzhalter gesetzt
+    process.env["DATABASE_URL"] = DATABASE_URL;
 
     token = await holeToken();
 
@@ -67,7 +75,7 @@ describe("Authentifizierung gegen echtes Keycloak", () => {
       .set("Authorization", `Bearer ${token}`)
       .expect(200);
 
-    expect(antwort.body).toEqual([]);
+    expect(Array.isArray(antwort.body)).toBe(true);
   });
 
   it("weist auch hier Anfragen ohne Token ab", async () => {

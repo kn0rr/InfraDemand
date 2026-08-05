@@ -70,6 +70,10 @@ Wahrheitswert:
 | Paket | Wert | Grund |
 |---|---|---|
 | `@swc/core` | `true` | Verlinkt die plattformspezifische native Binärdatei; ohne sie funktioniert die Transformation der Tests nicht ([ADR-0008](../adr/0008-teststrategie-und-testinfrastruktur.md)) |
+| `esbuild` | `true` | `drizzle-kit` lädt damit die TypeScript-Konfiguration; das Skript verlinkt die plattformspezifische Binärdatei ([ADR-0009](../adr/0009-orm-und-migrationswerkzeug.md)) |
+| `ssh2` | `false` | Kommt über `dockerode` zu Testcontainers und dient Docker-Verbindungen über SSH. Wir sprechen den lokalen Socket an – nicht benötigt |
+| `cpu-features` | `false` | Optionale native Abhängigkeit von `ssh2` zur Beschleunigung der SSH-Kryptografie. Kompiliert zur Installationszeit nativen Code, ohne Nutzen für uns |
+| `protobufjs` | `false` | Das Skript erzeugt Hilfsdateien für die Kommandozeile; für die Nutzung als Bibliothek nicht erforderlich |
 
 `false` bedeutet ausdrückliche Ablehnung. Ein geprüftes und abgelehntes Build-Skript ist
 dadurch von einem unterscheidbar, das noch niemand angesehen hat – der Grund, warum
@@ -104,6 +108,22 @@ Entfernungsbedingung, und die Spalte ist Pflicht.
 
 Änderungen wirken sich auf `pnpm-lock.yaml` aus; beide Dateien gehören in denselben
 Commit.
+
+### Parameter-Dekoratoren
+
+`biome.json` setzt `javascript.parser.unsafeParameterDecoratorsEnabled` auf `true`. Ohne
+diese Option scheitert Biome an NestJS-Konstruktoren wie
+`constructor(@Inject(TOKEN) private readonly x: T)` mit
+`Decorators are not valid here` – und überspringt die Datei dann auch beim Formatieren.
+
+`unsafe` bezeichnet hier nicht ein Sicherheitsrisiko, sondern den Umstand, dass
+Parameter-Dekoratoren eine nie standardisierte TypeScript-Syntax sind, die Biomes Parser
+als experimentell behandelt. Vermeidbar ist sie mit NestJS nicht: `@Inject`, `@Body`,
+`@Param` und `@Query` sind allesamt Parameter-Dekoratoren.
+
+Ebenfalls in `biome.json` ausgenommen ist `**/drizzle` – die von `drizzle-kit` erzeugten
+Momentaufnahmen unter `drizzle/meta/` würden sonst bei jedem Schemawechsel zwischen
+Biome-Formatierung und Neuerzeugung hin- und herspringen.
 
 ### `format` genügt nicht
 

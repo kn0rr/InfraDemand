@@ -529,6 +529,32 @@ Wächst sie um Pakete, deren Grund niemand mehr kennt, ist der Schutz wirkungslo
 > Commit** – die Pipeline läuft mit `--frozen-lockfile` und bricht sonst ab, obwohl lokal
 > alles grün ist.
 
+### Tests laufen lokal, scheitern in der CI an fehlender Konfiguration
+
+Typisch: `Configuration key "DATABASE_URL" does not exist`, ausgelöst beim Aufbau des
+Testmoduls.
+
+**Ursache:** Die lokale `.env` liefert den Wert, die CI kennt sie nicht – `.env` ist
+gitignoriert. Eine fehlende Vorgabe bleibt dadurch lokal unsichtbar.
+
+**Vorbeugung, bereits umgesetzt:**
+
+1. `test/setup.ts` setzt Vorgabewerte für alle Konfigurationsschlüssel, die beim
+   Modulaufbau gelesen werden. Wird ein neuer Pflichtwert eingeführt, gehört er dort
+   hinein.
+2. `ConfigModule.forRoot({ ignoreEnvFile: process.env["NODE_ENV"] === "test" })` – Tests
+   lesen bewusst **keine** `.env`. Vitest setzt `NODE_ENV=test` selbst.
+
+**Gegenprobe**, wenn du dir unsicher bist:
+
+```powershell
+Rename-Item services/requirement/.env .env.bak
+pnpm --filter @infrademand/requirement test
+Rename-Item services/requirement/.env.bak .env
+```
+
+Läuft die Suite unverändert durch, ist sie von der lokalen Umgebung unabhängig.
+
 ### `pnpm lint` schlägt lokal fehl, die CI ist grün (oder umgekehrt)
 
 Typisches Bild: Biome meldet für jede JSON-Datei „Formatter would have printed the

@@ -1,18 +1,13 @@
 import { Controller, Get } from "@nestjs/common";
-
-export interface Requirement {
-  id: string;
-  title: string;
-}
+import type { RequirementResponse } from "./requirement.dto";
+import { RequirementsService } from "./requirements.service";
 
 @Controller("requirements")
 export class RequirementsController {
-  /**
-   * Liefert vorerst eine leere Liste. Die Persistenz folgt in M1.3;
-   * hier geht es ausschliesslich um den geschuetzten Zugriffspfad.
-   */
+  constructor(private readonly service: RequirementsService) {}
+
   @Get()
-  findAll(): Requirement[] {
-    return [];
+  findAll(): Promise<RequirementResponse[]> {
+    return this.service.findAll();
   }
 }

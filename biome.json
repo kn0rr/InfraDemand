@@ -1,7 +1,7 @@
 {
   "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
   "files": {
-    "includes": ["**", "!**/dist", "!**/.next", "!**/coverage"]
+    "includes": ["**", "!**/dist", "!**/.next", "!**/coverage", "!**/drizzle"]
   },
   "formatter": {
     "enabled": true,
@@ -12,5 +12,10 @@
   "linter": {
     "enabled": true,
     "rules": { "preset": "none" }
+  },
+  "javascript": {
+    "parser": {
+      "unsafeParameterDecoratorsEnabled": true
+    }
   }
 }
