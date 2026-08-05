@@ -119,7 +119,7 @@ Gelesen über `@nestjs/config` aus der Prozessumgebung.
 | `PORT` | `3001` | M1.1 | HTTP-Port |
 | `KEYCLOAK_ISSUER_URL` | – | M1.2 | Erwarteter Aussteller, Grundlage der JWKS-Abfrage |
 | `KEYCLOAK_AUDIENCE` | – | M1.2 | Erwarteter Zielgruppen-Anspruch (`requirement-api`) |
-| `DATABASE_URL` | – | M1.3 | Verbindung zur eigenen Datenbank |
+| `DATABASE_URL` | – | M1.3 | Verbindung zur **eigenen** Datenbank (`requirement`), nicht zu einer fremden |
 
 Lokale Werte stehen in [docs/development/installation.md](../../docs/development/installation.md#10-lokale-zugänge).
 Für nicht-lokale Umgebungen gilt CLAUDE.md §13 – Werte aus HashiCorp Vault, siehe
@@ -174,6 +174,52 @@ Der OpenAPI-Contract entsteht in M1.4 unter `docs/api/requirement.openapi.yaml`
 ([ADR-0005](../../docs/adr/0005-api-first-workflow.md)).
 
 ---
+
+## Datenhaltung
+
+Drizzle ORM mit `drizzle-kit` für Migrationen
+([ADR-0009](../../docs/adr/0009-orm-und-migrationswerkzeug.md)). Der Service verbindet
+sich ausschließlich mit der Datenbank `requirement` und der gleichnamigen Rolle
+([ADR-0003](../../docs/adr/0003-datenbank-und-datenhoheit.md)).
+
+```
+src/database/
+├─ schema.ts            Tabellendefinitionen; einzige Quelle fuer Schema und Typen
+├─ database.tokens.ts   Injektionsmarken und der Typ Database
+└─ database.module.ts   Verbindungspool, global bereitgestellt
+drizzle/                erzeugte Migrationen - werden gelesen, nicht nur uebernommen
+```
+
+### Schema ändern
+
+```powershell
+pnpm --filter @infrademand/requirement db:generate
+```
+
+**Die erzeugte Datei unter `drizzle/` anschließend lesen.** `drizzle-kit` leitet aus dem
+Schema-Unterschied ab und erzeugt bei Umbenennungen unter Umständen `DROP` und `ADD`
+statt `RENAME` – mit Datenverlust. Diese Prüfung ist Regel 1 aus ADR-0009 und nicht
+optional.
+
+Anwenden gegen die lokale Datenbank:
+
+```powershell
+pnpm --filter @infrademand/requirement db:migrate
+```
+
+In Tests werden die Migrationen automatisch gegen den Testcontainer angewandt.
+
+### Schichtung
+
+```
+Controller  →  Service  →  Repository  →  Drizzle
+```
+
+**Datenbankzeilen verlassen das Repository nicht.** Die Zuordnung auf den API-Typ
+(`RequirementResponse`) erfolgt in der Service-Schicht. Der Test
+*„gibt keine Datenbankspalten preis"* prüft die Antwortschlüssel abschließend – fügst du
+später eine interne Spalte hinzu und reichst die Zeile versehentlich durch, wird er rot,
+bevor das Feld Vertragsbestandteil einer öffentlichen API wird (§12).
 
 ## Bekannte Stolpersteine
 

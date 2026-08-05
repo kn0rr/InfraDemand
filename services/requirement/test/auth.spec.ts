@@ -1,19 +1,23 @@
 import { FastifyAdapter, type NestFastifyApplication } from "@nestjs/platform-fastify";
 import { Test, type TestingModule } from "@nestjs/testing";
 import request from "supertest";
-
 import { AppModule } from "../src/app.module";
 import { configureApp } from "../src/app.setup";
 import { type JwksTestServer, startJwksTestServer } from "./support/jwks-test-server";
+import { startTestDatabase, type TestDatabase } from "./support/test-database";
 
 describe("Authentifizierung", () => {
   let app: NestFastifyApplication;
   let jwks: JwksTestServer;
+  let database: TestDatabase;
 
   beforeAll(async () => {
     jwks = await startJwksTestServer();
     process.env["KEYCLOAK_ISSUER_URL"] = jwks.issuer;
     process.env["KEYCLOAK_AUDIENCE"] = "requirement-api";
+
+    database = await startTestDatabase();
+    process.env["DATABASE_URL"] = database.connectionString;
 
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
@@ -29,6 +33,7 @@ describe("Authentifizierung", () => {
   afterAll(async () => {
     await app.close();
     await jwks.close();
+    await database.stop();
   });
 
   const get = () => request(app.getHttpServer()).get("/v1/requirements");
