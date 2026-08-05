@@ -7,7 +7,12 @@ import { RequirementsModule } from "./requirements/requirements.module";
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true }),
+    ConfigModule.forRoot({
+      isGlobal: true,
+      // Tests lesen bewusst keine .env: Sonst maskiert eine lokal vorhandene Datei
+      // fehlende Vorgaben, und der Fehler taucht erst in der CI auf.
+      ignoreEnvFile: process.env["NODE_ENV"] === "test",
+    }),
     DatabaseModule,
     AuthModule,
     HealthModule,
