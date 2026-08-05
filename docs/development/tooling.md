@@ -26,6 +26,7 @@ Commit aktualisiert.
 | Git-Attribute | – | `.gitattributes` | Erzwingt LF-Zeilenenden in Repository **und** Arbeitsverzeichnis |
 | GitHub Actions | – | `.github/workflows/ci.yml` | CI: Lint, Realm-Validierung, Sicherheitsprüfung |
 | Trivy | `latest` | `.github/workflows/ci.yml` | Abhängigkeits-, Geheimnis- und Image-Prüfung |
+| actionlint | 1.7.12 | `.github/workflows/ci.yml`, Job `lint` | Prüft Workflow-Dateien auf Struktur- und Shell-Fehler |
 | Renovate | – | `renovate.json` | Automatisierte Abhängigkeitsaktualisierung |
 
 ### Werkzeuge je Service

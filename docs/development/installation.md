@@ -441,6 +441,30 @@ Leerzeichen, ihre Eigenschaften auf vier. Steht `keycloak-config` auf vier Leerz
 liest YAML es als Eigenschaft des `keycloak`-Dienstes. Alle Dienstnamen müssen exakt
 gleich weit eingerückt sein.
 
+### `-: command not found` in einem Workflow-Schritt
+
+Ein Schritt ist in den `run:`-Block des vorherigen Schritts gerutscht. Bash versucht dann,
+die Zeile `- uses: ...` als Befehl auszuführen.
+
+**Ursache:** YAML-Einrückung. Alle Schritte eines Jobs beginnen mit dem Bindestrich auf
+**derselben Spalte** – im Projekt sechs Leerzeichen. Beim Einfügen eines Blocks rutscht
+gern eine Zeile tiefer.
+
+**Vorbeugend prüfen** – lokal, bevor du pushst:
+
+```powershell
+docker run --rm -v "$($PWD.Path):/repo" --workdir /repo rhysd/actionlint:1.7.12 -color
+```
+
+In Git Bash:
+
+```bash
+MSYS_NO_PATHCONV=1 docker run --rm -v "$(pwd -W):/repo" --workdir /repo rhysd/actionlint:1.7.12 -color
+```
+
+Derselbe Aufruf läuft als erster Schritt im CI-Job `lint`. Das Image enthält zusätzlich
+**shellcheck** und prüft damit auch die Shell-Fragmente in `run:`-Blöcken.
+
 ### Befehle scheitern je nach Shell unterschiedlich
 
 Im Projekt kommen zwei Shells zum Einsatz: PowerShell und Git Bash. Zwei Konstrukte
