@@ -8,13 +8,15 @@
   },
   "scripts": {
     "lint": "biome check .",
+    "lint:fix": "biome check --write .",
     "format": "biome format --write .",
     "infra:up": "docker compose -f infra/local/compose.yaml up -d",
     "infra:down": "docker compose -f infra/local/compose.yaml down",
     "infra:reset": "docker compose -f infra/local/compose.yaml down -v",
     "infra:realm": "docker compose -f infra/local/compose.yaml --profile config run --rm keycloak-config",
     "typecheck": "pnpm -r typecheck",
-    "test": "pnpm -r test"
+    "test": "pnpm -r test",
+    "test:integration": "pnpm -r test:integration"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.6",

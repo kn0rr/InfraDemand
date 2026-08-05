@@ -5,8 +5,10 @@ export default mergeConfig(
   baseConfig,
   defineConfig({
     test: {
-      include: ["src/**/*.spec.ts", "test/**/*.spec.ts"],
-      exclude: ["**/node_modules/**", "**/*.integration.spec.ts"],
+      include: ["test/**/*.integration.spec.ts"],
+      // Keycloak-Aufrufe ueber das Netzwerk brauchen mehr Luft als In-Process-Tests
+      testTimeout: 30_000,
+      hookTimeout: 30_000,
     },
   }),
 );

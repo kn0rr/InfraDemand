@@ -104,6 +104,16 @@ Entfernungsbedingung, und die Spalte ist Pflicht.
 Änderungen wirken sich auf `pnpm-lock.yaml` aus; beide Dateien gehören in denselben
 Commit.
 
+### `format` genügt nicht
+
+Die Import-Sortierung ist in Biome 2 keine Formatierungs-, sondern eine **Assist-Aktion**.
+`biome format --write` wendet sie nicht an, `biome check` beanstandet sie aber. Ergebnis:
+`pnpm format` läuft durch, `pnpm lint` bleibt rot – mit der Meldung
+`assist/source/organizeImports  FIXABLE`.
+
+Deshalb ist `pnpm lint:fix` (`biome check --write`) der Befehl der Wahl. Er umfasst
+Formatierung, sichere Lint-Korrekturen und Assist-Aktionen in einem Durchgang.
+
 ### Warum Biome und nicht ESLint mit Prettier
 
 Ein Werkzeug statt zweier, eine Konfigurationsdatei statt dreier, und deutlich schneller.
@@ -125,8 +135,11 @@ Diagnosemeldungen führt, die sich nicht reproduzieren lassen.
 
 | Befehl | Wirkung |
 |---|---|
-| `pnpm lint` | Prüft Formatierung und Lint-Regeln im gesamten Arbeitsbereich |
-| `pnpm format` | Formatiert alle Dateien |
+| `pnpm lint` | Prüft Formatierung, Lint-Regeln und Import-Sortierung im gesamten Arbeitsbereich |
+| `pnpm lint:fix` | Wendet alle sicheren Korrekturen an – **der Befehl nach dem Einfügen von Code** |
+| `pnpm format` | Formatiert nur; wendet **keine** Lint- und Assist-Korrekturen an |
+| `pnpm typecheck` | Typprüfung über alle Pakete |
+| `pnpm test` | Tests über alle Pakete |
 | `pnpm run infra:up` | Startet die lokale Infrastruktur |
 | `pnpm run infra:down` | Stoppt die lokale Infrastruktur, behält die Daten |
 | `pnpm run infra:reset` | Stoppt die Infrastruktur und **löscht das Datenvolumen** |
