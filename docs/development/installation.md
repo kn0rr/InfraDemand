@@ -441,6 +441,34 @@ Leerzeichen, ihre Eigenschaften auf vier. Steht `keycloak-config` auf vier Leerz
 liest YAML es als Eigenschaft des `keycloak`-Dienstes. Alle Dienstnamen müssen exakt
 gleich weit eingerückt sein.
 
+### Befehle scheitern je nach Shell unterschiedlich
+
+Im Projekt kommen zwei Shells zum Einsatz: PowerShell und Git Bash. Zwei Konstrukte
+verhalten sich darin unvereinbar – beide sind uns bereits begegnet.
+
+**Arbeitsverzeichnis in Docker-Einhängungen**
+
+| Shell | Form | Fehler bei falscher Wahl |
+|---|---|---|
+| PowerShell | `-v "$($PWD.Path):/src"` | – |
+| Git Bash | `MSYS_NO_PATHCONV=1 ... -v "$(pwd -W):/src"` | – |
+| falsch | `-v "${PWD}:/src"` bzw. `-v "$($PWD.Path):/src"` in der jeweils anderen Shell | `includes invalid characters for a local volume name` |
+
+Die Meldung entsteht, weil die Variable nicht ersetzt wurde und Docker den Text als
+Volumennamen deutet. Im Zweifel den absoluten Pfad ausschreiben – das funktioniert
+überall.
+
+**`gh api` mit führendem Schrägstrich**
+
+```bash
+gh api repos/kn0rr/InfraDemand/rulesets     # richtig, funktioniert in beiden Shells
+gh api /repos/kn0rr/InfraDemand/rulesets    # scheitert in Git Bash
+```
+
+Git Bash schreibt den führenden Schrägstrich in einen Windows-Pfad um:
+`invalid API endpoint: "C:/Program Files/Git/repos/..."`. Ohne führenden Schrägstrich
+funktioniert der Aufruf in beiden Shells.
+
 ### `ERR_PNPM_IGNORED_BUILDS: Ignored build scripts: <paket>`
 
 pnpm führt Build-Skripte von Abhängigkeiten seit Version 10 **nicht** mehr automatisch

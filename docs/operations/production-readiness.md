@@ -51,10 +51,10 @@ Das gilt für alle Beteiligten, einschließlich der KI in ihrer Beraterrolle
 | B – Geheimnisse und Zugangsdaten | 5 | 5 |
 | C – Identität und Zugriff | 5 | 2 |
 | D – Daten | 4 | 3 |
-| E – Container und Lieferkette | 8 | 1 |
+| E – Container und Lieferkette | 10 | 1 |
 | F – Betrieb und Verfügbarkeit | 5 | 1 |
 | G – Anwendungssicherheit | 4 | 1 |
-| **Gesamt** | **38** | **18** |
+| **Gesamt** | **40** | **18** |
 
 Stand 2026-08-03: kein Eintrag erledigt. Das ist erwartbar – die Plattform befindet sich
 in Meilenstein M0.
@@ -348,6 +348,15 @@ Anders gelagert: real behebbar. Der Fix (`1.34.8-r0`) liegt vor, das Basis-Image
 nur noch nicht neu gebaut. Deshalb die kurze Frist – hier ist ein Image-Update die
 Lösung, keine dauerhafte Bewertung.
 
+**Wirksamkeit geprüft (2026-08-04):** `trivy image --show-suppressed` weist alle
+16 Einträge als `ignored` mit ihrer jeweiligen Begründung und der Quelle
+`/src/.trivyignore.yaml` aus; das Image meldet 0 offene Befunde. Der `paths`-Filter auf
+`usr/local/bin/gosu` greift wie vorgesehen.
+
+`--show-suppressed` ist damit auch das Mittel der Wahl, um bei künftigen Einträgen zu
+prüfen, ob sie tatsächlich greifen – eine Unterdrückung, die ins Leere läuft, sieht im
+Bericht genauso aus wie ein Befund, den es nicht gibt.
+
 ### Verfahren für Unterdrückungen
 
 Verbindlich für jeden Eintrag in `.trivyignore.yaml`:
@@ -447,7 +456,58 @@ neu zu bewerten – die Behebung des einen Punktes aktiviert den anderen.
 einem Produktivgang greift ohnehin `PROD-025`; diese Liste ist die Voraussetzung dafür,
 dass die Bewertung dann auf einer gepflegten Grundlage steht statt bei null zu beginnen.
 
-#### PROD-026 — Keine Stückliste, keine Signatur
+#### PROD-039 — Werkzeug-Images blockieren die Pipeline nicht
+**Schwere:** Mittel · **Status:** Bewusst akzeptiert · **Betrifft:** §13 · **Fundstelle:** `.github/workflows/ci.yml`, Job `security`
+
+Der Image-Scan unterscheidet zwei Klassen:
+
+| Klasse | Ermittlung | Verhalten |
+|---|---|---|
+| **Laufzeit** – PostgreSQL, Keycloak | `docker compose config --images` | Befund bricht den Build |
+| **Werkzeug** – keycloak-config-cli | zusätzlich im Profil `config` | Befund wird berichtet, blockiert nicht |
+
+**Begründung.** Werkzeug-Images werden nie ausgerollt. `keycloak-config-cli` läuft rund
+eine Sekunde lokal und in der CI, nimmt keine Verbindungen an und verarbeitet
+ausschließlich die eigene Realm-Datei aus diesem Repository. Das reale Lieferkettenrisiko
+daran ist ein **manipuliertes Image**, und dagegen hilft die Festlegung auf einen Digest
+(`PROD-022`), nicht die CVE-Prüfung.
+
+Der ausschlaggebende Grund ist aber ein praktischer: Bei gleicher Behandlung kämen
+19 weitere Unterdrückungen hinzu – zusammen über 45. Ab dieser Größe wird die Liste nicht
+mehr gepflegt, und dann ist das gesamte Verfahren wertlos. Ein Tor, das für alles gilt,
+gilt am Ende für nichts.
+
+**Was das nicht bedeutet:** Werkzeug-Images werden weiterhin gescannt, und die Befunde
+stehen im Protokoll. Ein Befund, der auf dem **Eingabepfad** eines Werkzeugs liegt oder
+Codeausführung ermöglicht, wird einzeln bewertet – siehe PROD-040.
+
+**Überprüfung:** Sobald ein Werkzeug-Image in einer nicht-lokalen Umgebung eingesetzt
+wird, entfällt diese Einstufung sofort.
+
+#### PROD-040 — Spring Boot 3.4.5 in keycloak-config-cli, CVE-2026-40973
+**Schwere:** Hoch · **Status:** Offen · **Betrifft:** §13 · **Fundstelle:** `infra/local/compose.yaml`, Dienst `keycloak-config`
+
+`adorsys/keycloak-config-cli:6.5.1-26` bündelt Spring Boot 3.4.5. CVE-2026-40973
+beschreibt „Arbitrary Code Execution and Session Hijacking via predictable …"; behoben in
+3.5.14 bzw. 4.0.6.
+
+**Warum dieser Befund gesondert steht**, obwohl Werkzeug-Images nach PROD-039 nicht
+blockieren: Der Ausnutzungspfad ließ sich aus der Kurzbeschreibung nicht bestimmen.
+„Session Hijacking" deutet auf einen Webserver-Kontext, den ein Kommandozeilenwerkzeug
+nicht hat – „Arbitrary Code Execution via predictable" dagegen auf vorhersagbare temporäre
+Dateien, was jede Spring-Boot-Anwendung betreffen kann.
+
+Erschwerend: Das Werkzeug hält **Keycloak-Administratorzugangsdaten**. Codeausführung in
+diesem Prozess bedeutet Zugriff auf die Identitätsverwaltung.
+
+**Zu tun:**
+1. Ausnutzungspfad anhand der vollständigen Empfehlung klären
+2. Ist er in einem kurzlebigen CLI ohne Webserver nicht gegeben → Umstufung auf
+   `Bewusst akzeptiert` mit Begründung
+3. Andernfalls: neuere `keycloak-config-cli`-Fassung mit Spring Boot ≥3.5.14 suchen oder
+   das Werkzeug ersetzen
+
+**Bis zur Klärung gilt der Befund als erreichbar** – gemäß der Auffangregel im Verfahren.
 **Schwere:** Mittel · **Status:** Offen · **Betrifft:** §13
 
 **Zielzustand:** SBOM je Image, signierte Images, Prüfung der Signatur beim Ausrollen.
