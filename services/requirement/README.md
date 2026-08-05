@@ -132,10 +132,43 @@ Für nicht-lokale Umgebungen gilt CLAUDE.md §13 – Werte aus HashiCorp Vault, 
 | Pfad | Auth | Zweck |
 |---|---|---|
 | `GET /health` | nein | Bereitschaftsprüfung für die Orchestrierungsschicht |
+| `GET /v1/requirements` | **ja** | Liste der Anforderungen; liefert bis M1.3 eine leere Liste |
 
 `/health` ist bewusst **unversioniert und unauthentifiziert**. Alle fachlichen Endpunkte
 liegen unter `/v1/` und erfordern ein gültiges Token
 ([ADR-0004](../../docs/adr/0004-authentifizierung-und-autorisierung.md)).
+
+### Wie der Schutz greift
+
+Der JWT-Guard ist **global** registriert (`APP_GUARD` in `src/auth/auth.module.ts`).
+Damit ist jeder Endpunkt geschützt, ohne dass jemand daran denken muss. Ausnahmen werden
+ausdrücklich mit `@Public()` gekennzeichnet.
+
+Die Richtung ist entscheidend: Ein vergessener `@UseGuards()` erzeugt keinen Fehler,
+sondern eine offene API – und Abwesenheit fällt im Review nicht auf. Ein vergessenes
+`@Public()` erzeugt dagegen ein 401, das sofort auffällt.
+
+**Die schnellste Sicherheitsprüfung dieses Service:**
+
+```bash
+grep -rn "@Public()" src/
+```
+
+Jeder Treffer außerhalb von `src/health/` gehört hinterfragt.
+
+### Geprüfte Ablehnungsgründe
+
+`test/auth.spec.ts` deckt alle Fälle gegen ein im Testprozess erzeugtes Schlüsselpaar ab:
+kein Token, unlesbares Token, fremder Aussteller, falsche Zielgruppe, abgelaufen, fremder
+Signaturschlüssel. `test/auth.keycloak.integration.spec.ts` prüft zusätzlich ein echtes
+Keycloak-Token – siehe [ADR-0008](../../docs/adr/0008-teststrategie-und-testinfrastruktur.md).
+
+Die Einschränkung `algorithms: ["RS256"]` in der Strategie ist nicht optional: Ohne sie
+akzeptiert die Prüfung den im Token angegebenen Algorithmus, was die Signaturprüfung
+aushebelt.
+
+**Noch keine Rollenprüfung.** Ein gültiges Token genügt derzeit. Die Autorisierung auf
+Objekt- und Feldebene folgt mit dem Berechtigungsmodell in M5.
 
 Der OpenAPI-Contract entsteht in M1.4 unter `docs/api/requirement.openapi.yaml`
 ([ADR-0005](../../docs/adr/0005-api-first-workflow.md)).
