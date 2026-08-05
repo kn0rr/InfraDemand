@@ -20,10 +20,33 @@ Commit aktualisiert.
 | Biome | 2.5.6 | `biome.json` | Linting und Formatierung |
 | Docker Compose | – | `infra/local/compose.yaml` | Lokale Infrastruktur |
 | PostgreSQL | 18 (Alpine) | `infra/local/compose.yaml`, `infra/local/postgres/init/` | Datenhaltung |
-| Keycloak | 26.4 | `infra/local/compose.yaml`, `infra/keycloak/realms/` | Identitätsverwaltung |
+| Keycloak | 26.7.0 | `infra/local/compose.yaml`, `infra/keycloak/realms/` | Identitätsverwaltung |
 | keycloak-config-cli | 6.5.1-26 | `infra/local/compose.yaml` (Profil `config`) | Idempotente Anwendung der Realm-Definition |
 | EditorConfig | – | `.editorconfig` | Editorübergreifende Grundeinstellungen |
 | Git-Attribute | – | `.gitattributes` | Erzwingt LF-Zeilenenden in Repository **und** Arbeitsverzeichnis |
+| GitHub Actions | – | `.github/workflows/ci.yml` | CI: Lint, Realm-Validierung, Sicherheitsprüfung |
+| Trivy | `latest` | `.github/workflows/ci.yml` | Abhängigkeits-, Geheimnis- und Image-Prüfung |
+| Renovate | – | `renovate.json` | Automatisierte Abhängigkeitsaktualisierung |
+
+### Werkzeuge je Service
+
+Gilt für jedes Paket unter `services/*`, Referenzumsetzung ist
+[`services/requirement`](../../services/requirement/README.md).
+
+| Paket | Version | Konfiguration | Zweck |
+|---|---|---|---|
+| NestJS | 11.1.x | `nest-cli.json` | Anwendungsframework |
+| `@nestjs/platform-fastify` | 11.1.x | – | HTTP-Adapter (Fastify, nicht Express) |
+| `@nestjs/config` | 4.0.x | – | Konfiguration aus der Prozessumgebung |
+| Vitest | 4.1.x | `vitest.config.ts` | Testrunner |
+| SWC | 1.15.x | `.swcrc` | Transformation der Tests inkl. Decorator-Metadaten |
+| supertest | 7.2.x | – | HTTP-Aufrufe gegen die laufende Anwendung im Test |
+
+**SWC ist nicht optional.** Der Standardtransformator von Vitest ist esbuild, und esbuild
+unterstützt `emitDecoratorMetadata` nicht. Ohne SWC fehlen NestJS die Typinformationen zur
+Auflösung seiner Abhängigkeiten; der Fehler erscheint als `Cannot resolve dependency at
+index [0]` und weist damit auf die falsche Stelle. Siehe
+[ADR-0008](../adr/0008-teststrategie-und-testinfrastruktur.md).
 
 ### Warum pnpm und nicht npm oder yarn
 
@@ -36,6 +59,50 @@ häufige Quelle für Fehler, die erst in der CI auffallen – gibt es damit nich
 Das Arbeitsbereichsprotokoll (`"workspace:*"`) ist zudem die in
 [ADR-0006](../adr/0006-typescript-version-und-modulsemantik.md) festgelegte Art, interne
 Pakete zu referenzieren.
+
+### Freigegebene Build-Skripte
+
+pnpm führt `postinstall`-Skripte von Abhängigkeiten nicht automatisch aus. Freigaben
+stehen in `pnpm-workspace.yaml` unter `allowBuilds` – einer Zuordnung von Paketmuster auf
+Wahrheitswert:
+
+| Paket | Wert | Grund |
+|---|---|---|
+| `@swc/core` | `true` | Verlinkt die plattformspezifische native Binärdatei; ohne sie funktioniert die Transformation der Tests nicht ([ADR-0008](../adr/0008-teststrategie-und-testinfrastruktur.md)) |
+
+`false` bedeutet ausdrückliche Ablehnung. Ein geprüftes und abgelehntes Build-Skript ist
+dadurch von einem unterscheidbar, das noch niemand angesehen hat – der Grund, warum
+Ablehnungen ebenfalls in diese Tabelle gehören.
+
+> Das Feld heißt erst ab pnpm 11 `allowBuilds`. Die früheren Felder
+> `onlyBuiltDependencies`, `neverBuiltDependencies`, `ignoredBuiltDependencies` und
+> `ignoreDepScripts` wurden entfernt und wirken nicht mehr.
+
+Jede Freigabe erlaubt die Ausführung beliebigen Codes zur Installationszeit – lokal wie in
+der CI. Die Liste bleibt daher so kurz wie möglich, und jeder Eintrag braucht einen in
+dieser Tabelle nachvollziehbaren Grund. Ein Eintrag ohne erkennbaren Grund ist im Review
+zurückzuweisen.
+
+Änderungen wirken sich auf `pnpm-lock.yaml` aus; beide Dateien gehören in denselben
+Commit, sonst bricht `pnpm install --frozen-lockfile` in der Pipeline.
+
+### Erzwungene Abhängigkeitsversionen (Overrides)
+
+Transitive Abhängigkeiten mit bekannten Schwachstellen lassen sich nicht direkt anheben –
+sie werden über `overrides` in `pnpm-workspace.yaml` erzwungen.
+
+| Paket | Erzwungen | Grund | Entfernen, sobald |
+|---|---|---|---|
+| `find-my-way` | `>=9.7.0` | CVE-2026-47219 (HIGH, DDoS über HTTP/2) in 9.6.0; zweifach transitiv über `@nestjs/platform-fastify` und `fastify` | `@nestjs/platform-fastify` selbst ≥9.7.0 auflöst |
+
+**Ein Override ist Schulden, kein Fix.** Er erzwingt eine Version an einer Stelle, an der
+Upstream noch eine ältere deklariert. Bleibt er nach dem Nachziehen von Upstream stehen,
+wird er zu einer unsichtbaren Festlegung, die irgendwann eine notwendige Aktualisierung
+blockiert – ohne dass jemand den Zusammenhang noch kennt. Deshalb trägt jeder Eintrag eine
+Entfernungsbedingung, und die Spalte ist Pflicht.
+
+Änderungen wirken sich auf `pnpm-lock.yaml` aus; beide Dateien gehören in denselben
+Commit.
 
 ### Warum Biome und nicht ESLint mit Prettier
 
@@ -150,17 +217,16 @@ angegebenen Meilenstein ergänzt.
 
 | Werkzeug | Zweck | Ab |
 |---|---|---|
-| NestJS | Anwendungsframework der Services | M1 |
-| Vitest | Testrunner | M1 |
-| Testcontainers | Integrationstests gegen echte PostgreSQL-Instanz | M1 |
-| Drizzle oder MikroORM | Datenzugriff und Migrationen ([ADR-0003](../adr/0003-datenbank-und-datenhoheit.md)) | M1 |
-| `@nestjs/swagger` | Erzeugung des OpenAPI-Contracts ([ADR-0005](../adr/0005-api-first-workflow.md)) | M1 |
-| GitHub Actions | CI-Pipeline | M0, Schritt 3 |
-| `oasdiff` | Erkennung inkompatibler Contract-Änderungen | M0, Schritt 3 |
-| Trivy | Abhängigkeits- und Container-Prüfung (CLAUDE.md §13) | M0, Schritt 3 |
-| Renovate | Automatisierte Abhängigkeitsaktualisierung | M0, Schritt 3 |
+| Testcontainers | Integrationstests gegen echte PostgreSQL-Instanz ([ADR-0008](../adr/0008-teststrategie-und-testinfrastruktur.md)) | M1.3 |
+| Drizzle oder MikroORM | Datenzugriff und Migrationen ([ADR-0003](../adr/0003-datenbank-und-datenhoheit.md)) | M1.3 |
+| `@nestjs/swagger` | Erzeugung des OpenAPI-Contracts ([ADR-0005](../adr/0005-api-first-workflow.md)) | M1.4 |
+| `oasdiff` | Erkennung inkompatibler Contract-Änderungen | M1.4 |
 | OpenTelemetry | Ablaufverfolgung und Metriken (CLAUDE.md §14) | M1 |
+| SAST / DAST | Statische und dynamische Sicherheitsprüfung (CLAUDE.md §13, `PROD-025`) | M1 / M2 |
 | Next.js | Frontend | M2 |
+| `ajv` | Laufzeitvalidierung dynamischer Attribute gegen JSON Schema (CLAUDE.md §6) | M3 |
+| JSONLogic oder `json-rules-engine` | Regelauswertung für Workflow-Übergänge (CLAUDE.md §7) | M4 |
+| OPA oder OpenFGA | Feingranulare Autorisierung ([ADR-0004](../adr/0004-authentifizierung-und-autorisierung.md)) | M5 |
 
 ---
 
@@ -211,11 +277,35 @@ Branch. Ein Push auf einen Feature-Branch startet bewusst nichts – sonst liefe
 Pipeline bei offenem Pull Request zweimal parallel für denselben Stand. Zum Ausprobieren
 der Pipeline selbst steht `workflow_dispatch` bereit (*Actions → CI → Run workflow*).
 
-Die Jobs `lint`, `realm` und `security` sind als erforderliche Prüfungen für `main`
-gesetzt. Das ist eine Repository-Einstellung, kein Bestandteil des Repositories – ohne
-sie wäre die Pipeline eine Empfehlung statt eines Tors, und Aussagen wie „eine abweichende
-Spezifikation bricht den Build" ([ADR-0005](../adr/0005-api-first-workflow.md)) wären
-nicht belastbar.
+### Schutz des `main`-Branch
+
+Der Workflow **berichtet** nur – er verhindert nichts. Ohne Ruleset lässt sich ein Pull
+Request mit roten Prüfungen mergen und direkt auf `main` pushen. Erst das Ruleset macht
+aus dem Signal ein Tor; ohne es wäre die Aussage aus
+[ADR-0005](../adr/0005-api-first-workflow.md), dass eine abweichende Spezifikation den
+Build bricht, nicht belastbar.
+
+Die Regel liegt als `.github/rulesets/main.json` im Repository und wird angewandt mit:
+
+```bash
+gh api --method POST /repos/kn0rr/InfraDemand/rulesets --input .github/rulesets/main.json
+```
+
+**GitHub liest diese Datei nicht selbst.** Sie ist überprüfbare Dokumentation plus ein
+reproduzierbarer Anwendungsbefehl – kein GitOps. Wer die Regel in der Oberfläche ändert,
+weicht unbemerkt davon ab.
+
+Zwei Fallstricke:
+
+- Der `context` einer erforderlichen Prüfung ist der **Anzeigename** des Jobs (`name:`),
+  nicht dessen ID – also „Lint und Formatierung", nicht `lint`. Bei einer Abweichung
+  wartet jeder Pull Request dauerhaft auf eine Prüfung, die nie eintrifft.
+- Das Ruleset kann erst sinnvoll gesetzt werden, **nachdem** die Prüfungen einmal
+  gelaufen sind – vorher kennt GitHub ihre Namen nicht.
+
+`required_approving_review_count` steht bewusst auf `0`: Eigene Pull Requests lassen sich
+nicht selbst freigeben, bei `1` wäre die einzige beteiligte Person ausgesperrt. Der
+Zwang zum Pull Request bleibt davon unberührt.
 
 ### Testansatz
 

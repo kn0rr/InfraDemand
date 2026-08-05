@@ -18,11 +18,11 @@ jobs:
     name: Lint und Formatierung
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version-file: .node-version
           cache: pnpm
@@ -37,14 +37,10 @@ jobs:
     name: Keycloak-Realm validieren
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Infrastruktur starten
-        run: docker compose -f infra/local/compose.yaml up -d
-
-      - name: Auf Keycloak warten
-        run: |
-          timeout 180 bash -c 'until curl -sf http://localhost:8080/realms/master/.well-known/openid-configuration >/dev/null; do sleep 3; done'
+        run: docker compose -f infra/local/compose.yaml up -d --wait
 
       - name: Realm anwenden
         run: docker compose -f infra/local/compose.yaml --profile config run --rm keycloak-config
@@ -82,14 +78,59 @@ jobs:
     name: Sicherheitspruefung
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Abhaengigkeiten und Geheimnisse pruefen
         run: |
           docker run --rm -v "$PWD:/src" -w /src aquasec/trivy:latest \
-            fs --scanners vuln,secret --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 .
+            fs --scanners vuln,secret --severity HIGH,CRITICAL --ignore-unfixed --skip-dirs node_modules --exit-code 1 .
 
       - name: Konfiguration pruefen
         run: |
           docker run --rm -v "$PWD:/src" -w /src aquasec/trivy:latest \
             config --severity HIGH,CRITICAL --exit-code 1 .
+
+      - name: Laufzeit-Images pruefen
+        run: |
+          images=$(docker compose -f infra/local/compose.yaml config --images | sort -u)
+          status=0
+          for image in $images; do
+            echo "::group::$image"
+            docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v "$PWD:/src" aquasec/trivy:latest \
+              image --severity HIGH,CRITICAL --ignore-unfixed --ignorefile /src/.trivyignore.yaml --exit-code 1 "$image" || status=1
+            echo "::endgroup::"
+          done
+          exit $status
+
+      - name: Werkzeug-Images pruefen (nur Bericht)
+        run: |
+          runtime=$(docker compose -f infra/local/compose.yaml config --images | sort -u)
+          alle=$(docker compose -f infra/local/compose.yaml --profile config config --images | sort -u)
+          for image in $(comm -13 <(echo "$runtime") <(echo "$alle")); do
+            echo "::group::$image"
+            docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v "$PWD:/src" aquasec/trivy:latest \
+              image --severity HIGH,CRITICAL --ignore-unfixed "$image"
+            echo "::endgroup::"
+          done
+
+  test:
+    name: Typecheck und Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+
+      - name: Abhaengigkeiten installieren
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Tests
+        run: pnpm test

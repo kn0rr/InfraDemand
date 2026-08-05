@@ -6,9 +6,11 @@ Dieses Dokument beschreibt die fachliche Verantwortung, Datenhoheit und
 Abhängigkeitsstruktur der Services. Es ist die Referenz für die Frage „wohin gehört diese
 Fachlichkeit".
 
-Zum aktuellen Stand existiert **keiner** dieser Services als Code. Die Reihenfolge ihrer
-Entstehung ist in [ADR-0007](../adr/0007-inkrementeller-aufbau-der-servicelandschaft.md)
-festgelegt.
+Zum aktuellen Stand existiert ausschließlich der **Requirement Service**, und dieser erst
+als Gerüst ohne Anwendungscode. Die Reihenfolge der Entstehung ist in
+[ADR-0007](../adr/0007-inkrementeller-aufbau-der-servicelandschaft.md) festgelegt; die
+Prüfliste zum Anlegen eines weiteren Service steht in
+[service-setup.md](../development/service-setup.md).
 
 ---
 
@@ -32,7 +34,7 @@ Diese vier Regeln gelten für jeden Service ohne Ausnahme:
 
 ## Requirement Service
 
-**Meilenstein:** M1 · **Stand:** offen
+**Meilenstein:** M1 · **Stand:** in Arbeit (M1.1) · **Paket:** [`services/requirement`](../../services/requirement/README.md)
 
 ### Verantwortung
 

@@ -1,4 +1,10 @@
 packages:
-  - 'services/*'
-  - 'packages/*'
-  - 'frontend'
+  - "services/*"
+  - "packages/*"
+  - "frontend"
+
+allowBuilds:
+  "@swc/core": true
+
+overrides:
+  find-my-way: ">=9.7.0"

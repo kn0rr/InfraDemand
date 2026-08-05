@@ -51,10 +51,10 @@ Das gilt für alle Beteiligten, einschließlich der KI in ihrer Beraterrolle
 | B – Geheimnisse und Zugangsdaten | 5 | 5 |
 | C – Identität und Zugriff | 5 | 2 |
 | D – Daten | 4 | 3 |
-| E – Container und Lieferkette | 6 | 1 |
+| E – Container und Lieferkette | 10 | 1 |
 | F – Betrieb und Verfügbarkeit | 5 | 1 |
 | G – Anwendungssicherheit | 4 | 1 |
-| **Gesamt** | **36** | **18** |
+| **Gesamt** | **40** | **18** |
 
 Stand 2026-08-03: kein Eintrag erledigt. Das ist erwartbar – die Plattform befindet sich
 in Meilenstein M0.
@@ -173,6 +173,13 @@ entstehen vertrauliche Clients mit Geheimnissen.
 Service Account entsteht – nachträglich bedeutet es, ein bereits im Verlauf der
 Versionsgeschichte veröffentlichtes Geheimnis auszutauschen.
 
+> **Verschärft am 2026-08-04:** Das Repository `kn0rr/InfraDemand` ist **öffentlich**.
+> Ein versehentlich gepushtes Geheimnis ist damit keine interne Hygienefrage, sondern
+> eine sofortige Veröffentlichung – und über die Ereignis-API auch nach dem Löschen des
+> Commits weiterhin abrufbar. Die Externalisierung muss abgeschlossen sein, **bevor** der
+> erste vertrauliche Client angelegt wird, nicht danach. Dasselbe gilt sinngemäß für
+> PROD-008 und PROD-011.
+
 ---
 
 ## C – Identität und Zugriff
@@ -281,11 +288,27 @@ Ohne Begrenzung kann ein einzelner Dienst den Knoten erschöpfen.
 
 **Zielzustand:** Angeforderte und maximale Werte für CPU und Speicher je Dienst.
 
-#### PROD-025 — Kein automatisiertes Sicherheits-Scanning
-**Schwere:** Kritisch · **Status:** Offen · **Betrifft:** §13 · **Geplant:** M0, Schritt 3
+#### PROD-025 — Sicherheits-Scanning nur teilweise wirksam
+**Schwere:** Kritisch · **Status:** In Arbeit · **Betrifft:** §13 · **Fundstelle:** `.github/workflows/ci.yml`, Job `security`
 
 §13 fordert Abhängigkeits-Scanning, Container-Scanning (Trivy) sowie SAST und DAST in
-CI/CD. Bislang existiert keine Pipeline.
+CI/CD.
+
+*Stand 2026-08-04:* Die Pipeline existiert und der Job ist grün – **aber weitgehend
+gegenstandslos.** Der Geheimnis-Scanner erkennt nur bekannte Geheimnis-Formate
+(Zugangsschlüssel, Token, private Schlüssel) und schlägt bei schwachen Passwörtern wie
+`POSTGRES_PASSWORD: postgres` bewusst nicht an. `trivy config` unterstützt Docker Compose
+nicht als Zieltyp; ein Dockerfile oder Kubernetes-Manifest existiert noch nicht. Geprüft
+werden derzeit faktisch nur die Abhängigkeiten aus `pnpm-lock.yaml`.
+
+Grün bedeutet hier also „nichts zu prüfen gefunden", nicht „sicher". Diese Unterscheidung
+ist festzuhalten, weil ein grüner Sicherheitsjob sonst Vertrauen ohne Grundlage erzeugt.
+
+**Zielzustand:**
+1. Container-Image-Prüfung der eingesetzten Images (sofort möglich)
+2. `trivy config` wird mit dem ersten Dockerfile in M1 wirksam
+3. SAST, sobald Anwendungscode existiert (M1)
+4. DAST gegen eine laufende Instanz (ab M2)
 
 #### PROD-036 — GitHub-Actions nicht auf Commit-Prüfsumme festgelegt
 **Schwere:** Hoch · **Status:** Offen · **Betrifft:** §13 · **Fundstelle:** `.github/workflows/ci.yml`
@@ -300,7 +323,191 @@ Angriffsweg auf Lieferketten.
 sodass jede Änderung im Review sichtbar ist. Zusätzlich `permissions:` je Arbeitsablauf
 auf das Minimum begrenzen.
 
-#### PROD-026 — Keine Stückliste, keine Signatur
+#### PROD-037 — Basis-Image-Schwachstellen unterdrückt
+**Schwere:** Hoch · **Status:** Bewusst akzeptiert (befristet) · **Betrifft:** §13 · **Fundstelle:** `.trivyignore.yaml`
+
+Der Image-Scan meldet 16 Befunde in `postgres:18-alpine`, die wir nicht selbst beheben
+können. Sie sind in `.trivyignore.yaml` **befristet** unterdrückt.
+
+**Gruppe 1 – `gosu`, 15 Befunde (1 kritisch, 14 hoch), Ablauf 2026-11-04.**
+Alle betreffen die Go-Standardbibliothek 1.24.6, mit der das Binärprogramm gebaut wurde:
+`crypto/tls`, `crypto/x509`, `net/url`, `net/mail`, `net`, `mime`, HTTP/2.
+
+`gosu` löst im Postgres-Entrypoint Benutzer- und Gruppenrechte auf und führt danach den
+eigentlichen Prozess aus. Es öffnet keine Netzwerkverbindung und verarbeitet weder TLS,
+Zertifikate, URLs, MIME noch E-Mail-Adressen – **keiner der betroffenen Codepfade ist
+erreichbar.** Trivy meldet sie strukturell: Bei Go-Binärprogrammen wird die Version der
+Standardbibliothek ausgewertet, nicht die tatsächlich genutzten Pakete. Das betrifft jedes
+Go-Binärprogramm gleichermaßen.
+
+Gesondert geprüft: CVE-2026-39822 (`os.Root`, Verzeichnisdurchquerung). `os.Root` wurde
+erst mit Go 1.24 eingeführt und wird von gosu nicht verwendet.
+
+**Gruppe 2 – `c-ares` CVE-2026-33630 (hoch), Ablauf 2026-09-04.**
+Anders gelagert: real behebbar. Der Fix (`1.34.8-r0`) liegt vor, das Basis-Image wurde
+nur noch nicht neu gebaut. Deshalb die kurze Frist – hier ist ein Image-Update die
+Lösung, keine dauerhafte Bewertung.
+
+**Wirksamkeit geprüft (2026-08-04):** `trivy image --show-suppressed` weist alle
+16 Einträge als `ignored` mit ihrer jeweiligen Begründung und der Quelle
+`/src/.trivyignore.yaml` aus; das Image meldet 0 offene Befunde. Der `paths`-Filter auf
+`usr/local/bin/gosu` greift wie vorgesehen.
+
+`--show-suppressed` ist damit auch das Mittel der Wahl, um bei künftigen Einträgen zu
+prüfen, ob sie tatsächlich greifen – eine Unterdrückung, die ins Leere läuft, sieht im
+Bericht genauso aus wie ein Befund, den es nicht gibt.
+
+### Verfahren für Unterdrückungen
+
+Verbindlich für jeden Eintrag in `.trivyignore.yaml`:
+
+1. **`statement`** – warum der Befund im konkreten Verwendungskontext nicht trägt. „Nicht
+   behebbar" genügt nicht; erforderlich ist die Aussage, warum er nicht ausnutzbar ist
+   oder welcher Weg zur Behebung führt.
+2. **`expired_at`** – Pflicht, ohne Ausnahme. Nach Ablauf wird der Build wieder rot und
+   erzwingt eine Neubewertung.
+3. **`paths` oder `purls`** – so eng wie möglich eingegrenzt. Eine Unterdrückung nur über
+   die CVE-Kennung gilt für das gesamte Repository und würde denselben Befund in einem
+   anderen, sehr wohl betroffenen Bestandteil ebenfalls verbergen.
+
+Fristen als Richtwert: behebbare Befunde ein Monat, strukturell nicht erreichbare drei
+Monate. Längere Fristen brauchen eine eigene Begründung im `statement`.
+
+**Ein abgelaufener Eintrag wird nicht verlängert, sondern neu bewertet.** Verlängerung
+ohne erneute Prüfung ist genau der Mechanismus, mit dem Unterdrückungen dauerhaft werden.
+
+### Die entscheidende Unterscheidung
+
+> **„Wir sind nur nicht aktuell" ist niemals ein Grund für eine Unterdrückung.**
+
+Ein Befund darf ausschließlich dann unterdrückt werden, wenn der betroffene Codepfad im
+konkreten Verwendungskontext **nicht erreichbar** ist. Ist eine behobene Fassung
+verfügbar und wir setzen sie schlicht noch nicht ein, ist die Antwort das Update – auch
+wenn es unbequem ist.
+
+Der Lauf vom 2026-08-04 hat beide Fälle nebeneinander geliefert und zeigt den Unterschied
+deutlich:
+
+| | `gosu` (postgres) | Keycloak 26.4.7 |
+|---|---|---|
+| Befunde | 15 (Go-Standardbibliothek) | 62 (11 Betriebssystem, 51 Java) |
+| Betroffene Pfade | `crypto/tls`, `net/url`, `net/mail` … | OIDC-Anmeldung, Token-Ausgabe, Scope-Durchsetzung, `redirect_uri`-Prüfung |
+| Erreichbar? | **Nein** – gosu tut nichts davon | **Ja** – das ist die Kernfunktion des Dienstes |
+| Behandlung | Befristet unterdrückt, begründet | **Aktualisiert** auf 26.7.0 |
+
+Die Keycloak-Befunde umfassten unter anderem Rechteausweitung über gefälschte
+Autorisierungscodes (CVE-2026-4282), Session Fixation im OIDC-Anmeldefluss
+(CVE-2026-7507) und die Umgehung der `redirect_uri`-Prüfung (CVE-2026-3872) – in genau
+dem Dienst, auf dem die Authentifizierung der gesamten Plattform beruht. Eine
+Unterdrückung wäre hier nicht vertretbar gewesen, unabhängig von der Begründung.
+
+**Wenn die Unterscheidung im Einzelfall unklar ist, gilt sie als erreichbar.**
+
+### Die dritte Kategorie: Upstream hat noch nicht nachgezogen
+
+Es gibt einen Fall zwischen beiden: Wir setzen bereits die **neueste verfügbare Fassung**
+eines Fremdbestandteils ein, und diese bündelt eine Bibliothek, für die zwar ein Fix
+existiert, den der Hersteller aber noch nicht übernommen hat. Ein Update ist unmöglich –
+es gibt nichts, worauf.
+
+Das ist **keine** Unerreichbarkeit und darf nicht als solche dokumentiert werden.
+Es ist eine **befristete Risikoannahme** und wird als solche behandelt:
+
+- Status `Bewusst akzeptiert (befristet)` mit eigenem Eintrag, nicht nur eine Zeile in
+  `.trivyignore.yaml`
+- Frist gekoppelt an die **nächste Herstellerfassung**, nicht an ein rundes Datum
+- Im `statement` steht ausdrücklich „Risiko akzeptiert, Upstream ausstehend" – nicht
+  „nicht erreichbar"
+- Bei Schweregrad `Kritisch` gilt die Regel aus der Legende: **nicht akzeptierbar.** Dann
+  ist der Fremdbestandteil selbst infrage zu stellen.
+
+Der Unterschied ist nicht sprachlicher Natur. „Nicht erreichbar" heißt: Der Befund geht
+uns nichts an. „Risiko akzeptiert" heißt: Er geht uns etwas an, und wir tragen ihn
+bewusst für eine begrenzte Zeit.
+
+#### PROD-038 — Von Keycloak gebündelte Bibliotheken mit offenen Schwachstellen
+**Schwere:** Hoch · **Status:** Bewusst akzeptiert (befristet) · **Betrifft:** §13 · **Fundstelle:** `.trivyignore.yaml`
+
+Keycloak 26.7.0 – die zum 2026-08-04 neueste Fassung – bündelt Bibliotheken mit
+11 bekannten Schwachstellen (14 Meldungen, kein Befund kritisch). Ein Update ist nicht
+möglich; die Fixes liegen in Bibliotheksfassungen, die Keycloak noch nicht übernommen hat.
+
+**Nicht erreichbar (7)** – Begründungen je Eintrag in `.trivyignore.yaml`:
+CVE-2025-59250 (MS-SQL-Treiber wird nie geladen, zudem Vergleichsartefakt bei der
+`jre11`-Kennung), CVE-2026-55831/-55833/-56745 (SPDY-Codec, nicht verwendet),
+CVE-2026-55851 (PROXY-Protokoll abgeschaltet), CVE-2026-59901 (bzip2 im HTTP-Stack nicht
+verwendet), CVE-2026-54291 (setzt TLS-Kanalbindung voraus, siehe unten).
+
+**Risiko akzeptiert, Upstream ausstehend (4):**
+CVE-2026-54512 und CVE-2026-54513 (jackson-databind, Codeausführung über Umgehung des
+`PolymorphicTypeValidator`), GHSA-r7wm-3cxj-wff9 (jackson-core),
+CVE-2026-56819 (Netty, Speicherleck über HTTP/2-DATA-Frames – Keycloak bedient HTTP/2,
+also erreichbar).
+
+**Überprüfung:** Mit der nächsten Keycloak-Fassung, spätestens 2026-09-15. Renovate meldet
+neue Fassungen als Pull Request.
+
+**Kopplung zu PROD-004:** CVE-2026-54291 (Downgrade des Man-in-the-Middle-Schutzes bei
+SCRAM-SHA-256-PLUS) ist derzeit gegenstandslos, weil die Datenbankverbindung
+unverschlüsselt läuft. **Mit der Umsetzung von PROD-004 wird er relevant** und ist dann
+neu zu bewerten – die Behebung des einen Punktes aktiviert den anderen.
+
+**Einordnung:** Alle Befunde betreffen ausschließlich die lokale Entwicklungsumgebung. Vor
+einem Produktivgang greift ohnehin `PROD-025`; diese Liste ist die Voraussetzung dafür,
+dass die Bewertung dann auf einer gepflegten Grundlage steht statt bei null zu beginnen.
+
+#### PROD-039 — Werkzeug-Images blockieren die Pipeline nicht
+**Schwere:** Mittel · **Status:** Bewusst akzeptiert · **Betrifft:** §13 · **Fundstelle:** `.github/workflows/ci.yml`, Job `security`
+
+Der Image-Scan unterscheidet zwei Klassen:
+
+| Klasse | Ermittlung | Verhalten |
+|---|---|---|
+| **Laufzeit** – PostgreSQL, Keycloak | `docker compose config --images` | Befund bricht den Build |
+| **Werkzeug** – keycloak-config-cli | zusätzlich im Profil `config` | Befund wird berichtet, blockiert nicht |
+
+**Begründung.** Werkzeug-Images werden nie ausgerollt. `keycloak-config-cli` läuft rund
+eine Sekunde lokal und in der CI, nimmt keine Verbindungen an und verarbeitet
+ausschließlich die eigene Realm-Datei aus diesem Repository. Das reale Lieferkettenrisiko
+daran ist ein **manipuliertes Image**, und dagegen hilft die Festlegung auf einen Digest
+(`PROD-022`), nicht die CVE-Prüfung.
+
+Der ausschlaggebende Grund ist aber ein praktischer: Bei gleicher Behandlung kämen
+19 weitere Unterdrückungen hinzu – zusammen über 45. Ab dieser Größe wird die Liste nicht
+mehr gepflegt, und dann ist das gesamte Verfahren wertlos. Ein Tor, das für alles gilt,
+gilt am Ende für nichts.
+
+**Was das nicht bedeutet:** Werkzeug-Images werden weiterhin gescannt, und die Befunde
+stehen im Protokoll. Ein Befund, der auf dem **Eingabepfad** eines Werkzeugs liegt oder
+Codeausführung ermöglicht, wird einzeln bewertet – siehe PROD-040.
+
+**Überprüfung:** Sobald ein Werkzeug-Image in einer nicht-lokalen Umgebung eingesetzt
+wird, entfällt diese Einstufung sofort.
+
+#### PROD-040 — Spring Boot 3.4.5 in keycloak-config-cli, CVE-2026-40973
+**Schwere:** Hoch · **Status:** Offen · **Betrifft:** §13 · **Fundstelle:** `infra/local/compose.yaml`, Dienst `keycloak-config`
+
+`adorsys/keycloak-config-cli:6.5.1-26` bündelt Spring Boot 3.4.5. CVE-2026-40973
+beschreibt „Arbitrary Code Execution and Session Hijacking via predictable …"; behoben in
+3.5.14 bzw. 4.0.6.
+
+**Warum dieser Befund gesondert steht**, obwohl Werkzeug-Images nach PROD-039 nicht
+blockieren: Der Ausnutzungspfad ließ sich aus der Kurzbeschreibung nicht bestimmen.
+„Session Hijacking" deutet auf einen Webserver-Kontext, den ein Kommandozeilenwerkzeug
+nicht hat – „Arbitrary Code Execution via predictable" dagegen auf vorhersagbare temporäre
+Dateien, was jede Spring-Boot-Anwendung betreffen kann.
+
+Erschwerend: Das Werkzeug hält **Keycloak-Administratorzugangsdaten**. Codeausführung in
+diesem Prozess bedeutet Zugriff auf die Identitätsverwaltung.
+
+**Zu tun:**
+1. Ausnutzungspfad anhand der vollständigen Empfehlung klären
+2. Ist er in einem kurzlebigen CLI ohne Webserver nicht gegeben → Umstufung auf
+   `Bewusst akzeptiert` mit Begründung
+3. Andernfalls: neuere `keycloak-config-cli`-Fassung mit Spring Boot ≥3.5.14 suchen oder
+   das Werkzeug ersetzen
+
+**Bis zur Klärung gilt der Befund als erreichbar** – gemäß der Auffangregel im Verfahren.
 **Schwere:** Mittel · **Status:** Offen · **Betrifft:** §13
 
 **Zielzustand:** SBOM je Image, signierte Images, Prüfung der Signatur beim Ausrollen.
