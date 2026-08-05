@@ -45,6 +45,7 @@ Zulässige Status: `Vorgeschlagen`, `Angenommen`, `Abgelehnt`, `Ersetzt durch AD
 | [0006](0006-typescript-version-und-modulsemantik.md) | TypeScript-Version und Modulsemantik | Angenommen | 2026-07-31 |
 | [0007](0007-inkrementeller-aufbau-der-servicelandschaft.md) | Inkrementeller Aufbau der Servicelandschaft | Angenommen | 2026-07-31 |
 | [0008](0008-teststrategie-und-testinfrastruktur.md) | Teststrategie und Testinfrastruktur | Angenommen | 2026-08-04 |
+| [0009](0009-orm-und-migrationswerkzeug.md) | ORM und Migrationswerkzeug: Drizzle | Angenommen | 2026-08-05 |
 
 ## Offene, bewusst vertagte Entscheidungen
 
@@ -53,7 +54,7 @@ Zeitpunkt als eigenes ADR nachgezogen.
 
 | Thema | Vertagt bis | Referenz |
 |---|---|---|
-| ORM und Migrationswerkzeug (Drizzle vs. MikroORM) | Meilenstein M1 | [ADR-0003](0003-datenbank-und-datenhoheit.md) |
+| Audit-Ereignisschema und Schreibpfad | Meilenstein M1.4 | [ADR-0009](0009-orm-und-migrationswerkzeug.md) |
 | Policy-Engine für Feldebene (OPA vs. OpenFGA) | Meilenstein M5 | [ADR-0004](0004-authentifizierung-und-autorisierung.md) |
 | Regel-Engine für Workflow-Übergänge (JSONLogic vs. json-rules-engine) | Meilenstein M4 | [ADR-0001](0001-backend-sprache-und-framework.md) |
 | Messaging-Backbone (Kafka vs. NATS) | Sobald der zweite Service existiert | CLAUDE.md §12 |
