@@ -43,6 +43,23 @@ Gilt für jedes Paket unter `services/*`, Referenzumsetzung ist
 | SWC | 1.15.x | `.swcrc` | Transformation der Tests inkl. Decorator-Metadaten |
 | supertest | 7.2.x | – | HTTP-Aufrufe gegen die laufende Anwendung im Test |
 
+### Werkzeuge des Frontends
+
+| Paket | Version | Konfiguration | Zweck |
+|---|---|---|---|
+| Next.js | 16.3.x | `frontend/next.config.ts` | Anwendungsframework, App Router mit Turbopack |
+| React | 19.2.x | – | Oberflächenbibliothek |
+
+`frontend/tsconfig.json` erbt von **`tsconfig.base.json`**, nicht von `tsconfig.node.json`.
+Das ist der Grund, aus dem die Basis frei von Modulsemantik gehalten wurde
+([ADR-0006](../adr/0006-typescript-version-und-modulsemantik.md)): Der Service braucht
+`nodenext` mit CommonJS und Decorators, das Frontend Bundler-Auflösung mit
+DOM-Bibliotheken. Gemeinsam ist ausschließlich die Typstrenge.
+
+Das Frontend liegt **nicht** unter `services/`. Es ist kein Microservice im Sinne von
+[ADR-0002](../adr/0002-repository-struktur.md) – keine eigene Datenbank, keine eigene
+Rolle, kein angebotener Contract –, sondern ein Konsument der Services.
+
 **SWC ist nicht optional.** Der Standardtransformator von Vitest ist esbuild, und esbuild
 unterstützt `emitDecoratorMetadata` nicht. Ohne SWC fehlen NestJS die Typinformationen zur
 Auflösung seiner Abhängigkeiten; der Fehler erscheint als `Cannot resolve dependency at
@@ -259,13 +276,11 @@ angegebenen Meilenstein ergänzt.
 
 | Werkzeug | Zweck | Ab |
 |---|---|---|
-| Testcontainers | Integrationstests gegen echte PostgreSQL-Instanz ([ADR-0008](../adr/0008-teststrategie-und-testinfrastruktur.md)) | M1.3 |
-| Drizzle oder MikroORM | Datenzugriff und Migrationen ([ADR-0003](../adr/0003-datenbank-und-datenhoheit.md)) | M1.3 |
-| `@nestjs/swagger` | Erzeugung des OpenAPI-Contracts ([ADR-0005](../adr/0005-api-first-workflow.md)) | M1.4 |
-| `oasdiff` | Erkennung inkompatibler Contract-Änderungen | M1.4 |
-| OpenTelemetry | Ablaufverfolgung und Metriken (CLAUDE.md §14) | M1 |
-| SAST / DAST | Statische und dynamische Sicherheitsprüfung (CLAUDE.md §13, `PROD-025`) | M1 / M2 |
-| Next.js | Frontend | M2 |
+| Bibliothek für serverseitige Anmeldung | Backend-for-Frontend ([ADR-0014](../adr/0014-frontend-authentifizierung-ueber-bff.md)) | M2.3 |
+| OpenAPI-Client-Generator | Typsicherer Client aus dem eingecheckten Contract ([ADR-0005](../adr/0005-api-first-workflow.md)) | M2.4 |
+| OpenTelemetry | Ablaufverfolgung und Metriken (CLAUDE.md §14) | offen |
+| SAST / DAST | Statische und dynamische Sicherheitsprüfung (CLAUDE.md §13, `PROD-025`) | offen |
+| `@nestjs/terminus` | Bereitschaftsprüfung mit Datenbank- und JWKS-Kontrolle (`PROD-029`) | offen |
 | `ajv` | Laufzeitvalidierung dynamischer Attribute gegen JSON Schema (CLAUDE.md §6) | M3 |
 | JSONLogic oder `json-rules-engine` | Regelauswertung für Workflow-Übergänge (CLAUDE.md §7) | M4 |
 | OPA oder OpenFGA | Feingranulare Autorisierung ([ADR-0004](../adr/0004-authentifizierung-und-autorisierung.md)) | M5 |
