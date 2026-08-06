@@ -50,12 +50,12 @@ Das gilt für alle Beteiligten, einschließlich der KI in ihrer Beraterrolle
 | A – Transportverschlüsselung und Netzwerk | 7 | 5 | – |
 | *davon Voraussetzung für ADR-0013:* | `PROD-006`, `PROD-007`, `PROD-032` | | |
 | B – Geheimnisse und Zugangsdaten | 5 | 4 | – |
-| C – Identität und Zugriff | 9 | 2 | – |
+| C – Identität und Zugriff | 10 | 2 | – |
 | D – Daten | 4 | 3 | – |
 | E – Container und Lieferkette | 9 | 1 | **2** |
 | F – Betrieb und Verfügbarkeit | 6 | 1 | – |
-| G – Anwendungssicherheit | 5 | 1 | – |
-| **Gesamt** | **45** | **17** | **2** |
+| G – Anwendungssicherheit | 6 | 1 | – |
+| **Gesamt** | **47** | **17** | **2** |
 
 > **Nummern werden nicht neu vergeben.** `PROD-026` ist unbesetzt. Eine Lücke ist kein
 > Fehler – eine wiederverwendete Nummer wäre einer, weil Verweise aus ADRs, Commits und
@@ -66,7 +66,7 @@ und `PROD-036`, beide zur Lieferkette. Sie wurden vorgezogen, weil ihre Vorausse
 (Renovate im Betrieb) mit M1 erfüllt war und eine unbeaufsichtigte Festlegung ohne
 automatische Aktualisierung schlechter wäre als gar keine.
 
-Die übrigen 43 bleiben offen. Das ist für diesen Projektstand erwartbar: Der überwiegende
+Die übrigen 45 bleiben offen. Das ist für diesen Projektstand erwartbar: Der überwiegende
 Teil betrifft Betrieb, Verschlüsselung und Geheimnisverwaltung und wird erst mit der
 ersten nicht-lokalen Umgebung greifbar.
 
@@ -325,6 +325,30 @@ sodass die Wirkverzögerung einer Sperre bekannt und begrenzt ist. Zusätzlich z
 periodischer Abgleich gegen die Ursprungsquelle statt ausschließlich bei der Anmeldung.
 Hängt unmittelbar an `PROD-045` – solange die Sitzung nicht widerrufbar ist, ist die
 Sitzungsdauer die einzige wirksame Stellschraube.
+
+#### PROD-047 — Gleichzeitige Tokenerneuerung ist nicht abgestimmt
+**Schwere:** Mittel · **Status:** Offen · **Betrifft:** §13 · **Verweis:** [ADR-0014](../adr/0014-frontend-authentifizierung-ueber-bff.md)
+
+Der BFF erneuert das Zugriffstoken, sobald es abzulaufen droht. Treffen mehrere Anfragen
+desselben Anwenders gleichzeitig ein – im Browser der Normalfall –, kann jede davon eine
+eigene Erneuerung auslösen. Eine Absprache zwischen ihnen gibt es nicht: Die Sitzung liegt
+im Cookie, es existiert kein gemeinsamer Zustand, an dem sich eine Sperre festmachen ließe
+(`PROD-045`).
+
+**Heute geht das gut, weil Keycloak in der Voreinstellung alte Erneuerungstoken nicht
+widerruft.** Genau das ist die schwächere Einstellung. Wird *Revoke Refresh Token*
+eingeschaltet – eine sinnvolle Härtung, weil sie die Wiederverwendung entwendeter Token
+erkennbar macht –, entwertet die erste Erneuerung das Token der zweiten. Die Folge sind
+sporadische, nicht nachstellbare Abmeldungen unter Last.
+
+**Wir verlassen uns damit stillschweigend auf eine unsichere Voreinstellung.** Das ist der
+eigentliche Eintrag hier, nicht die Gleichzeitigkeit selbst.
+
+**Zielzustand:** Entscheidung gemeinsam mit `PROD-045`. Ein serverseitiger
+Sitzungsspeicher löst beides zugleich – er gibt den Ort, an dem sich eine Erneuerung
+serialisieren lässt. Bis dahin bleibt *Revoke Refresh Token* bewusst aus, und diese
+Abhängigkeit ist hier festgehalten, damit sie beim nächsten Härtungsdurchgang nicht
+versehentlich eingeschaltet wird.
 
 #### PROD-046 — Ursprungsquelle einer Identität ist im Token nicht sichtbar
 **Schwere:** Mittel · **Status:** Offen · **Betrifft:** §19.3 · **Verweis:** [ADR-0015](../adr/0015-mehrere-identitaetsquellen.md) Punkt 5
@@ -810,6 +834,36 @@ Datenbankausfalls mitzubehandeln.
 ---
 
 ## G – Anwendungssicherheit
+
+#### PROD-048 — Swagger-UI wird ungeschützt ausgeliefert
+**Schwere:** Mittel · **Status:** Offen · **Betrifft:** §12, §13 · **Fundstelle:** `services/requirement/src/main.ts`, `SwaggerModule.setup("api-docs", ...)`
+
+Der Service liefert unter `/api-docs` die Swagger-Oberfläche aus – ohne Authentifizierung,
+in jeder Umgebung. Zwei Wirkungen:
+
+- **Der vollständige Schnittstellenumfang ist öffentlich lesbar**, einschließlich der
+  Felder, die nach §6 dynamisch sind. Wer angreift, muss nicht raten
+- **Swagger-UI ist eine ausgelieferte Fremdanwendung im Browser.** Sie läuft auf dem
+  Ursprung des Service und hatte wiederholt Cross-Site-Scripting-Schwachstellen
+
+Das ist kein Argument gegen die Dokumentation selbst: Der Contract ist eingecheckt, wird
+mit `redocly lint` geprüft und über den Abweichungstest abgesichert
+([ADR-0005](../adr/0005-api-first-workflow.md)). §12 verlangt eine dokumentierte
+Schnittstelle, nicht eine vom Service gehostete Oberfläche.
+
+Zur Auslieferung ist `@fastify/static` erforderlich – eine Abhängigkeit, die
+ausschließlich für diesen Zweck im Baum liegt. Der Fehler `The "@fastify/static" package
+is missing` beim Start ist die Folge davon, dass die Oberfläche eingerichtet, das Paket
+aber nicht deklariert war.
+
+**Zielzustand:** Die Oberfläche ist in produktiven Umgebungen abgeschaltet oder hinter
+Authentifizierung gestellt; entschieden über Konfiguration, nicht über einen zweiten
+Codepfad. Das reine Dokument bleibt unter einem eigenen Pfad abrufbar, wenn §12 das
+erfordert – dafür wird kein statischer Dateiversand gebraucht.
+
+> Die Telemetriekomponente `@scarf/scarf`, die über `swagger-ui-dist` in den Baum kommt,
+> ist bereits abgelehnt (`allowBuilds` in `pnpm-workspace.yaml`, siehe
+> [tooling.md](../development/tooling.md)).
 
 #### PROD-032 — Keine Begrenzung der Anfragerate
 **Schwere:** Kritisch · **Status:** Offen · **Betrifft:** §12, §13

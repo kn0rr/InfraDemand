@@ -1,5 +1,4 @@
-import { getIronSession, type IronSession, type SessionOptions } from "iron-session";
-import { cookies } from "next/headers";
+import type { SessionOptions } from "iron-session";
 import { erforderlich } from "./umgebung";
 
 /**
@@ -63,14 +62,6 @@ export function sitzungsOptionen(): SessionOptions {
       path: "/",
     },
   };
-}
-
-/**
- * Lesen ist ueberall moeglich, `save()` und `destroy()` nur in Route-Handlern und
- * Server Actions. Eine Server Component kann keine Cookies setzen.
- */
-export async function holeSitzung(): Promise<IronSession<Sitzungsinhalt>> {
-  return getIronSession<Sitzungsinhalt>(await cookies(), sitzungsOptionen());
 }
 
 /** Entfernt die nur waehrend des Anmeldeflusses benoetigten Felder. */

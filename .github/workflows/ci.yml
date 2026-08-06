@@ -54,9 +54,9 @@ jobs:
 
       - name: Contract-Drift pruefen
         run: |
-          if ! git diff --exit-code -- docs/api/; then
-            echo "::error::Der eingecheckte OpenAPI-Contract weicht vom Code ab."
-            echo "::error::Lokal 'pnpm --filter @infrademand/requirement api:generate' ausfuehren und das Ergebnis committen."
+          if ! git diff --exit-code -- docs/api/ frontend/src/lib/api/; then
+            echo "::error::Contract oder abgeleitete Typen weichen vom Code ab."
+            echo "::error::Lokal 'pnpm run api:generate' ausfuehren und das Ergebnis committen."
             exit 1
           fi
 

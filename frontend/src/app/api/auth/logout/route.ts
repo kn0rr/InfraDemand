@@ -1,6 +1,6 @@
 import * as client from "openid-client";
 import { holeKonfiguration, loeseQuelleAuf } from "@/lib/auth/identitaetsquellen";
-import { holeSitzung } from "@/lib/auth/sitzung";
+import { holeSitzung } from "@/lib/auth/sitzung.server";
 import { anwendungsBasisUrl } from "@/lib/auth/umgebung";
 
 export async function POST(): Promise<Response> {

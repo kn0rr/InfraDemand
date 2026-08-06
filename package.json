@@ -20,7 +20,7 @@
     "test": "pnpm -r test",
     "test:integration": "pnpm -r test:integration",
     "api:lint": "redocly lint docs/api/*.yaml",
-    "api:generate": "pnpm -r api:generate"
+    "api:generate": "pnpm --filter @infrademand/requirement api:generate && pnpm --filter @infrademand/frontend api:types"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.6",
