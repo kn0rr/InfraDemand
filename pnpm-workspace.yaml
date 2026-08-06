@@ -4,6 +4,7 @@ packages:
   - "frontend"
 
 allowBuilds:
+  "@scarf/scarf": false
   "@swc/core": true
   cpu-features: false
   esbuild: true
@@ -12,3 +13,4 @@ allowBuilds:
 
 overrides:
   find-my-way: ">=9.7.0"
+  "@nestjs/swagger>js-yaml": ">=5.2.2"

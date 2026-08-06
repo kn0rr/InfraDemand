@@ -50,7 +50,7 @@ Wesentliche Entitäten:
 
 | Entität | Zweck |
 |---|---|
-| `requirement` | Kernentität mit festen Feldern und dynamischem Attributfeld (JSONB) |
+| `requirement` | Kernentität mit festen Feldern, Herkunftsangabe und dynamischem Attributfeld (JSONB) |
 | `project` | Fachliche Klammer über Anforderungen |
 | `attribute_definition` | Attributdefinitionen als Fachdaten, versioniert (§6) |
 | `workflow_definition` | Zustandsgraphen als Fachdaten, versioniert (§7) |
@@ -172,7 +172,16 @@ eine Rechenkomponente des Capacity Service, und läuft außerhalb des Request-Pf
 ### Abhängigkeiten
 
 Infrastructure Service (Overhead-Modelle, Kapazitätspools) über Service Account.
-Requirement Service (Bestellungen) über Service Account oder Ereignisse.
+
+**Zum Requirement Service besteht keine Abhängigkeit im engeren Sinn.** Bestell- und
+Anforderungsdaten erreichen den Capacity Service über einen **Integrationsvertrag** –
+per API oder Dateiimport, beides gleichwertig und über denselben Verarbeitungspfad
+([ADR-0010](../adr/0010-entkopplung-anforderung-und-kapazitaet.md)).
+
+Der Service kennt Bestellungen ausschließlich über `(source_system, external_id)`. Er
+hält keine Fremdschlüssel auf Daten des Requirement Service und trifft keine Annahmen
+über dessen Bezeichnerformat oder Statuswerte. Beide Seiten sind dadurch einzeln durch
+Fremdsysteme ersetzbar.
 
 ---
 

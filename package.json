@@ -2,6 +2,7 @@
   "name": "infrademand",
   "version": "0.0.0",
   "private": true,
+  "license": "Apache-2.0",
   "packageManager": "pnpm@11.20.0",
   "engines": {
     "node": ">=24 <25"
@@ -16,11 +17,15 @@
     "infra:realm": "docker compose -f infra/local/compose.yaml --profile config run --rm keycloak-config",
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r test",
-    "test:integration": "pnpm -r test:integration"
+    "test:integration": "pnpm -r test:integration",
+    "api:lint": "redocly lint docs/api/*.yaml",
+    "api:generate": "pnpm -r api:generate"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.6",
+    "@redocly/cli": "^2.44.1",
     "@types/node": "^24.13.3",
+    "dotenv-cli": "^11.0.0",
     "typescript": "5.9.3"
   }
 }

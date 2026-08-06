@@ -19,6 +19,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
 
       - name: Workflow-Dateien pruefen
         run: docker run --rm -v "$PWD:/repo" --workdir /repo rhysd/actionlint:1.7.12 -color
@@ -36,6 +38,48 @@ jobs:
       - name: Lint
         run: pnpm lint
 
+      - name: OpenAPI-Contract erzeugen
+        run: pnpm run api:generate
+
+      - name: OpenAPI-Contract pruefen
+        run: pnpm run api:lint
+
+      - name: Contract-Drift pruefen
+        run: |
+          if ! git diff --exit-code -- docs/api/; then
+            echo "::error::Der eingecheckte OpenAPI-Contract weicht vom Code ab."
+            echo "::error::Lokal 'pnpm --filter @infrademand/requirement api:generate' ausfuehren und das Ergebnis committen."
+            exit 1
+          fi
+
+      - name: Inkompatible Contract-Aenderungen pruefen
+        if: github.event_name == 'pull_request'
+        run: |
+          mkdir -p /tmp/oasdiff
+          git fetch --no-tags --depth=1 origin "${{ github.base_ref }}"
+          if ! git show "FETCH_HEAD:docs/api/requirement.openapi.yaml" > /tmp/oasdiff/vorher.yaml 2>/dev/null; then
+            echo "Kein Vorgaengerstand im Zielbranch - Pruefung entfaellt."
+            exit 0
+          fi
+          docker run --rm \
+            -v /tmp/oasdiff:/base:ro \
+            -v "$PWD/docs/api:/rev:ro" \
+            tufin/oasdiff:v1.27.0 breaking /base/vorher.yaml /rev/requirement.openapi.yaml --fail-on ERR
+
+      - name: Inkompatible Contract-Aenderungen pruefen
+        if: github.event_name == 'pull_request'
+        run: |
+          mkdir -p /tmp/oasdiff
+          git fetch --no-tags --depth=1 origin "${{ github.base_ref }}"
+          if ! git show "FETCH_HEAD:docs/api/requirement.openapi.yaml" > /tmp/oasdiff/vorher.yaml 2>/dev/null; then
+            echo "Kein Vorgaengerstand im Zielbranch - Pruefung entfaellt."
+            exit 0
+          fi
+          docker run --rm \
+            -v /tmp/oasdiff:/base:ro \
+            -v "$PWD/docs/api:/rev:ro" \
+            tufin/oasdiff:v1.27.0 breaking /base/vorher.yaml /rev/requirement.openapi.yaml --fail-on ERR
+
   realm:
     name: Keycloak-Realm validieren
     runs-on: ubuntu-latest
@@ -51,16 +95,24 @@ jobs:
       - name: Wiederholte Anwendung ist idempotent
         run: docker compose -f infra/local/compose.yaml --profile config run --rm keycloak-config
 
+      - name: Lokale Werte laden
+        run: |
+          set -a
+          # shellcheck disable=SC1091
+          . infra/local/local.env
+          set +a
+          echo "KEYCLOAK_ISSUER_URL=$KEYCLOAK_ISSUER_URL" >> "$GITHUB_ENV"
+
       - name: Realm ist erreichbar
         run: |
-          issuer=$(curl -sf http://localhost:8080/realms/infrademand/.well-known/openid-configuration | jq -r .issuer)
-          test "$issuer" = "http://localhost:8080/realms/infrademand"
+          issuer=$(curl -sf "$KEYCLOAK_ISSUER_URL/.well-known/openid-configuration" | jq -r .issuer)
+          test "$issuer" = "$KEYCLOAK_ISSUER_URL"
 
       - name: Anspruchskette im Token pruefen
         run: |
           token=$(curl -sf -X POST \
             -d client_id=frontend -d username=test.author -d password=test -d grant_type=password \
-            http://localhost:8080/realms/infrademand/protocol/openid-connect/token | jq -r .access_token)
+            "$KEYCLOAK_ISSUER_URL/protocol/openid-connect/token" | jq -r .access_token)
 
           payload=$(echo "$token" | cut -d. -f2 | tr '_-' '/+')
           case $(( ${#payload} % 4 )) in 2) payload="$payload==" ;; 3) payload="$payload=" ;; esac
@@ -79,8 +131,6 @@ jobs:
 
       - name: Migrationen anwenden
         run: pnpm --filter @infrademand/requirement db:migrate
-        env:
-          DATABASE_URL: postgresql://requirement:requirement@localhost:5432/requirement
 
       - name: Integrationstests gegen Keycloak
         run: pnpm run test:integration

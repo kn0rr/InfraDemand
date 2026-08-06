@@ -4,9 +4,7 @@ import request from "supertest";
 import { AppModule } from "../src/app.module";
 import { configureApp } from "../src/app.setup";
 
-const ISSUER = "http://localhost:8080/realms/infrademand";
-const AUDIENCE = "requirement-api";
-const DATABASE_URL = "postgresql://requirement:requirement@localhost:5432/requirement";
+const ISSUER = process.env["KEYCLOAK_ISSUER_URL"] ?? "";
 
 async function holeToken(): Promise<string> {
   const antwort = await fetch(`${ISSUER}/protocol/openid-connect/token`, {
@@ -47,11 +45,6 @@ describe("Authentifizierung gegen echtes Keycloak", () => {
   let token: string;
 
   beforeAll(async () => {
-    process.env["KEYCLOAK_ISSUER_URL"] = ISSUER;
-    process.env["KEYCLOAK_AUDIENCE"] = AUDIENCE;
-    // Zuweisung, nicht ??= - test/setup.ts hat bereits einen Platzhalter gesetzt
-    process.env["DATABASE_URL"] = DATABASE_URL;
-
     token = await holeToken();
 
     const moduleFixture: TestingModule = await Test.createTestingModule({

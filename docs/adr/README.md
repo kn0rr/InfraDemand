@@ -46,6 +46,10 @@ Zulässige Status: `Vorgeschlagen`, `Angenommen`, `Abgelehnt`, `Ersetzt durch AD
 | [0007](0007-inkrementeller-aufbau-der-servicelandschaft.md) | Inkrementeller Aufbau der Servicelandschaft | Angenommen | 2026-07-31 |
 | [0008](0008-teststrategie-und-testinfrastruktur.md) | Teststrategie und Testinfrastruktur | Angenommen | 2026-08-04 |
 | [0009](0009-orm-und-migrationswerkzeug.md) | ORM und Migrationswerkzeug: Drizzle | Angenommen | 2026-08-05 |
+| [0010](0010-entkopplung-anforderung-und-kapazitaet.md) | Entkopplung von Anforderungsaufnahme und Kapazitätsberechnung | Angenommen | 2026-08-05 |
+| [0011](0011-datenhoheit-je-feld-und-kontext.md) | Datenhoheit je Feld und Kontext | Angenommen | 2026-08-05 |
+| [0012](0012-vollstaendige-versionierung-mit-zeitbezug.md) | Vollständige Versionierung mit Zeitbezug | Angenommen | 2026-08-05 |
+| [0013](0013-frontend-zuschnitt-und-zugriffsweg.md) | Frontend-Zuschnitt und Zugriffsweg | Angenommen | 2026-08-05 |
 
 ## Offene, bewusst vertagte Entscheidungen
 

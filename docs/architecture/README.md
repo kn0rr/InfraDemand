@@ -42,14 +42,27 @@ Konsequenz für den Entwurf: Validierung erfolgt gegen zur Laufzeit geladene Def
 (JSON Schema), nicht gegen zur Bauzeit festgelegte Typen. Zustandsübergänge werden aus
 gespeicherten Zustandsgraphen abgeleitet, nicht aus `switch`-Anweisungen.
 
-### Versionierung von Definitionen, nicht nur von Daten
+### Versionierung von Definitionen **und** von Daten
 
-Attributdefinitionen, Workflow-Definitionen und Overhead-Modelle sind versioniert. Eine
-laufende Anforderung bleibt auf der Version, unter der sie begonnen wurde (§7); Änderungen
-am Overhead-Modell wirken ausschließlich auf neue Bestellungen (§18).
+**Definitionen:** Attributdefinitionen, Workflow-Definitionen und Overhead-Modelle sind
+versioniert. Eine laufende Anforderung bleibt auf der Version, unter der sie begonnen
+wurde (§7); Änderungen am Overhead-Modell wirken ausschließlich auf neue Bestellungen
+(§18). Jedes Fachobjekt führt einen Verweis auf die Definitionsversion mit, gegen die es
+zu bewerten ist.
 
-Konsequenz: Jedes Fachobjekt führt einen Verweis auf die Definitionsversion mit, gegen die
-es zu bewerten ist. Definitionen werden nie überschrieben, sondern fortgeschrieben.
+**Daten:** Jede Änderung erzeugt eine neue, vollständige Version
+([ADR-0012](../adr/0012-vollstaendige-versionierung-mit-zeitbezug.md)). Der Zustand zu
+einem beliebigen vergangenen Zeitpunkt ist als gewöhnliche Abfrage rekonstruierbar.
+
+Der Zweck ist nicht Protokollierung, sondern **Nachweisfähigkeit**: belegen zu können,
+welchen Anforderungsbestand das System zu einem bestimmten Zeitpunkt kannte – und damit,
+dass die Kapazitätsplanung auf dieser Grundlage angemessen reagiert hat. Ein
+Änderungsprotokoll beantwortet das nicht; es belegt, *dass* geändert wurde, nicht *wie die
+Lage damals aussah*.
+
+Konsequenzen: Die Historie ist zugleich der Auditpfad aus §16 – es entstehen nicht zwei
+Mechanismen. Löschungen sind fachlich, nicht physisch. Und daraus folgt ein Zielkonflikt
+mit Löschpflichten, der vor dem Produktivgang aufzulösen ist (`PROD-020`).
 
 ### Lückenlose Nachvollziehbarkeit
 
@@ -60,6 +73,25 @@ Jede Schreiboperation – aus der Oberfläche, über die API oder durch einen Se
 Konsequenz: Der Audit-Schreibpfad ist Bestandteil des Schreibvorgangs, kein
 nachgelagerter Nebeneffekt. Er wird an einer Stelle je Service umgesetzt
 (NestJS-Interceptor), nicht in jedem Handler.
+
+### Austauschbarkeit an der Grenze zwischen Aufnahme und Berechnung
+
+Anforderungsaufnahme und Kapazitätsberechnung müssen **unabhängig voneinander
+funktionieren und einzeln durch Fremdsysteme ersetzbar sein**
+([ADR-0010](../adr/0010-entkopplung-anforderung-und-kapazitaet.md)).
+
+Das ist mehr als lose Kopplung. Konsequenzen für den Entwurf:
+
+- Die Grenze ist ein **Integrationsvertrag**, kein interner Aufruf – versioniert und
+  dokumentiert wie eine öffentliche Schnittstelle (§12).
+- **Zwei gleichwertige Eingangswege**: API und Dateiimport, beide über denselben
+  Verarbeitungspfad. Der Dateiimport ist eine Transportform, keine zweite
+  Implementierung.
+- **Keine gemeinsamen Bezeichner.** Datensätze werden über
+  `(source_system, external_id)` identifiziert, nicht über interne Schlüssel.
+- **Eigenes Statusvokabular im Vertrag.** Die Workflow-Zustände aus §7 sind
+  konfigurierbare Fachdaten und würden den Vertrag bei der ersten Workflow-Anpassung
+  brechen.
 
 ### Identität für Menschen und Maschinen
 
@@ -75,51 +107,58 @@ unterschieden. Es gibt nur Identitäten mit Rechten.
 
 ```mermaid
 graph TB
-    subgraph Klienten
-        UI[Next.js Frontend]
-        EXT[Externe API-Konsumenten]
+    UI[Next.js Frontend<br/>operative Bedienung aller Services]
+    BI[Superset / Grafana<br/>Auswertung und Metriken]
+    EXT[Externe Systeme<br/>API oder Dateiimport]
+    KC[Keycloak<br/>OIDC, Benutzer, Service Accounts]
+
+    subgraph SERVICES[Fachliche Services]
+        REQ[Requirement]
+        IAM[Identity &amp; Access]
+        INF[Infrastructure]
+        CAP[Capacity]
+        AUD[Audit]
     end
 
-    subgraph Identität
-        KC[Keycloak<br/>OIDC, Benutzer, Service Accounts]
-    end
-
-    subgraph Fachliche Services
-        REQ[Requirement Service]
-        IAM[Identity &amp; Access Service]
-        INF[Infrastructure Service]
-        CAP[Capacity Service]
-        AUD[Audit Service]
-    end
-
-    subgraph Daten
-        PG[(PostgreSQL<br/>je Service eigene DB)]
-    end
+    PG[(PostgreSQL<br/>je Service eigene DB und Rolle)]
+    RM[(Lesemodell<br/>fuer Reporting)]
 
     UI -->|OIDC Login| KC
-    UI -->|REST, JWT| REQ
+    UI -->|REST, JWT| SERVICES
     EXT -->|REST, JWT| REQ
+    EXT -->|Integrationsvertrag:<br/>API oder Datei| CAP
 
-    REQ -->|Token-Validierung via JWKS| KC
+    SERVICES -->|Token-Pruefung via JWKS| KC
     IAM -->|Admin-API| KC
 
     REQ -.->|Service Account| INF
     CAP -.->|Service Account| INF
-    REQ -.->|Audit-Ereignisse| AUD
-    CAP -.->|Audit-Ereignisse| AUD
 
-    REQ --> PG
-    IAM --> PG
-    INF --> PG
-    CAP --> PG
-    AUD --> PG
+    SERVICES --> PG
+    SERVICES -.->|speist| RM
+    BI --> RM
 ```
 
-Durchgezogene Linien sind Aufrufe im Namen eines Benutzers, gestrichelte Linien
-Service-zu-Service-Aufrufe über Service Accounts.
+Durchgezogene Linien sind Aufrufe im Namen eines Benutzers oder externen Systems,
+gestrichelte Linien Service-zu-Service-Verkehr über Service Accounts.
 
-**Wichtig:** Das Diagramm zeigt das Zielbild. Zum aktuellen Stand existiert keiner der
-fachlichen Services. Zur Reihenfolge siehe Abschnitt 5 und
+### Wie die Oberfläche daran hängt
+
+Das Frontend bedient **alle** fachlichen Services, nicht nur den Requirement Service –
+Stammdaten der Infrastruktur, Bestellungen, Szenarien der Kapazitätsplanung,
+Rollenverwaltung. Ein Frontend, direkter Zugriff auf die jeweilige Service-API, je Service
+eine eigene Zielgruppe im Token
+([ADR-0013](../adr/0013-frontend-zuschnitt-und-zugriffsweg.md)).
+
+**Bedienung und Auswertung sind getrennt.** Prognosekurven, Durchlaufzeiten und Ad-hoc-
+Berichte entstehen nicht im Frontend, sondern in einem Auswertungswerkzeug gegen das
+Lesemodell aus §10. Technische Infrastrukturmetriken laufen davon getrennt über Grafana
+(§11). Auswertungswerkzeuge greifen **nie** direkt auf die Fachdatenbanken zu – sonst
+wäre die Datenhoheit aus [ADR-0003](../adr/0003-datenbank-und-datenhoheit.md) umgangen
+und jede Schemaänderung bräche Berichte.
+
+**Wichtig:** Das Diagramm zeigt das Zielbild. Zum aktuellen Stand existiert ausschließlich
+der Requirement Service. Zur Reihenfolge siehe Abschnitt 5 und
 [ADR-0007](../adr/0007-inkrementeller-aufbau-der-servicelandschaft.md).
 
 ---

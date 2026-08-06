@@ -149,6 +149,17 @@ Ein Service, der eine API anbietet, braucht einen **Zielgruppen-Client** in
 Dazu ein Audience-Mapper im aufrufenden Client, sonst enthält das Token keinen
 `aud`-Anspruch und der Service lehnt es ab, obwohl Anmeldung und Rollen stimmen.
 
+> **Wird der Service vom Frontend aufgerufen**, braucht der Client `frontend` einen
+> **eigenen Audience-Mapper für diesen Service** – zusätzlich zu den bereits vorhandenen.
+> Jeder Service prüft ausschließlich auf seine eigene Zielgruppe
+> ([ADR-0013](../adr/0013-frontend-zuschnitt-und-zugriffsweg.md)). Fehlt der Mapper,
+> lehnt der neue Service jedes Token ab – mit einer Meldung, die auf den Service zeigt
+> statt auf den Realm.
+>
+> Ebenso ist **CORS für die Frontend-Herkunft** im Service zu konfigurieren. Der Browser
+> spricht die Service-APIs direkt an; ohne CORS scheitert jeder Aufruf aus der
+> Oberfläche.
+
 Ruft der Service **andere Services** auf, braucht er zusätzlich einen eigenen
 **Service Account** – einen vertraulichen Client mit aktiviertem Client-Credentials-Grant
 und eigenen, minimal notwendigen Rollen (CLAUDE.md §4). Kein geteilter technischer
@@ -231,6 +242,8 @@ Ohne diesen Schritt gilt der Service als nicht angelegt:
 - [ ] `tsconfig.json`, `tsconfig.build.json`, `nest-cli.json`, `.swcrc`, `vitest.config.ts`
 - [ ] Eigene Datenbank und Rolle, `infra:reset` durchgeführt
 - [ ] Zielgruppen-Client im Realm, `infra:realm` angewandt
+- [ ] Audience-Mapper im Client `frontend` ergänzt, falls die Oberfläche den Service aufruft
+- [ ] CORS für die Frontend-Herkunft konfiguriert
 - [ ] Erster Test rot, dann grün
 - [ ] Kein Import aus einem anderen Service, kein fremder Datenbankzugriff
 - [ ] Dokumentation nach Abschnitt 8

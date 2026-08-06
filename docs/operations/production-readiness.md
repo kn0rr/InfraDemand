@@ -48,13 +48,14 @@ Das gilt für alle Beteiligten, einschließlich der KI in ihrer Beraterrolle
 | Bereich | Einträge | davon kritisch |
 |---|---|---|
 | A – Transportverschlüsselung und Netzwerk | 7 | 5 |
+| *davon Voraussetzung für ADR-0013:* | `PROD-006`, `PROD-007`, `PROD-032` | |
 | B – Geheimnisse und Zugangsdaten | 5 | 5 |
 | C – Identität und Zugriff | 5 | 2 |
 | D – Daten | 4 | 3 |
 | E – Container und Lieferkette | 10 | 1 |
 | F – Betrieb und Verfügbarkeit | 5 | 1 |
-| G – Anwendungssicherheit | 4 | 1 |
-| **Gesamt** | **40** | **18** |
+| G – Anwendungssicherheit | 5 | 1 |
+| **Gesamt** | **41** | **18** |
 
 Stand 2026-08-03: kein Eintrag erledigt. Das ist erwartbar – die Plattform befindet sich
 in Meilenstein M0.
@@ -118,11 +119,25 @@ hat damit unmittelbaren Zugriff auf alle Datenbanken.
 Verbindungen – insbesondere darf ein Service nur seine eigene Datenbank erreichen
 ([ADR-0003](../adr/0003-datenbank-und-datenhoheit.md)).
 
-#### PROD-007 — CORS-Ursprünge zeigen auf localhost
-**Schwere:** Mittel · **Status:** Offen · **Fundstelle:** `infra/keycloak/realms/infrademand.json`, `webOrigins`, `redirectUris`
+#### PROD-007 — CORS: Ursprünge auf localhost, Konfiguration je Service erforderlich
+**Schwere:** Hoch · **Status:** Offen · **Fundstelle:** `infra/keycloak/realms/infrademand.json`, `webOrigins`, `redirectUris`
 
 **Zielzustand:** Umgebungsspezifische Werte über Variablenersetzung in
 `keycloak-config-cli`. Platzhalterwerte wie `*` sind unzulässig.
+
+> **Verschärft am 2026-08-05 durch [ADR-0013](../adr/0013-frontend-zuschnitt-und-zugriffsweg.md).**
+> Der Browser spricht die Service-APIs direkt an. Damit ist CORS **je Service** zu
+> konfigurieren, nicht einmal zentral an einem Gateway.
+>
+> Das vervielfacht die Fehlermöglichkeit: Ein einziger Service mit `*` in
+> `Access-Control-Allow-Origin` hebt die Herkunftsprüfung für die gesamte Anwendung aus,
+> ohne dass irgendetwas rot wird. Die Prüfung gehört in die Freigabe jeder Umgebung und
+> steht in der Prüfliste unter
+> [service-setup.md](../development/service-setup.md).
+>
+> Von Mittel auf **Hoch** angehoben: Die Schwere hängt nicht mehr an einem falschen
+> localhost-Eintrag, sondern an einer wiederkehrenden Konfiguration mit stiller
+> Fehlerwirkung.
 
 ---
 
@@ -251,6 +266,20 @@ und Löschung.
 **Zielzustand:** Dokumentiertes Konzept einschließlich der Frage, wie sich Löschung mit
 der in §16 geforderten lückenlosen Auditierung verträgt – ein Zielkonflikt, der bewusst
 aufzulösen ist.
+
+> **Verschärft am 2026-08-05 durch [ADR-0012](../adr/0012-vollstaendige-versionierung-mit-zeitbezug.md).**
+> Die Plattform hält künftig **jede Version jedes Datensatzes** vor, und Löschungen sind
+> ausdrücklich fachlich statt physisch – Voraussetzung dafür, den Bestand zu einem
+> vergangenen Zeitpunkt nachweisen zu können.
+>
+> Damit ist der Konflikt kein Randfall mehr, sondern strukturell: Eine Löschpflicht
+> verlangt das Entfernen personenbezogener Daten, die Nachweispflicht das Erhalten des
+> fachlichen Zustands. Ein tragfähiger Ansatz ist die **Anonymisierung personenbezogener
+> Felder in der Historie unter Erhalt der fachlichen Mengen und Zeitpunkte** – zu prüfen
+> und zu entscheiden, nicht nebenbei umzusetzen.
+>
+> Der Speicherbedarf wächst zudem mit jeder Änderung um eine vollständige Zeilenkopie.
+> Aufbewahrungsfristen und eine Verdichtung alter Versionen gehören in dasselbe Konzept.
 
 #### PROD-021 — Datenbankrechte noch nicht minimal
 **Schwere:** Mittel · **Status:** Offen · **Betrifft:** §8 · **Fundstelle:** `infra/local/postgres/init/01-databases.sql`
@@ -531,11 +560,26 @@ in den Services, definiertes Verhalten bei nicht erreichbarem Identitätsanbiete
 **Zielzustand:** Replikation mit automatischem Failover, Wiederherstellung auf einen
 Zeitpunkt.
 
-#### PROD-029 — Keine Bereitschafts- und Lebendigkeitsprüfungen
-**Schwere:** Hoch · **Status:** Offen · **Betrifft:** §14
+#### PROD-029 — `/health` meldet Bereitschaft ohne sie zu prüfen
+**Schwere:** Hoch · **Status:** Offen · **Betrifft:** §14 · **Fundstelle:** `services/requirement/src/health/`
 
 **Zielzustand:** Getrennte Endpunkte für Lebendigkeit und Bereitschaft je Service; die
 Bereitschaft berücksichtigt Datenbank- und Identitätsanbieter-Erreichbarkeit.
+
+> **Präzisiert am 2026-08-06.** Der vorhandene Endpunkt antwortet **immer** mit
+> `{status: "ok"}` – unabhängig davon, ob die Datenbank oder Keycloak erreichbar sind.
+>
+> Damit ist er als Bereitschaftsprüfung nicht nur unvollständig, sondern **irreführend**:
+> Die Orchestrierungsschicht leitet Verkehr auf einen Dienst, der keine einzige fachliche
+> Anfrage beantworten kann. Ein fehlender Endpunkt wäre ehrlicher als einer, der
+> ungeprüft „bereit" meldet.
+>
+> Aufgefallen über `redocly lint` (`operation-4xx-response`): Ein Vorgang ohne jede
+> 4xx- oder 5xx-Antwort ist bei einer Bereitschaftsprüfung ein Widerspruch in sich.
+>
+> **Zu tun:** `@nestjs/terminus` mit Prüfungen auf Datenbank und JWKS-Endpunkt;
+> Bereitschaft liefert 503, wenn eine Abhängigkeit fehlt. Lebendigkeit bleibt davon
+> getrennt und prüft nur den Prozess.
 
 #### PROD-030 — Keine Dienstgüteziele definiert
 **Schwere:** Mittel · **Status:** Offen · **Betrifft:** §15
@@ -562,6 +606,33 @@ Berechtigungsverweigerungen, ungewöhnliche Service-Account-Aktivität (§13).
 
 **Zielzustand:** Begrenzung je API-Client und je Identität, am Ingress und zusätzlich im
 Service.
+
+#### PROD-041 — Zugriffstoken liegt im Browser
+**Schwere:** Hoch · **Status:** Offen · **Betrifft:** §13 · **Entscheidung fällig:** M2 · **Verweis:** [ADR-0013](../adr/0013-frontend-zuschnitt-und-zugriffsweg.md)
+
+Nach ADR-0013 spricht der Browser die Service-APIs direkt an. Das Frontend hält damit das
+Zugriffstoken selbst – und dieses trägt die Zielgruppen **aller** aufgerufenen Services.
+
+**Folge:** Ein erfolgreicher XSS-Angriff im Frontend liefert ein Token für die gesamte
+Plattform, nicht nur für den betroffenen Bereich. Eine Content Security Policy
+(`PROD-033`) senkt die Wahrscheinlichkeit, schließt die Lücke aber nicht – eine anfällige
+Abhängigkeit im Frontend genügt.
+
+**Die Alternative** ist das Backend-for-Frontend-Muster: Das Token bleibt serverseitig,
+der Browser erhält ausschließlich ein `httpOnly`-Sitzungscookie. Ein Angreifer im
+Browser kann dann kein Token entwenden, weil dort keines liegt.
+
+**Das ist der einzige Punkt, an dem eine vorgelagerte Schicht nicht bequemer, sondern
+sicherer ist.** Alle übrigen Vorteile eines Gateways – zentrale Policy, Aggregation,
+Ratenbegrenzung – sind Betriebs- und Wartungsfragen; diese hier ist eine
+Sicherheitsfrage.
+
+**Zu tun:** Die Entscheidung in **M2 bewusst treffen**, bevor der Anmeldefluss gebaut
+wird. Sie fällt sonst stillschweigend, indem die naheliegende SPA-Variante mit PKCE
+entsteht und das Token damit im Browser landet.
+
+Bewertungsgrundlage: Schutzbedarf der Daten, Zahl der Zielgruppen im Token, und ob das
+Frontend Fremdinhalte oder nutzergenerierte Inhalte darstellt.
 
 #### PROD-033 — Keine Sicherheitsheader im Frontend
 **Schwere:** Hoch · **Status:** Offen · **Betrifft:** §13 · **Geplant:** M2

@@ -227,6 +227,34 @@ Testcontainer läuft mit weitreichenden Rechten; die Rolle `requirement` ist led
 Eigentümerin ihrer Datenbank. Eine Migration, die mehr voraussetzt, wäre im Container grün
 und in der Zieldatenbank rot – und das fiele sonst erst beim Ausrollen auf.
 
+### Versionshistorie
+
+`requirement_history` enthält **jede** Version eines Datensatzes, einschließlich der
+aktuellen ([ADR-0012](../../docs/adr/0012-vollstaendige-versionierung-mit-zeitbezug.md)).
+Die Fachtabelle `requirement` führt daneben ausschließlich den aktuellen Zustand als
+schnellen Zugriffsweg.
+
+Eine Stichtagsabfrage ist dadurch eine Abfrage gegen **eine** Tabelle:
+
+```sql
+WHERE valid_from <= :zeitpunkt AND (valid_to > :zeitpunkt OR valid_to IS NULL)
+```
+
+Die Historie ist zugleich der Auditpfad nach §16 – alter Wert, neuer Wert und feldgenaue
+Herkunft ergeben sich aus dem Vergleich aufeinanderfolgender Versionen.
+
+#### Zwei bewusste Auslassungen im Schema
+
+**Kein Fremdschlüssel von `requirement_history.id` auf `requirement.id`.** Das ist kein
+Versäumnis. Ein gelöschter Datensatz verlässt die Fachtabelle, seine Historie muss bleiben
+– ein Fremdschlüssel würde die Löschung entweder verhindern oder per Kaskade den Nachweis
+vernichten. **Nicht nachträglich ergänzen.**
+
+**Kein GIN-Index auf `requirement_history.dynamic_attributes`.** Stichtagsabfragen mit
+Filter auf dynamische Attribute wären damit schneller. Die Historientabelle wird jedoch
+die größte des Service, und der Index kostet bei jedem Schreibvorgang. Vertagt, bis ein
+konkreter Auswertungsbedarf ihn rechtfertigt.
+
 ### Schichtung
 
 ```

@@ -299,6 +299,39 @@ entsprechende Skript enthält. Ein Paket mit abweichendem Skriptnamen wird **sti
 übersprungen** – deshalb sind die Namen in
 [service-setup.md](service-setup.md) verbindlich festgelegt.
 
+### Lokale Konfigurationswerte
+
+Alles, was die lokale Umgebung braucht – Verbindungszeichenfolge, Aussteller, Zielgruppe –
+steht an **einer** Stelle:
+
+```
+infra/local/local.env
+```
+
+Die Datei ist committet, weil diese Zugangsdaten ausschließlich lokal gelten und bewusst
+trivial sind. Für jede andere Umgebung gilt §13: HashiCorp Vault (`PROD-008`, `PROD-010`).
+
+Daraus entsteht die `.env` des Service:
+
+```powershell
+Copy-Item infra/local/local.env services/requirement/.env
+```
+
+Sie wird zusätzlich gelesen von:
+
+| Verwender | Wie |
+|---|---|
+| `pnpm --filter … db:migrate` | über `dotenv-cli` im Skript |
+| Integrationstests | `test/setup.integration.ts` |
+| CI-Job „Keycloak-Realm validieren" | über `. infra/local/local.env` |
+
+> **Eine Stelle bleibt doppelt:** `infra/local/postgres/init/01-databases.sql` legt Rollen
+> und Passwörter an, und SQL kann keine Umgebungsvariablen lesen. Wer die Zugangsdaten
+> ändert, muss beide Dateien anfassen – die SQL-Datei trägt dafür einen Warnhinweis.
+>
+> Auffallen würde eine Abweichung sofort: Der Integrationstest verbindet sich mit den
+> Werten aus `local.env`, und stimmt das Passwort nicht, scheitert er.
+
 ### Voraussetzungen zur Laufzeit
 
 Ab Meilenstein M1.2 greift der Requirement Service auf Keycloak zu, ab M1.3 zusätzlich auf
