@@ -52,6 +52,7 @@ Zulässige Status: `Vorgeschlagen`, `Angenommen`, `Abgelehnt`, `Ersetzt durch AD
 | [0013](0013-frontend-zuschnitt-und-zugriffsweg.md) | Frontend-Zuschnitt und Zugriffsweg | Angenommen, Punkt 2 ersetzt durch 0014 | 2026-08-05 |
 | [0014](0014-frontend-authentifizierung-ueber-bff.md) | Frontend-Authentifizierung über ein Backend-for-Frontend | Angenommen | 2026-08-06 |
 | [0015](0015-mehrere-identitaetsquellen.md) | Mehrere Identitätsquellen über Brokering statt mehrerer Aussteller | Angenommen | 2026-08-06 |
+| [0016](0016-ui-grundlage-und-datenzugriff-im-frontend.md) | UI-Grundlage Mantine und Datenzugriff über TanStack Query | Angenommen | 2026-08-06 |
 
 ## Offene, bewusst vertagte Entscheidungen
 
@@ -66,4 +67,5 @@ Zeitpunkt als eigenes ADR nachgezogen.
 | Policy-Engine für Feldebene (OPA vs. OpenFGA) | Meilenstein M5 | [ADR-0004](0004-authentifizierung-und-autorisierung.md) |
 | Regel-Engine für Workflow-Übergänge (JSONLogic vs. json-rules-engine) | Meilenstein M4 | [ADR-0001](0001-backend-sprache-und-framework.md) |
 | Messaging-Backbone (Kafka vs. NATS) | Sobald der zweite Service existiert | CLAUDE.md §12 |
+| Diagrammbibliothek (Recharts vs. ECharts) | Mit dem ersten Dashboard | [ADR-0016](0016-ui-grundlage-und-datenzugriff-im-frontend.md) |
 | Umstieg auf TypeScript 7 (nativer Compiler) | Nach M1, wenn das NestJS-Tooling nachgezogen hat | [ADR-0006](0006-typescript-version-und-modulsemantik.md) |

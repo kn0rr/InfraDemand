@@ -189,7 +189,7 @@ nacheinander. Die Begründung steht in
 |---|---|---|
 | **M0** | Fundament: Monorepo, lokale Infrastruktur, CI, Entscheidungen als ADRs | abgeschlossen |
 | **M1** | Walking Skeleton Requirement Service: Kernentität, Authentifizierung, Persistenz, Versionshistorie, OpenAPI-Contract | abgeschlossen |
-| **M2** | Frontend-Durchstich: Anmeldung, Liste, Anlegen, generierter API-Client | offen |
+| **M2** | Frontend-Durchstich: Anmeldung, Liste, Anlegen, generierter API-Client | abgeschlossen |
 | **M3** | Dynamisches Attributmodell (§6) | offen |
 | **M4** | Workflow-Engine (§7) | offen |
 | **M5** | Feingranulares Berechtigungsmodell (§8), Identity & Access Service | offen |
@@ -208,6 +208,24 @@ nacheinander. Die Begründung steht in
 
 Ergebnis: 31 Tests gegen Testcontainer, 2 gegen die echte lokale Infrastruktur, ein
 versionierter Contract unter `docs/api/`.
+
+### M2 im Detail
+
+| | Inhalt | Beweist | Stand |
+|---|---|---|---|
+| **M2.1** | Realm-Client `frontend` von öffentlich auf vertraulich, Geheimnis über Variablenersetzung | Kein Geheimnis im Repository ([ADR-0014](../adr/0014-frontend-authentifizierung-ueber-bff.md) Punkt 6) | abgeschlossen |
+| **M2.2** | Next.js als Arbeitsbereichspaket | Build und Typecheck laufen über die bestehende CI | abgeschlossen |
+| **M2.3** | Serverseitige Anmeldung, Authorization Code Flow mit PKCE, versiegeltes Sitzungscookie | Kein Token im Browser ([ADR-0014](../adr/0014-frontend-authentifizierung-ueber-bff.md)) | abgeschlossen |
+| **M2.4** | Weiterleitung der Browser-Aufrufe über Next, Tokenerneuerung, Typen aus dem Contract | Durchstich bis in die Datenbank: 201 beim Anlegen, 401 ohne Sitzung | abgeschlossen |
+| **M2.5** | Oberfläche: Anforderungen auflisten und anlegen | Der fachliche Weg ist über alle Schichten begehbar | abgeschlossen |
+
+Ergebnis: Mantine als Komponentengrundlage ([ADR-0016](../adr/0016-ui-grundlage-und-datenzugriff-im-frontend.md)),
+9 Frontend-Tests, und ein Sitzungscookie, dessen Größe von einem Test überwacht wird
+(`PROD-045`).
+
+**Aus M2 sind sieben Einträge in die Produktionsreife gekommen** – `PROD-042` bis
+`PROD-048`. Keiner davon ist ein Umsetzungsfehler; es sind die benannten Kehrseiten der
+Entscheidungen ADR-0014 bis ADR-0016.
 
 ### Warum diese Reihenfolge
 

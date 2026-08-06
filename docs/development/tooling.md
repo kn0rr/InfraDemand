@@ -60,7 +60,21 @@ index [0]` und weist damit auf die falsche Stelle. Siehe
 | `openid-client` | 6.8.x | `frontend/src/lib/auth/` | OIDC-Client für den Anmeldefluss ([ADR-0014](../adr/0014-frontend-authentifizierung-ueber-bff.md)) |
 | `iron-session` | 8.0.x | `frontend/src/lib/auth/sitzung.ts` | Verschlüsseltes Sitzungscookie |
 | `jose` | 6.2.x | – | Lesen der Rollen aus dem Zugriffstoken |
+| `@mantine/core`, `@mantine/hooks` | 9.5.x | `src/app/anbieter.tsx` | Komponentengrundlage ([ADR-0016](../adr/0016-ui-grundlage-und-datenzugriff-im-frontend.md)) |
+| `@mantine/form` | 9.5.x | – | Formularzustand, auch für dynamische Feldmengen (§6) |
+| `@tanstack/react-query` | 5.101.x | `src/app/anbieter.tsx` | Serverzustand im Browser: Zwischenspeicher, Neuvalidierung, Lade- und Fehlerzustände |
+| `openapi-typescript` | 7.13.x | `api:types` in `package.json` | Erzeugt `src/lib/api/schema.d.ts` aus dem eingecheckten Contract |
+| `openapi-fetch` | 0.17.x | `src/lib/api/client.ts` | Typsicherer Aufruf entlang des Contracts |
 | Vitest | 4.1.x | `vitest.base.mts`, `vitest.config.mts`, `vitest.integration.config.mts` | Testrunner, ohne SWC – im Frontend gibt es keine Decorators |
+
+**Kein PostCSS.** Mantine liefert sein CSS übersetzt mit. `postcss-preset-mantine` wird
+erst gebraucht, wenn eigenes CSS Mantines Mixins verwendet – bis dahin wäre es eine
+Werkzeugkette ohne Gegenwert.
+
+**Der Abfrage-Client wird nie auf Modulebene erzeugt.** Ein Modul wird im Node-Prozess
+einmal ausgewertet und von allen Anfragen geteilt; ein dort angelegter Zwischenspeicher
+würde die Daten eines Anwenders an den nächsten weiterreichen. Er entsteht deshalb in
+`useState` innerhalb von `Anbieter`.
 
 `frontend/tsconfig.json` erbt von **`tsconfig.base.json`**, nicht von `tsconfig.node.json`.
 Das ist der Grund, aus dem die Basis frei von Modulsemantik gehalten wurde
