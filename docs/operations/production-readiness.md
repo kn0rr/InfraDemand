@@ -467,6 +467,14 @@ und Löschung.
 der in §16 geforderten lückenlosen Auditierung verträgt – ein Zielkonflikt, der bewusst
 aufzulösen ist.
 
+> **Erweitert am 2026-08-06 durch [ADR-0017](../adr/0017-regelvokabular-der-datenhoheit-und-mandantenbegriff.md) Punkt B10.**
+> Neben der Versionshistorie entsteht ein zweiter dauerhafter Speicher: die abgewiesenen
+> Schreiboperationen. Er wächst bei festgehaltenen Feldern mit jedem automatischen Lauf,
+> auch wenn sich nichts ändert, und enthält Werte aus Fremdsystemen – damit möglicherweise
+> personenbezogene Daten, deren Übernahme wir gerade **nicht** gewollt haben. Das
+> Aufbewahrungskonzept muss ihn eigenständig behandeln; die Frist der Versionshistorie
+> passt hier nicht ungeprüft.
+
 > **Verschärft am 2026-08-05 durch [ADR-0012](../adr/0012-vollstaendige-versionierung-mit-zeitbezug.md).**
 > Die Plattform hält künftig **jede Version jedes Datensatzes** vor, und Löschungen sind
 > ausdrücklich fachlich statt physisch – Voraussetzung dafür, den Bestand zu einem

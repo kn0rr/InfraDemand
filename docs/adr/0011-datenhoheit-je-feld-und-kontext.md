@@ -124,13 +124,35 @@ damit deren Datenmodell.
 
 Für M1.4 ist die Frage ohne Auswirkung.
 
+> **Beantwortet am 2026-08-06 durch
+> [ADR-0017](0017-regelvokabular-der-datenhoheit-und-mandantenbegriff.md) – die Annahme
+> wird korrigiert, nicht bestätigt.**
+>
+> Die Frage nach dem Geltungsbereich stellt sich nicht mehr, weil sich die Formulierung
+> der Regel geändert hat. Eine Hoheitsregel benennt **kein konkretes System** („für `owner`
+> ist SAP führend"), sondern eine **Quellenklasse** („für `owner` hat der automatische
+> Ladevorgang Vorrang"). Die relative Formulierung wirkt genau dort, wo eine automatische
+> Quelle das Feld tatsächlich bespielt, und ist damit selbstbegrenzend – ein Mandant ohne
+> Vorsystem ist von der Regel unberührt, ohne dass die Konfiguration ihn nennen müsste.
+>
+> **Die Antwort auf „was ist ein Kontext" lautet daher: keiner.** Eine Regel gilt je Feld
+> für alle Anforderungen. Eine leer bleibende Bindungsspalte hält den Weg zu einem
+> Geltungsbereich offen, falls der eine Fall eintritt, den dieses Modell nicht abbildet –
+> zwei Mandanten mit je eigenem Vorsystem und unterschiedlichem Vertrauen darin.
+>
+> Zugleich beantwortet ADR-0017 die hier unter *Folgeentscheidungen* für M3 vorgesehene
+> Frage nach dem **Regelvokabular** – drei Werte: `manuell erlaubt`,
+> `Automatik hat Vorrang`, `manuell gesperrt` – und ergänzt zwei Ausnahmen je Datensatz,
+> die in diesem ADR noch nicht vorgesehen waren: die administrative Einzelübernahme und
+> das Festhalten eines Feldes gegen automatische Übernahme.
+
 ## Folgeentscheidungen
 
 | Frage | Wann |
 |---|---|
-| Feldgenaues Audit-Ereignisschema | **M1.4**, vor der ersten Schreiboperation |
-| Bedeutung von „Kontext" | vor M3 |
-| Regelvokabular der Datenhoheit (führend / schreibend / nur-wenn-leer / gesperrt) | M3 |
+| Feldgenaues Audit-Ereignisschema | ~~M1.4~~ – erledigt, Mechanismus siehe Nachtrag oben |
+| ~~Bedeutung von „Kontext"~~ | beantwortet durch [ADR-0017](0017-regelvokabular-der-datenhoheit-und-mandantenbegriff.md) A5: keiner |
+| ~~Regelvokabular der Datenhoheit~~ | festgelegt durch [ADR-0017](0017-regelvokabular-der-datenhoheit-und-mandantenbegriff.md) A2 |
 | Speicherung der Feldherkunft: eigenes Feld oder Ableitung aus dem Auditpfad | M3 |
 | Verhalten bei Konflikt: Ablehnen, Verwerfen oder Vormerken zur Klärung | M3 |
-| Manuelle Erfassung im Webfrontend | M2 für die Erfassung, M3 für die Hoheitsregeln |
+| ~~Manuelle Erfassung im Webfrontend~~ | umgesetzt in M2.5 |

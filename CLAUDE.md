@@ -384,3 +384,4 @@ Die zugehörigen Architekturentscheidungen mit Begründung, Alternativen und Kon
 | `docs/adr/0010-entkopplung-anforderung-und-kapazitaet.md` | 19.1 |
 | `docs/adr/0011-datenhoheit-je-feld-und-kontext.md` | 19.2, 19.3 |
 | `docs/adr/0012-vollstaendige-versionierung-mit-zeitbezug.md` | 19.4 |
+| `docs/adr/0017-regelvokabular-der-datenhoheit-und-mandantenbegriff.md` | 19.3 – Regelwerk, Ausnahmen, Mandantenbegriff |
