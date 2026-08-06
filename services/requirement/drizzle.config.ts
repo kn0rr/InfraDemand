@@ -5,8 +5,8 @@ export default defineConfig({
   out: "./drizzle",
   dialect: "postgresql",
   dbCredentials: {
-    url:
-      process.env["DATABASE_URL"] ??
-      "postgresql://requirement:requirement@localhost:5432/requirement",
+    // Kein Rueckfallwert: Die Verbindung kommt aus infra/local/local.env, geladen ueber
+    // das Skript db:migrate. Ein zweiter hartkodierter Wert waere eine stille Doppelung.
+    url: process.env["DATABASE_URL"] ?? "",
   },
 });

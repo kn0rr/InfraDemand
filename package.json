@@ -25,6 +25,7 @@
     "@biomejs/biome": "^2.5.6",
     "@redocly/cli": "^2.44.1",
     "@types/node": "^24.13.3",
+    "dotenv-cli": "^11.0.0",
     "typescript": "5.9.3"
   }
 }

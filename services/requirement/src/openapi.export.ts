@@ -8,6 +8,14 @@ import { AppModule } from "./app.module";
 import { configureApp } from "./app.setup";
 import { createOpenApiDocument } from "./openapi";
 
+// Der Export baut die Anwendung nur auf, er verbindet sich mit nichts. Die Werte muessen
+// gesetzt sein, weil die Module sie beim Aufbau lesen - ihr Inhalt ist gleichgueltig.
+// Vorgabewerte statt .env: Das Erzeugen des Contracts darf nicht davon abhaengen, was
+// zufaellig auf dem ausfuehrenden Rechner liegt.
+process.env["DATABASE_URL"] ??= "postgresql://unused:unused@127.0.0.1:1/unused";
+process.env["KEYCLOAK_ISSUER_URL"] ??= "http://127.0.0.1:1/realms/export";
+process.env["KEYCLOAK_AUDIENCE"] ??= "requirement-api";
+
 const ZIEL = resolve(process.cwd(), "../../docs/api/requirement.openapi.yaml");
 
 /**

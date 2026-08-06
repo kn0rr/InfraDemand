@@ -13,7 +13,7 @@
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate",
+    "db:migrate": "dotenv -e ../../infra/local/local.env -- drizzle-kit migrate",
     "api:generate": "nest build && node dist/openapi.export.js && pnpm -w run api:lint"
   },
   "dependencies": {

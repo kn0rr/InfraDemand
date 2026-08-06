@@ -5,8 +5,9 @@ export default mergeConfig(
   baseConfig,
   defineConfig({
     test: {
+      // Ersetzt die Platzhalter aus test/setup.ts durch die echten lokalen Werte
+      setupFiles: ["./test/setup.integration.ts"],
       include: ["test/**/*.integration.spec.ts"],
-      // Keycloak-Aufrufe ueber das Netzwerk brauchen mehr Luft als In-Process-Tests
       testTimeout: 30_000,
       hookTimeout: 30_000,
     },
