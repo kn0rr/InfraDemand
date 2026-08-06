@@ -45,9 +45,12 @@ Nachbereitung. Konkret:
 
 ## Stand
 
-Meilenstein **M0 (Fundament)** ist abgeschlossen: Monorepo, lokale Infrastruktur,
-deklarative Keycloak-Verwaltung und CI-Pipeline stehen.
+**M0 (Fundament)** und **M1 (Walking Skeleton Requirement Service)** sind abgeschlossen.
 
-Laufend ist **M1 (Walking Skeleton Requirement Service)**, aktuell Teilschritt M1.1
-(Service-Gerüst und Test-Harness). Der Stand je Teilschritt und die geplante Reihenfolge
-stehen in [`architecture/README.md`](architecture/README.md#umsetzungsstrategie).
+Der Requirement Service hat einen vollständigen vertikalen Durchstich: geschützte
+Endpunkte gegen Keycloak, Persistenz mit Drizzle, vollständige Versionshistorie mit
+Stichtagsabfrage nach §19.4, und einen versionierten OpenAPI-Contract mit drei Toren in
+der CI.
+
+Laufend ist **M2 (Frontend-Durchstich)**. Der Stand je Meilenstein steht in
+[`architecture/README.md`](architecture/README.md#umsetzungsstrategie).

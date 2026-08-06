@@ -25,6 +25,14 @@ jobs:
       - name: Workflow-Dateien pruefen
         run: docker run --rm -v "$PWD:/repo" --workdir /repo rhysd/actionlint:1.7.12@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667
 
+      - name: Keine Geheimnisse in der Realm-Definition
+        run: |
+          if grep -n '"secret"' infra/keycloak/realms/*.json | grep -v 'env:'; then
+            echo "::error::Ein Client-Secret steht im Klartext in der Realm-Definition."
+            echo "::error::Werte gehoeren ueber \$(env:NAME) aus infra/local/local.env bzw. Vault."
+            exit 1
+          fi
+
       - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
 
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
@@ -111,7 +119,7 @@ jobs:
       - name: Anspruchskette im Token pruefen
         run: |
           token=$(curl -sf -X POST \
-            -d client_id=frontend -d username=test.author -d password=test -d grant_type=password \
+                        -d client_id=test-cli -d username=test.author -d password=test -d grant_type=password \
             "$KEYCLOAK_ISSUER_URL/protocol/openid-connect/token" | jq -r .access_token)
 
           payload=$(echo "$token" | cut -d. -f2 | tr '_-' '/+')

@@ -45,20 +45,26 @@ Das gilt für alle Beteiligten, einschließlich der KI in ihrer Beraterrolle
 
 ## Stand
 
-| Bereich | Einträge | davon kritisch |
-|---|---|---|
-| A – Transportverschlüsselung und Netzwerk | 7 | 5 |
-| *davon Voraussetzung für ADR-0013:* | `PROD-006`, `PROD-007`, `PROD-032` | |
-| B – Geheimnisse und Zugangsdaten | 5 | 5 |
-| C – Identität und Zugriff | 5 | 2 |
-| D – Daten | 4 | 3 |
-| E – Container und Lieferkette | 10 | 1 |
-| F – Betrieb und Verfügbarkeit | 5 | 1 |
-| G – Anwendungssicherheit | 5 | 1 |
-| **Gesamt** | **41** | **18** |
+| Bereich | Einträge | davon kritisch | erledigt |
+|---|---|---|---|
+| A – Transportverschlüsselung und Netzwerk | 7 | 5 | – |
+| *davon Voraussetzung für ADR-0013:* | `PROD-006`, `PROD-007`, `PROD-032` | | |
+| B – Geheimnisse und Zugangsdaten | 5 | 5 | – |
+| C – Identität und Zugriff | 5 | 2 | – |
+| D – Daten | 4 | 3 | – |
+| E – Container und Lieferkette | 10 | 1 | **2** |
+| F – Betrieb und Verfügbarkeit | 5 | 1 | – |
+| G – Anwendungssicherheit | 5 | 1 | – |
+| **Gesamt** | **41** | **18** | **2** |
 
-Stand 2026-08-03: kein Eintrag erledigt. Das ist erwartbar – die Plattform befindet sich
-in Meilenstein M0.
+**Stand 2026-08-06**, Abschluss von Meilenstein M1: Zwei Einträge erledigt – `PROD-022`
+und `PROD-036`, beide zur Lieferkette. Sie wurden vorgezogen, weil ihre Voraussetzung
+(Renovate im Betrieb) mit M1 erfüllt war und eine unbeaufsichtigte Festlegung ohne
+automatische Aktualisierung schlechter wäre als gar keine.
+
+Die übrigen 39 bleiben offen. Das ist für diesen Projektstand erwartbar: Der überwiegende
+Teil betrifft Betrieb, Verschlüsselung und Geheimnisverwaltung und wird erst mit der
+ersten nicht-lokalen Umgebung greifbar.
 
 ---
 
@@ -139,6 +145,17 @@ Verbindungen – insbesondere darf ein Service nur seine eigene Datenbank erreic
 > localhost-Eintrag, sondern an einer wiederkehrenden Konfiguration mit stiller
 > Fehlerwirkung.
 
+> **Wieder auf Mittel gesenkt am 2026-08-06 durch
+> [ADR-0014](../adr/0014-frontend-authentifizierung-ueber-bff.md).**
+> Der Browser spricht die Services nicht mehr direkt an, sondern über das
+> Backend-for-Frontend. Für den Oberflächenpfad entfällt CORS damit vollständig – ein
+> Ursprung statt N.
+>
+> **Nicht entfallen** ist es für externe Konsumenten nach §12: Die rufen die Services
+> weiterhin unmittelbar auf. Der Unterschied ist, dass es dort um wenige, bekannte
+> Konsumenten geht statt um eine Konfiguration, die bei jedem neuen Service wiederholt
+> werden muss.
+
 ---
 
 ## B – Geheimnisse und Zugangsdaten
@@ -178,7 +195,24 @@ und würde bei unveränderter Anwendung in jede Umgebung mitwandern.
 Ergänzungsdatei auslagern. Die Basis-Realm-Definition enthält keine Benutzer.
 
 #### PROD-012 — Client-Geheimnisse noch nicht externalisiert
-**Schwere:** Hoch · **Status:** Offen · **Betrifft:** §4, §13
+**Schwere:** Hoch · **Status:** ~~Offen~~ **Erledigt (2026-08-06)** · **Betrifft:** §4, §13
+
+> **Umgesetzt in M2.1.** Mit dem Wechsel des Clients `frontend` auf vertraulich entstand
+> das erste Client-Secret. Die Variablenersetzung war vorher da, nicht nachher:
+> `IMPORT_VARSUBSTITUTION_ENABLED=true` im Dienst `keycloak-config`, Platzhalter
+> `$(env:FRONTEND_CLIENT_SECRET)` in der Realm-Definition, Wert lokal aus
+> `infra/local/local.env`.
+>
+> **Geprüft**, nicht angenommen: `select public_client, secret is not null from client`
+> liefert für `frontend` `f | t` – der Platzhalter wurde ersetzt und nicht als Literal
+> übernommen.
+>
+> Ein Wächter im CI-Job `lint` bricht den Build, sobald in der Realm-Definition ein
+> `"secret"` ohne `env:` steht. Trivys Geheimnis-Scanner hätte das nicht gefunden – er
+> erkennt bekannte Formate, kein selbstvergebenes Client-Secret.
+>
+> **Woher der Wert in nicht-lokalen Umgebungen kommt, regelt `PROD-010`** (Vault). Dieser
+> Eintrag betraf den Mechanismus, nicht die Quelle.
 
 Sobald Service Accounts angelegt werden ([ADR-0004](../adr/0004-authentifizierung-und-autorisierung.md)),
 entstehen vertrauliche Clients mit Geheimnissen.
@@ -208,6 +242,17 @@ Anmeldeflusssicherungen einschließlich zweitem Faktor.
 
 **Zielzustand:** `false`. Tests in nicht-lokalen Umgebungen verwenden einen eigenen
 Testclient, nicht den Frontend-Client.
+
+> **Teilweise umgesetzt in M2.1.** Der Client `frontend` steht auf
+> `directAccessGrantsEnabled: false` – der Passwort-Grant umgeht dort keine
+> Anmeldeflusssicherung mehr. Der Oberflächen-Client kann jetzt ausschließlich das, was
+> die Oberfläche tatsächlich tut.
+>
+> **Verbleibend:** Der eigens angelegte Client `test-cli` hat den Grant und steht in
+> derselben Realm-Datei wie die produktive Konfiguration – ebenso wie der Testbenutzer aus
+> `PROD-011`. Beide gehören in eine **nur lokal angewandte Ergänzungsdatei**, damit die
+> Basis-Realm-Definition in jede Umgebung gereicht werden kann. Das ist die gemeinsame
+> Restaufgabe von PROD-011 und PROD-013.
 
 #### PROD-014 — Keine Passwortrichtlinie, kein zweiter Faktor
 **Schwere:** Kritisch · **Status:** Offen · **Betrifft:** §13
@@ -295,14 +340,27 @@ Schemaänderungen zur Laufzeit.
 ## E – Container und Lieferkette
 
 #### PROD-022 — Images sind über Tags statt Prüfsummen festgelegt
-**Schwere:** Hoch · **Status:** Offen · **Betrifft:** §13 · **Fundstelle:** `infra/local/compose.yaml`
+**Schwere:** Hoch · **Status:** ~~Offen~~ **Erledigt (2026-08-06)** · **Betrifft:** §13 · **Fundstelle:** `infra/local/compose.yaml`, `.github/workflows/ci.yml`
 
-`postgres:18-alpine`, `quay.io/keycloak/keycloak:26.4` und
-`adorsys/keycloak-config-cli:6.5.1-26` sind veränderliche Tags. Der Inhalt kann sich
-unbemerkt ändern.
+Sämtliche Container-Images hingen an veränderlichen Tags. Der Inhalt eines Tags kann vom
+Anbieter jederzeit ausgetauscht werden.
 
-**Zielzustand:** Festlegung über Digest (`image@sha256:...`), Aktualisierung über
-Renovate mit sichtbarer Änderung im Review.
+**Umgesetzt:** Alle sechs Images liegen auf `name:tag@sha256:…` – drei in der
+Compose-Datei (PostgreSQL, Keycloak, keycloak-config-cli) und drei in der Pipeline
+(Trivy, actionlint, oasdiff). Der Tag bleibt als Beschriftung stehen, die Prüfsumme
+entscheidet.
+
+Der Schritt „Laufzeit-Images pruefen" leitet seine Liste über
+`docker compose config --images` ab und übernimmt die Prüfsummen dadurch von selbst.
+
+**Zur Trivy-Zeile `latest@sha256:…`:** Der Widerspruch ist nur scheinbar. Die
+Schwachstellendatenbank wird zur Laufzeit geladen (`mirror.gcr.io/aquasec/trivy-db`), nicht
+im Abbild mitgeliefert – die Festlegung friert also das Programm ein, nicht die Befunde.
+Eine feste Versionsnummer statt `latest` wäre der nächste Schritt und wird von Renovate
+ohnehin vorgeschlagen.
+
+**Nicht abgedeckt:** Eine Prüfsumme belegt „dasselbe Abbild wie zuvor", nicht „das Abbild
+des Herstellers". Dafür braucht es Signaturprüfung beim Ausrollen – siehe PROD-026.
 
 #### PROD-023 — Container laufen als root, Dateisystem beschreibbar
 **Schwere:** Hoch · **Status:** Offen · **Betrifft:** §13
@@ -340,17 +398,24 @@ ist festzuhalten, weil ein grüner Sicherheitsjob sonst Vertrauen ohne Grundlage
 4. DAST gegen eine laufende Instanz (ab M2)
 
 #### PROD-036 — GitHub-Actions nicht auf Commit-Prüfsumme festgelegt
-**Schwere:** Hoch · **Status:** Offen · **Betrifft:** §13 · **Fundstelle:** `.github/workflows/ci.yml`
+**Schwere:** Hoch · **Status:** ~~Offen~~ **Erledigt (2026-08-06)** · **Betrifft:** §13 · **Fundstelle:** `.github/workflows/ci.yml`
 
-Aktionen werden über veränderliche Tags (`@v4`) eingebunden. Wer das Tag im
+Aktionen wurden über veränderliche Tags (`@v7`) eingebunden. Wer das Tag im
 Quell-Repository verschiebt, führt beliebigen Code in unserer Pipeline aus – mit Zugriff
 auf deren Berechtigungen und Geheimnisse. Das ist ein realer, mehrfach ausgenutzter
 Angriffsweg auf Lieferketten.
 
-**Zielzustand:** Einbindung über die vollständige Commit-Prüfsumme
-(`uses: actions/checkout@<sha> # v4.2.2`), Aktualisierung ausschließlich über Renovate,
-sodass jede Änderung im Review sichtbar ist. Zusätzlich `permissions:` je Arbeitsablauf
-auf das Minimum begrenzen.
+**Umgesetzt:** Alle zehn Einbindungen liegen auf der vollständigen Commit-Prüfsumme, mit
+der Versionsangabe als Kommentar dahinter. `renovate.json` enthält
+`helpers:pinGitHubActionDigests`, sodass auch künftig hinzukommende Aktionen automatisch
+festgelegt und Prüfsummen samt Kommentar aktualisiert werden.
+
+Die Reihenfolge war beabsichtigt: erst Renovate in Betrieb nehmen, dann festlegen. Ohne
+automatische Aktualisierung veralten Prüfsummen unbemerkt, und dann ist die Festlegung
+schlechter als ein Tag.
+
+**Offen geblieben:** `permissions:` ist auf Arbeitsablauf-Ebene bereits auf
+`contents: read` begrenzt; eine feinere Begrenzung je Job ist noch nicht erfolgt.
 
 #### PROD-037 — Basis-Image-Schwachstellen unterdrückt
 **Schwere:** Hoch · **Status:** Bewusst akzeptiert (befristet) · **Betrifft:** §13 · **Fundstelle:** `.trivyignore.yaml`
@@ -627,12 +692,14 @@ sicherer ist.** Alle übrigen Vorteile eines Gateways – zentrale Policy, Aggre
 Ratenbegrenzung – sind Betriebs- und Wartungsfragen; diese hier ist eine
 Sicherheitsfrage.
 
-**Zu tun:** Die Entscheidung in **M2 bewusst treffen**, bevor der Anmeldefluss gebaut
-wird. Sie fällt sonst stillschweigend, indem die naheliegende SPA-Variante mit PKCE
-entsteht und das Token damit im Browser landet.
-
-Bewertungsgrundlage: Schutzbedarf der Daten, Zahl der Zielgruppen im Token, und ob das
-Frontend Fremdinhalte oder nutzergenerierte Inhalte darstellt.
+> **Entschieden am 2026-08-06: Backend-for-Frontend**
+> ([ADR-0014](../adr/0014-frontend-authentifizierung-ueber-bff.md)). Status damit
+> **In Arbeit** – die Umsetzung erfolgt in M2, der Eintrag schließt mit dem Anmeldefluss.
+>
+> **Wichtig für die Restbewertung:** Der BFF verhindert, dass Schadcode ein Token
+> **entwendet**, nicht dass er die Sitzung **benutzt** – das Cookie wird bei jeder Anfrage
+> automatisch mitgeschickt. `PROD-033` (Content Security Policy) bleibt deshalb
+> erforderlich und darf nicht als erledigt gelten, weil dieser Eintrag es wird.
 
 #### PROD-033 — Keine Sicherheitsheader im Frontend
 **Schwere:** Hoch · **Status:** Offen · **Betrifft:** §13 · **Geplant:** M2

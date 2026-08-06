@@ -1,10 +1,24 @@
 # ADR-0013: Frontend-Zuschnitt und Zugriffsweg
 
-- **Status:** Angenommen
+- **Status:** Angenommen, **Punkt 2 ersetzt**
 - **Datum:** 2026-08-05
 - **Betrifft:** CLAUDE.md §3, §4, §8, §10, §11, §13
 - **Ersetzt:** –
-- **Ersetzt durch:** –
+- **Ersetzt durch:** [ADR-0014](0014-frontend-authentifizierung-ueber-bff.md) – **nur Punkt 2**
+
+> **Teilweise ersetzt am 2026-08-06.** Punkt 2 dieser Entscheidung – „Der Browser spricht
+> die Service-APIs direkt an" – gilt **nicht mehr**. Browser-Aufrufe laufen über ein
+> Backend-for-Frontend in Next.js
+> ([ADR-0014](0014-frontend-authentifizierung-ueber-bff.md)).
+>
+> Grund: Die hier gegebene Begründung – eine vorgelagerte Schicht sei „eine weitere
+> Komponente, die gebaut, betrieben, abgesichert und hochverfügbar gehalten werden muss" –
+> traf nicht zu. Next.js ist ein Server und wird ohnehin ausgeliefert.
+>
+> **Unverändert gültig bleiben** Punkt 1 (ein Frontend, keine Micro-Frontends), Punkt 3
+> (eigene Zielgruppe je Service) und Punkt 4 (Trennung von Bedienung und Auswertung).
+> Ebenso die Entscheidung gegen ein allgemeines Gateway für den Maschinenverkehr: Externe
+> Konsumenten nach §12 sprechen die Services weiterhin unmittelbar an.
 
 ## Kontext
 

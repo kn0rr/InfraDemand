@@ -172,6 +172,7 @@ Diagnosemeldungen führt, die sich nicht reproduzieren lassen.
 | `pnpm run infra:down` | Stoppt die lokale Infrastruktur, behält die Daten |
 | `pnpm run infra:reset` | Stoppt die Infrastruktur und **löscht das Datenvolumen** |
 | `pnpm run infra:realm` | Wendet die Realm-Definition auf den laufenden Keycloak an |
+| `pnpm run infra:fresh` | Vollständiger Neuaufbau: Reset, Start, **Migration**, Realm – in dieser Reihenfolge |
 
 ---
 

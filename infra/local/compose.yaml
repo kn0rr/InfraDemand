@@ -59,11 +59,14 @@ services:
     depends_on:
       keycloak:
         condition: service_healthy
+    env_file:
+      - ./local.env
     environment:
       KEYCLOAK_URL: http://keycloak:8080
       KEYCLOAK_USER: admin
       KEYCLOAK_PASSWORD: admin
       IMPORT_FILES_LOCATIONS: /config/*.json
+      IMPORT_VARSUBSTITUTION_ENABLED: "true"
     volumes:
       - ../keycloak/realms:/config:ro
 
