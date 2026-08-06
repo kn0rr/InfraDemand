@@ -34,7 +34,7 @@ Diese vier Regeln gelten für jeden Service ohne Ausnahme:
 
 ## Requirement Service
 
-**Meilenstein:** M1 · **Stand:** in Arbeit (M1.1) · **Paket:** [`services/requirement`](../../services/requirement/README.md)
+**Meilenstein:** M1 · **Stand:** abgeschlossen; über das Frontend erreichbar seit M2.4 · **Paket:** [`services/requirement`](../../services/requirement/README.md)
 
 ### Verantwortung
 
