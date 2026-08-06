@@ -23,7 +23,7 @@ jobs:
           fetch-depth: 0
 
       - name: Workflow-Dateien pruefen
-        run: docker run --rm -v "$PWD:/repo" --workdir /repo rhysd/actionlint:1.7.12 -color
+        run: docker run --rm -v "$PWD:/repo" --workdir /repo rhysd/actionlint:1.7.12@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667
 
       - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
 
@@ -64,7 +64,7 @@ jobs:
           docker run --rm \
             -v /tmp/oasdiff:/base:ro \
             -v "$PWD/docs/api:/rev:ro" \
-            tufin/oasdiff:v1.27.0 breaking /base/vorher.yaml /rev/requirement.openapi.yaml --fail-on ERR
+            tufin/oasdiff:v1.27.0@sha256:279f71b494c578f8c7038ce4f9bf5e876f6a4661c4793537a773a00184c79454 breaking /base/vorher.yaml /rev/requirement.openapi.yaml --fail-on ERR
 
       - name: Inkompatible Contract-Aenderungen pruefen
         if: github.event_name == 'pull_request'
@@ -78,7 +78,7 @@ jobs:
           docker run --rm \
             -v /tmp/oasdiff:/base:ro \
             -v "$PWD/docs/api:/rev:ro" \
-            tufin/oasdiff:v1.27.0 breaking /base/vorher.yaml /rev/requirement.openapi.yaml --fail-on ERR
+            tufin/oasdiff:v1.27.0@sha256:279f71b494c578f8c7038ce4f9bf5e876f6a4661c4793537a773a00184c79454 breaking /base/vorher.yaml /rev/requirement.openapi.yaml --fail-on ERR
 
   realm:
     name: Keycloak-Realm validieren
@@ -151,12 +151,12 @@ jobs:
 
       - name: Abhaengigkeiten und Geheimnisse pruefen
         run: |
-          docker run --rm -v "$PWD:/src" -w /src aquasec/trivy:latest \
+          docker run --rm -v "$PWD:/src" -w /src aquasec/trivy:latest@sha256:7cced7cae583819fc7806d4cbc0dbbc7cad18b99f7d3e235192e6da8c091045c \
             fs --scanners vuln,secret --severity HIGH,CRITICAL --ignore-unfixed --skip-dirs node_modules --exit-code 1 .
 
       - name: Konfiguration pruefen
         run: |
-          docker run --rm -v "$PWD:/src" -w /src aquasec/trivy:latest \
+          docker run --rm -v "$PWD:/src" -w /src aquasec/trivy:latest@sha256:7cced7cae583819fc7806d4cbc0dbbc7cad18b99f7d3e235192e6da8c091045c \
             config --severity HIGH,CRITICAL --exit-code 1 .
 
       - name: Laufzeit-Images pruefen
@@ -165,7 +165,7 @@ jobs:
           status=0
           for image in $images; do
             echo "::group::$image"
-            docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v "$PWD:/src" aquasec/trivy:latest \
+            docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v "$PWD:/src" aquasec/trivy:latest@sha256:7cced7cae583819fc7806d4cbc0dbbc7cad18b99f7d3e235192e6da8c091045c \
               image --severity HIGH,CRITICAL --ignore-unfixed --ignorefile /src/.trivyignore.yaml --exit-code 1 "$image" || status=1
             echo "::endgroup::"
           done
@@ -177,7 +177,7 @@ jobs:
           alle=$(docker compose -f infra/local/compose.yaml --profile config config --images | sort -u)
           for image in $(comm -13 <(echo "$runtime") <(echo "$alle")); do
             echo "::group::$image"
-            docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v "$PWD:/src" aquasec/trivy:latest \
+            docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v "$PWD:/src" aquasec/trivy:latest@sha256:7cced7cae583819fc7806d4cbc0dbbc7cad18b99f7d3e235192e6da8c091045c \
               image --severity HIGH,CRITICAL --ignore-unfixed "$image"
             echo "::endgroup::"
           done
