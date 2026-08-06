@@ -53,6 +53,7 @@ Zulässige Status: `Vorgeschlagen`, `Angenommen`, `Abgelehnt`, `Ersetzt durch AD
 | [0014](0014-frontend-authentifizierung-ueber-bff.md) | Frontend-Authentifizierung über ein Backend-for-Frontend | Angenommen | 2026-08-06 |
 | [0015](0015-mehrere-identitaetsquellen.md) | Mehrere Identitätsquellen über Brokering statt mehrerer Aussteller | Angenommen | 2026-08-06 |
 | [0016](0016-ui-grundlage-und-datenzugriff-im-frontend.md) | UI-Grundlage Mantine und Datenzugriff über TanStack Query | Angenommen | 2026-08-06 |
+| [0017](0017-regelvokabular-der-datenhoheit-und-mandantenbegriff.md) | Regelvokabular der Datenhoheit und Begriff des Mandanten | Angenommen | 2026-08-06 |
 
 ## Offene, bewusst vertagte Entscheidungen
 
@@ -62,7 +63,9 @@ Zeitpunkt als eigenes ADR nachgezogen.
 | Thema | Vertagt bis | Referenz |
 |---|---|---|
 | Audit-Ereignisschema und Schreibpfad | Meilenstein M1.4 | [ADR-0009](0009-orm-und-migrationswerkzeug.md) |
-| Bedeutung von „Kontext" – zugleich: was ein Mandant ist | Vor Meilenstein M3 | [ADR-0011](0011-datenhoheit-je-feld-und-kontext.md), [ADR-0015](0015-mehrere-identitaetsquellen.md) |
+| Wahl des wirksamen Mandanten bei Mehrfachzugehörigkeit | Meilenstein M5 | [ADR-0017](0017-regelvokabular-der-datenhoheit-und-mandantenbegriff.md) |
+| Verhalten bei Abweisung: Fehler, stilles Verwerfen oder Vormerken zur Klärung | Meilenstein M3 | [ADR-0011](0011-datenhoheit-je-feld-und-kontext.md), [ADR-0017](0017-regelvokabular-der-datenhoheit-und-mandantenbegriff.md) |
+| Befristung von Festhaltungen – verfällt eine Festhaltung von selbst? | Wenn Erfahrung aus dem Betrieb vorliegt | [ADR-0017](0017-regelvokabular-der-datenhoheit-und-mandantenbegriff.md) Teil B |
 | Ablage der Sitzung: Cookie oder serverseitiger Speicher – und welcher, ohne ADR-0002 zu verletzen | Vor Meilenstein M3 | [ADR-0014](0014-frontend-authentifizierung-ueber-bff.md), `PROD-045` |
 | Policy-Engine für Feldebene (OPA vs. OpenFGA) | Meilenstein M5 | [ADR-0004](0004-authentifizierung-und-autorisierung.md) |
 | Regel-Engine für Workflow-Übergänge (JSONLogic vs. json-rules-engine) | Meilenstein M4 | [ADR-0001](0001-backend-sprache-und-framework.md) |

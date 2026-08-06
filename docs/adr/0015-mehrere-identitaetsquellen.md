@@ -150,7 +150,23 @@ unmittelbarer Widerspruch zu §13 und zu ADR-0004.
 
 ### Offen
 
-- Ob ein Mandant im Sinne von §15 einer Keycloak-*Organization*, einer Gruppe oder einem
-  eigenen Realm entspricht, ist **nicht entschieden**. Die Frage berührt denselben
-  Kontextbegriff, den [ADR-0011](0011-datenhoheit-je-feld-und-kontext.md) offen lässt, und
-  wird gemeinsam mit ihm vor M3 beantwortet
+- ~~Ob ein Mandant im Sinne von §15 einer Keycloak-*Organization*, einer Gruppe oder einem
+  eigenen Realm entspricht~~
+
+> **Beantwortet am 2026-08-06 durch
+> [ADR-0017](0017-regelvokabular-der-datenhoheit-und-mandantenbegriff.md) Teil C.**
+>
+> Der Mandant ist **keines von dreien**: Er ist eine fachliche Entität der Plattform, kein
+> Keycloak-Objekt. Er trägt Bezeichnung, Kostenstellen und Zuständigkeiten und wird vom
+> Identity & Access Service geführt (§5). Keycloak stellt ausschließlich die
+> **Zugehörigkeit** fest und liefert sie als Anspruch im Token; technisch bildet eine
+> *Organization* darauf ab. Die Verbindung ist ein Bezeichner, sonst nichts.
+>
+> Das ist die Fortsetzung der hier getroffenen Entscheidung, nicht eine Abweichung davon:
+> Lägen die fachlichen Mandantendaten in Keycloak, nähme ein Wechsel des
+> Identitätsanbieters sie mit – und die Austauschbarkeit, um die es diesem ADR geht, wäre
+> an anderer Stelle wieder verloren.
+>
+> Bestätigt wird außerdem, dass ein Anwender **mehreren Mandanten angehören kann** – der
+> Fall, mit dem hier bereits gegen die Auflösung über Subdomänen argumentiert wurde. Wie
+> der wirksame Mandant dann gewählt wird, ist zu M5 vertagt.
