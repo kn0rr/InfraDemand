@@ -13,3 +13,4 @@ allowBuilds:
 
 overrides:
   find-my-way: ">=9.7.0"
+  "@nestjs/swagger>js-yaml": ">=5.2.2"

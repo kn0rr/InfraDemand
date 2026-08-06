@@ -100,6 +100,12 @@ sie werden über `overrides` in `pnpm-workspace.yaml` erzwungen.
 | Paket | Erzwungen | Grund | Entfernen, sobald |
 |---|---|---|---|
 | `find-my-way` | `>=9.7.0` | CVE-2026-47219 (HIGH, DDoS über HTTP/2) in 9.6.0; zweifach transitiv über `@nestjs/platform-fastify` und `fastify` | `@nestjs/platform-fastify` selbst ≥9.7.0 auflöst |
+| `@nestjs/swagger>js-yaml` | `>=5.2.2` | GHSA-pm4m-ph32-ghv5 (HIGH, exponentielle Laufzeit bei Flow-Collections) in 5.2.1 | `@nestjs/swagger` selbst ≥5.2.2 auflöst |
+
+**Overrides werden so eng wie möglich gebunden.** Die Schreibweise `Eltern>Kind` begrenzt
+die Erzwingung auf einen Verwender. Im Fall von `js-yaml` liegen drei Fassungen im Baum;
+ein pauschaler Override hätte auch die 4.x unter `@nestjs/cli` auf eine neue Hauptversion
+gezwungen – ein Bruchrisiko dort, wo gar keine Schwachstelle besteht.
 
 **Ein Override ist Schulden, kein Fix.** Er erzwingt eine Version an einer Stelle, an der
 Upstream noch eine ältere deklariert. Bleibt er nach dem Nachziehen von Upstream stehen,
