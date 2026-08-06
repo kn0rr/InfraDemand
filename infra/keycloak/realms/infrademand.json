@@ -30,14 +30,39 @@
       "clientId": "frontend",
       "name": "InfraDemand Web-Oberflaeche",
       "enabled": true,
-      "publicClient": true,
+      "publicClient": false,
+      "secret": "$(env:FRONTEND_CLIENT_SECRET)",
       "standardFlowEnabled": true,
-      "directAccessGrantsEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
       "redirectUris": ["http://localhost:3000/*"],
-      "webOrigins": ["http://localhost:3000"],
+      "webOrigins": [],
       "attributes": {
         "pkce.code.challenge.method": "S256"
       },
+      "protocolMappers": [
+        {
+          "name": "audience-requirement-api",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": {
+            "included.client.audience": "requirement-api",
+            "access.token.claim": "true",
+            "id.token.claim": "false"
+          }
+        }
+      ]
+    },
+    {
+      "clientId": "test-cli",
+      "name": "Nur fuer Tests und CI: Passwort-Grant",
+      "enabled": true,
+      "publicClient": true,
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": true,
+      "serviceAccountsEnabled": false,
       "protocolMappers": [
         {
           "name": "audience-requirement-api",

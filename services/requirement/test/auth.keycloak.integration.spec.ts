@@ -11,7 +11,7 @@ async function holeToken(): Promise<string> {
     method: "POST",
     headers: { "content-type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({
-      client_id: "frontend",
+      client_id: "test-cli",
       username: "test.author",
       password: "test",
       grant_type: "password",

@@ -49,7 +49,8 @@ Zulässige Status: `Vorgeschlagen`, `Angenommen`, `Abgelehnt`, `Ersetzt durch AD
 | [0010](0010-entkopplung-anforderung-und-kapazitaet.md) | Entkopplung von Anforderungsaufnahme und Kapazitätsberechnung | Angenommen | 2026-08-05 |
 | [0011](0011-datenhoheit-je-feld-und-kontext.md) | Datenhoheit je Feld und Kontext | Angenommen | 2026-08-05 |
 | [0012](0012-vollstaendige-versionierung-mit-zeitbezug.md) | Vollständige Versionierung mit Zeitbezug | Angenommen | 2026-08-05 |
-| [0013](0013-frontend-zuschnitt-und-zugriffsweg.md) | Frontend-Zuschnitt und Zugriffsweg | Angenommen | 2026-08-05 |
+| [0013](0013-frontend-zuschnitt-und-zugriffsweg.md) | Frontend-Zuschnitt und Zugriffsweg | Angenommen, Punkt 2 ersetzt durch 0014 | 2026-08-05 |
+| [0014](0014-frontend-authentifizierung-ueber-bff.md) | Frontend-Authentifizierung über ein Backend-for-Frontend | Angenommen | 2026-08-06 |
 
 ## Offene, bewusst vertagte Entscheidungen
 

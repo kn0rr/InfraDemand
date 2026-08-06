@@ -188,7 +188,7 @@ nacheinander. Die Begründung steht in
 | Meilenstein | Inhalt | Stand |
 |---|---|---|
 | **M0** | Fundament: Monorepo, lokale Infrastruktur, CI, Entscheidungen als ADRs | abgeschlossen |
-| **M1** | Walking Skeleton Requirement Service: Kernentität, Authentifizierung, Migrationen, Audit-Pfad, Integrationstests | in Arbeit |
+| **M1** | Walking Skeleton Requirement Service: Kernentität, Authentifizierung, Persistenz, Versionshistorie, OpenAPI-Contract | abgeschlossen |
 | **M2** | Frontend-Durchstich: Anmeldung, Liste, Anlegen, generierter API-Client | offen |
 | **M3** | Dynamisches Attributmodell (§6) | offen |
 | **M4** | Workflow-Engine (§7) | offen |
@@ -201,13 +201,13 @@ nacheinander. Die Begründung steht in
 
 | | Inhalt | Beweist | Stand |
 |---|---|---|---|
-| **M1.1** | Service-Gerüst, Test-Harness, `GET /health` | Anwendung startet, Tests laufen lokal und in CI | in Arbeit |
-| **M1.2** | Authentifizierung: Guard gegen Keycloak-JWKS | Ohne Token 401, mit gültigem Token 200 | offen |
-| **M1.3** | Persistenz: ORM-Entscheidung, Migration, Kernentität, Testcontainers | Echte Daten aus echtem PostgreSQL | offen |
-| **M1.4** | Schreibpfad: `POST /v1/requirements`, Audit-Ereignisschema, OpenAPI-Contract mit Drift-Tor | Auditierung ab der ersten Schreiboperation (§16) | offen |
+| **M1.1** | Service-Gerüst, Test-Harness, `GET /health` | Anwendung startet, Tests laufen lokal und in CI | abgeschlossen |
+| **M1.2** | Authentifizierung: Guard gegen Keycloak-JWKS | Ohne Token 401, mit gültigem Token 200 | abgeschlossen |
+| **M1.3** | Persistenz: Drizzle, Migration, Kernentität, Testcontainers | Echte Daten aus echtem PostgreSQL | abgeschlossen |
+| **M1.4** | Schreibpfad, Versionshistorie, Stichtagsabfrage, OpenAPI-Contract mit drei Toren | Nachweisfähigkeit nach §19.4, Auditierung ab der ersten Schreiboperation | abgeschlossen |
 
-Die ORM-Entscheidung fällt bewusst erst in M1.3 – dann liegt ein konkreter Bedarf vor,
-statt sie im Vorgriff zu treffen.
+Ergebnis: 31 Tests gegen Testcontainer, 2 gegen die echte lokale Infrastruktur, ein
+versionierter Contract unter `docs/api/`.
 
 ### Warum diese Reihenfolge
 

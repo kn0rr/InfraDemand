@@ -187,6 +187,13 @@ anschließend erzeugt Keycloak sein Schema.
 | `pnpm run infra:down` | Stoppt die Container, **behält** die Daten |
 | `pnpm run infra:reset` | Stoppt die Container und **löscht das Datenvolumen** |
 | `pnpm run infra:realm` | Wendet `infra/keycloak/realms/infrademand.json` auf den laufenden Keycloak an |
+| `pnpm run infra:fresh` | Vollständiger Neuaufbau in einem Schritt |
+
+> **Nach `infra:reset` ist die Datenbank leer** – ohne anschließende Migration scheitert
+> jeder fachliche Aufruf mit `relation "requirement" does not exist`. Deshalb gibt es
+> `infra:fresh`, das Reset, Start, Migration und Realm in der zwingenden Reihenfolge
+> ausführt. `infra:reset` bleibt einzeln bestehen, weil es der einzige Befehl ist, der
+> Daten vernichtet, und deshalb bewusst aufgerufen werden soll.
 
 > `infra:reset` verwirft die gesamte lokale Datenbank einschließlich der
 > Keycloak-Realm-Konfiguration. Das ist der Weg, um eine saubere Erstinitialisierung zu
