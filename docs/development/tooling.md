@@ -43,12 +43,21 @@ Gilt für jedes Paket unter `services/*`, Referenzumsetzung ist
 | SWC | 1.15.x | `.swcrc` | Transformation der Tests inkl. Decorator-Metadaten |
 | supertest | 7.2.x | – | HTTP-Aufrufe gegen die laufende Anwendung im Test |
 
+**SWC ist nicht optional.** Der Standardtransformator von Vitest ist esbuild, und esbuild
+unterstützt `emitDecoratorMetadata` nicht. Ohne SWC fehlen NestJS die Typinformationen zur
+Auflösung seiner Abhängigkeiten; der Fehler erscheint als `Cannot resolve dependency at
+index [0]` und weist damit auf die falsche Stelle. Siehe
+[ADR-0008](../adr/0008-teststrategie-und-testinfrastruktur.md).
+
 ### Werkzeuge des Frontends
 
 | Paket | Version | Konfiguration | Zweck |
 |---|---|---|---|
 | Next.js | 16.3.x | `frontend/next.config.ts` | Anwendungsframework, App Router mit Turbopack |
 | React | 19.2.x | – | Oberflächenbibliothek |
+| `openid-client` | 6.8.x | `frontend/src/lib/auth/` | OIDC-Client für den Anmeldefluss ([ADR-0014](../adr/0014-frontend-authentifizierung-ueber-bff.md)) |
+| `iron-session` | 8.0.x | `frontend/src/lib/auth/sitzung.ts` | Verschlüsseltes Sitzungscookie |
+| `jose` | 6.2.x | – | Lesen der Rollen aus dem Zugriffstoken |
 
 `frontend/tsconfig.json` erbt von **`tsconfig.base.json`**, nicht von `tsconfig.node.json`.
 Das ist der Grund, aus dem die Basis frei von Modulsemantik gehalten wurde
@@ -60,11 +69,38 @@ Das Frontend liegt **nicht** unter `services/`. Es ist kein Microservice im Sinn
 [ADR-0002](../adr/0002-repository-struktur.md) – keine eigene Datenbank, keine eigene
 Rolle, kein angebotener Contract –, sondern ein Konsument der Services.
 
-**SWC ist nicht optional.** Der Standardtransformator von Vitest ist esbuild, und esbuild
-unterstützt `emitDecoratorMetadata` nicht. Ohne SWC fehlen NestJS die Typinformationen zur
-Auflösung seiner Abhängigkeiten; der Fehler erscheint als `Cannot resolve dependency at
-index [0]` und weist damit auf die falsche Stelle. Siehe
-[ADR-0008](../adr/0008-teststrategie-und-testinfrastruktur.md).
+**Genau ein `paths`-Alias:** `@/*` auf `./src/*`, ohne `baseUrl`. Begründung und Abgrenzung
+zu ADR-0006 Punkt 5 stehen in der
+[Präzisierung vom 2026-08-06](../adr/0006-typescript-version-und-modulsemantik.md).
+
+#### Warum das Frontend nicht mit `next dev` gestartet wird
+
+Die Skripte `dev` und `start` rufen `frontend/scripts/next-mit-umgebung.mjs` auf. Das
+Vorschaltskript lädt `infra/local/local.env` über `process.loadEnvFile()` und startet Next
+anschließend als Kindprozess.
+
+Der naheliegende Weg – `node --env-file=../infra/local/local.env … next dev` – **kann nicht
+funktionieren**, und zwar unabhängig von Node- und Next-Version:
+
+1. `next dev` liest die Node-Optionen des Elternprozesses und reicht sie an den geforkten
+   Server weiter.
+2. In `execArgv` bleiben dabei nur vier Inspector-Flags; alles andere wird zu `NODE_OPTIONS`
+   zusammengesetzt.
+3. Node lehnt `--env-file` in `NODE_OPTIONS` ab – eine Env-Datei muss geladen sein, *bevor*
+   `NODE_OPTIONS` ausgewertet wird.
+
+Der Fehler lautet dann `--env-file-if-exists= is not allowed in NODE_OPTIONS` und zeigt auf
+`NODE_OPTIONS`, obwohl dort nie jemand etwas eingetragen hat. Das Vorschaltskript umgeht
+das, indem es selbst ohne Node-Flags läuft: Es gibt nichts weiterzureichen, und die Werte
+stehen bereits in der Prozessumgebung, die der Kindprozess erbt.
+
+**`process.loadEnvFile()` überschreibt keine bereits gesetzten Variablen.** Echte
+Umgebungen – CI, Container, Produktion – gewinnen damit immer gegen die lokale Datei. Fehlt
+die Datei, läuft das Skript stillschweigend weiter; das ist außerhalb der lokalen
+Entwicklung der Normalfall.
+
+`build` läuft bewusst ohne Vorschaltskript: Konfigurationswerte gehören nicht in ein
+Bauergebnis.
 
 ### Warum pnpm und nicht npm oder yarn
 

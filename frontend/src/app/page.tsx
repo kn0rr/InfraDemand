@@ -1,8 +1,30 @@
-export default function Startseite() {
+import { holeSitzung, istAngemeldet } from "@/lib/auth/sitzung";
+
+export const dynamic = "force-dynamic";
+
+export default async function Startseite() {
+  const sitzung = await holeSitzung();
+
+  if (!istAngemeldet(sitzung)) {
+    return (
+      <main>
+        <h1>InfraDemand</h1>
+        <p>Nicht angemeldet.</p>
+        <a href="/api/auth/login">Anmelden</a>
+      </main>
+    );
+  }
+
   return (
     <main>
       <h1>InfraDemand</h1>
-      <p>Anmeldung und Anforderungsliste folgen in M2.3 und M2.5.</p>
+      <p>
+        Angemeldet als {sitzung.anzeigename ?? sitzung.benutzername} (Quelle: {sitzung.quelle})
+      </p>
+      <p>Rollen: {(sitzung.rollen ?? []).join(", ") || "keine"}</p>
+      <form action="/api/auth/logout" method="post">
+        <button type="submit">Abmelden</button>
+      </form>
     </main>
   );
 }

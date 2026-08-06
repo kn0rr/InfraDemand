@@ -244,7 +244,7 @@ Erwartet: `http://localhost:8080/realms/infrademand`.
 **5. Die Anspruchskette im Token ist vollständig**
 
 ```powershell
-$t = Invoke-RestMethod -Method Post -Uri http://localhost:8080/realms/infrademand/protocol/openid-connect/token -Body @{client_id='frontend';username='test.author';password='test';grant_type='password'}
+$t = Invoke-RestMethod -Method Post -Uri http://localhost:8080/realms/infrademand/protocol/openid-connect/token -Body @{client_id='test-cli';username='test.author';password='test';grant_type='password'}
 $p = $t.access_token.Split('.')[1].Replace('-','+').Replace('_','/'); $p += '=' * ((4 - $p.Length % 4) % 4)
 [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($p)) | ConvertFrom-Json | Select-Object aud, @{n='roles';e={$_.realm_access.roles}}
 ```
