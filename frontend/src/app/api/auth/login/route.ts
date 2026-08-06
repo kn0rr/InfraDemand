@@ -1,6 +1,7 @@
 import * as client from "openid-client";
 import { holeKonfiguration, loeseQuelleAuf } from "@/lib/auth/identitaetsquellen";
-import { holeSitzung, sicheresRueckkehrZiel } from "@/lib/auth/sitzung";
+import { sicheresRueckkehrZiel } from "@/lib/auth/sitzung";
+import { holeSitzung } from "@/lib/auth/sitzung.server";
 import { rueckrufUrl } from "@/lib/auth/umgebung";
 
 export async function GET(anfrage: Request): Promise<Response> {

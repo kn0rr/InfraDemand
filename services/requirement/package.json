@@ -17,6 +17,7 @@
     "api:generate": "nest build && node dist/openapi.export.js && pnpm -w run api:lint"
   },
   "dependencies": {
+    "@fastify/static": "^10.1.2",
     "@nestjs/common": "^11.1.28",
     "@nestjs/config": "^4.0.4",
     "@nestjs/core": "^11.1.28",

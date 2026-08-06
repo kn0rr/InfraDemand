@@ -1,7 +1,8 @@
 import { decodeJwt } from "jose";
 import * as client from "openid-client";
 import { holeKonfiguration, loeseQuelleAuf } from "@/lib/auth/identitaetsquellen";
-import { holeSitzung, verwerfeAnmeldezustand } from "@/lib/auth/sitzung";
+import { verwerfeAnmeldezustand } from "@/lib/auth/sitzung";
+import { holeSitzung } from "@/lib/auth/sitzung.server";
 import { anwendungsBasisUrl } from "@/lib/auth/umgebung";
 
 /** Rollen stehen bei Keycloak im Zugriffstoken, nicht im ID-Token. */

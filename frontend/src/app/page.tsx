@@ -1,4 +1,5 @@
-import { holeSitzung, istAngemeldet } from "@/lib/auth/sitzung";
+import { istAngemeldet } from "@/lib/auth/sitzung";
+import { holeSitzung } from "@/lib/auth/sitzung.server";
 
 export const dynamic = "force-dynamic";
 

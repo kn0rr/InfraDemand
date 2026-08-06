@@ -39,6 +39,8 @@ Gilt für jedes Paket unter `services/*`, Referenzumsetzung ist
 | NestJS | 11.1.x | `nest-cli.json` | Anwendungsframework |
 | `@nestjs/platform-fastify` | 11.1.x | – | HTTP-Adapter (Fastify, nicht Express) |
 | `@nestjs/config` | 4.0.x | – | Konfiguration aus der Prozessumgebung |
+| `@nestjs/swagger` | 11.4.x | `src/openapi.ts` | Erzeugung des Contracts aus dem Code ([ADR-0005](../adr/0005-api-first-workflow.md)) |
+| `@fastify/static` | 10.1.x | – | Auslieferung der Swagger-Oberfläche unter Fastify (`PROD-048`) |
 | Vitest | 4.1.x | `vitest.config.ts` | Testrunner |
 | SWC | 1.15.x | `.swcrc` | Transformation der Tests inkl. Decorator-Metadaten |
 | supertest | 7.2.x | – | HTTP-Aufrufe gegen die laufende Anwendung im Test |
@@ -58,6 +60,7 @@ index [0]` und weist damit auf die falsche Stelle. Siehe
 | `openid-client` | 6.8.x | `frontend/src/lib/auth/` | OIDC-Client für den Anmeldefluss ([ADR-0014](../adr/0014-frontend-authentifizierung-ueber-bff.md)) |
 | `iron-session` | 8.0.x | `frontend/src/lib/auth/sitzung.ts` | Verschlüsseltes Sitzungscookie |
 | `jose` | 6.2.x | – | Lesen der Rollen aus dem Zugriffstoken |
+| Vitest | 4.1.x | `vitest.base.mts`, `vitest.config.mts`, `vitest.integration.config.mts` | Testrunner, ohne SWC – im Frontend gibt es keine Decorators |
 
 `frontend/tsconfig.json` erbt von **`tsconfig.base.json`**, nicht von `tsconfig.node.json`.
 Das ist der Grund, aus dem die Basis frei von Modulsemantik gehalten wurde
@@ -168,6 +171,33 @@ Entfernungsbedingung, und die Spalte ist Pflicht.
 
 Änderungen wirken sich auf `pnpm-lock.yaml` aus; beide Dateien gehören in denselben
 Commit.
+
+### Mindestalter von Paketversionen
+
+pnpm 11 verweigert standardmäßig Versionen, die erst vor kurzem veröffentlicht wurden
+(`minimumReleaseAge`). Der Schutz zielt auf die gefährlichste Phase eines
+Lieferkettenangriffs: das Fenster zwischen der Veröffentlichung einer übernommenen Version
+und dem Zeitpunkt, an dem jemand es bemerkt. Wer immer sofort die neueste Version zieht,
+ist zuverlässig als Erster betroffen.
+
+**Die Schwelle ist nicht projektspezifisch gesetzt.** Sie ist die Voreinstellung von
+pnpm; es gibt weder eine `.npmrc` noch einen Eintrag in `pnpm-workspace.yaml`.
+
+Blockiert die Prüfung eine Installation, gibt es zwei zulässige Antworten:
+
+1. **Die nächstältere Version nehmen.** Die Angabe bleibt ein normaler Bereich
+   (`^10.1.2`), und pnpm wählt daraus die neueste Version, die die Schwelle passiert.
+   Sobald die neuere alt genug ist, kommt sie ohne weiteres Zutun. Das ist der Regelfall.
+2. **Warten.**
+
+**`minimumReleaseAgeExclude` ist keine der beiden.** Der Eintrag hebt den Schutz für genau
+die Version auf, für die er gedacht war. Er ist ausschließlich vertretbar, wenn die neue
+Version eine ausgenutzte Schwachstelle schließt – dann ist das bekannte Risiko größer als
+das unbekannte. Diese Begründung gehört dann in denselben Commit.
+
+> **„Ich brauche die neueste" ist niemals ein Grund für einen Ausschluss.** Dieselbe Regel
+> gilt für Unterdrückungen in der Sicherheitsprüfung, siehe
+> [production-readiness.md](../operations/production-readiness.md).
 
 ### Parameter-Dekoratoren
 

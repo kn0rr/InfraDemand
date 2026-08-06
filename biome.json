@@ -1,7 +1,14 @@
 {
   "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
   "files": {
-    "includes": ["**", "!**/dist", "!**/.next", "!**/coverage", "!**/drizzle"]
+    "includes": [
+      "**",
+      "!**/dist",
+      "!**/.next",
+      "!**/coverage",
+      "!**/drizzle",
+      "!frontend/src/lib/api/schema.d.ts"
+    ]
   },
   "formatter": {
     "enabled": true,

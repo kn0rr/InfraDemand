@@ -8,18 +8,24 @@
     "dev": "node scripts/next-mit-umgebung.mjs dev --port 3000",
     "build": "next build",
     "start": "node scripts/next-mit-umgebung.mjs start --port 3000",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "api:types": "openapi-typescript ../docs/api/requirement.openapi.yaml --output src/lib/api/schema.d.ts",
+    "test:integration": "vitest run --config vitest.integration.config.mts"
   },
   "dependencies": {
     "iron-session": "^8.0.4",
     "jose": "^6.2.8",
     "next": "^16.3.0",
+    "openapi-fetch": "0.17.0",
     "openid-client": "^6.8.4",
     "react": "^19.2.8",
     "react-dom": "^19.2.8"
   },
   "devDependencies": {
     "@types/react": "^19.2.18",
-    "@types/react-dom": "^19.2.4"
+    "@types/react-dom": "^19.2.4",
+    "openapi-typescript": "7.13.0",
+    "vitest": "4.1.0"
   }
 }
