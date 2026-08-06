@@ -275,7 +275,11 @@ Frontend in einem Durchgang ([ADR-0002](../adr/0002-repository-struktur.md)).
 
 | Paket | Verzeichnis | Stand |
 |---|---|---|
-| `@infrademand/requirement` | [`services/requirement`](../../services/requirement/README.md) | M1.1 – Gerüst, noch kein Anwendungscode |
+| `@infrademand/requirement` | [`services/requirement`](../../services/requirement/README.md) | M1 abgeschlossen – Lese- und Schreibpfad, Historie, Contract |
+| `@infrademand/frontend` | `frontend/` | M2.2 – Gerüst, Anmeldung folgt in M2.3 |
+
+Das Frontend startet mit `pnpm --filter @infrademand/frontend dev` auf Port 3000, der
+Service auf 3001.
 
 ### Befehle je Service
 
