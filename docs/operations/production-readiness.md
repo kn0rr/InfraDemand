@@ -49,13 +49,17 @@ Das gilt für alle Beteiligten, einschließlich der KI in ihrer Beraterrolle
 |---|---|---|---|
 | A – Transportverschlüsselung und Netzwerk | 7 | 5 | – |
 | *davon Voraussetzung für ADR-0013:* | `PROD-006`, `PROD-007`, `PROD-032` | | |
-| B – Geheimnisse und Zugangsdaten | 5 | 5 | – |
-| C – Identität und Zugriff | 8 | 2 | – |
+| B – Geheimnisse und Zugangsdaten | 5 | 4 | – |
+| C – Identität und Zugriff | 9 | 2 | – |
 | D – Daten | 4 | 3 | – |
-| E – Container und Lieferkette | 10 | 1 | **2** |
+| E – Container und Lieferkette | 9 | 1 | **2** |
 | F – Betrieb und Verfügbarkeit | 6 | 1 | – |
 | G – Anwendungssicherheit | 5 | 1 | – |
-| **Gesamt** | **45** | **18** | **2** |
+| **Gesamt** | **45** | **17** | **2** |
+
+> **Nummern werden nicht neu vergeben.** `PROD-026` ist unbesetzt. Eine Lücke ist kein
+> Fehler – eine wiederverwendete Nummer wäre einer, weil Verweise aus ADRs, Commits und
+> Pull Requests dann auf etwas anderes zeigen als zum Zeitpunkt ihrer Entstehung.
 
 **Stand 2026-08-06**, Abschluss von Meilenstein M1: Zwei Einträge erledigt – `PROD-022`
 und `PROD-036`, beide zur Lieferkette. Sie wurden vorgezogen, weil ihre Voraussetzung
@@ -321,6 +325,27 @@ sodass die Wirkverzögerung einer Sperre bekannt und begrenzt ist. Zusätzlich z
 periodischer Abgleich gegen die Ursprungsquelle statt ausschließlich bei der Anmeldung.
 Hängt unmittelbar an `PROD-045` – solange die Sitzung nicht widerrufbar ist, ist die
 Sitzungsdauer die einzige wirksame Stellschraube.
+
+#### PROD-046 — Ursprungsquelle einer Identität ist im Token nicht sichtbar
+**Schwere:** Mittel · **Status:** Offen · **Betrifft:** §19.3 · **Verweis:** [ADR-0015](../adr/0015-mehrere-identitaetsquellen.md) Punkt 5
+
+ADR-0015 verlangt einen Protocol Mapper, der den Alias der vermittelnden Quelle als
+Anspruch in das Token schreibt. Er ist noch nicht angelegt.
+
+**Solange der eigene Realm die einzige Quelle ist, hat das keine Wirkung** – Keycloak setzt
+`identity_provider` ausschließlich bei vermittelten Anmeldungen, der Anspruch wäre bei
+jedem Anwender abwesend. Der Eintrag steht hier nicht als Mangel des jetzigen Zustands,
+sondern als Bedingung für einen künftigen.
+
+**Auslöser:** die Anbindung der ersten Fremdquelle – im **selben** Arbeitsschritt, nicht
+danach. Der maßgebliche Zeitpunkt ist nicht die Anbindung, sondern die erste
+Schreiboperation eines vermittelten Anwenders: Ab dann verlangt §19.3 die Auskunft, welche
+Quelle einen Wert gesetzt hat, und für bereits geschriebene Datensätze ist sie nicht
+nachträglich herstellbar.
+
+**Zielzustand:** Protocol Mapper im Client-Scope, versioniert über
+`infra/keycloak/realms/`, mit einem Test, der den Anspruch für einen vermittelten Anwender
+nachweist.
 
 #### PROD-045 — Sitzung im Cookie ist nicht widerrufbar
 **Schwere:** Hoch · **Status:** Offen · **Betrifft:** §13 · **Verweis:** [ADR-0014](../adr/0014-frontend-authentifizierung-ueber-bff.md)
