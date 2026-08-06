@@ -73,7 +73,6 @@ export async function holeSitzung(): Promise<IronSession<Sitzungsinhalt>> {
   return getIronSession<Sitzungsinhalt>(await cookies(), sitzungsOptionen());
 }
 
-
 /** Entfernt die nur waehrend des Anmeldeflusses benoetigten Felder. */
 export function verwerfeAnmeldezustand(sitzung: Sitzungsinhalt): void {
   delete sitzung.pkceVerifier;
