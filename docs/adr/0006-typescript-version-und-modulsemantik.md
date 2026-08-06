@@ -119,6 +119,32 @@ Zweitens verbietet die Option ESM-Syntax in CommonJS-Modulen vollständig – un
 Workspace-Protokoll funktioniert dagegen identisch in Build, Test, Laufzeit und CI – und
 ist `exports`-bewusst, was Punkt 2 voraussetzt.
 
+> **Präzisierung vom 2026-08-06 (Meilenstein M2.3).** Punkt 5 ist als Verbot
+> paketübergreifender Aliase gemeint – der zweite Satz des Punktes sagt das, der erste
+> nicht. Die Begründung trägt auch nur dafür: Sie beruht darauf, dass Aliase zur Laufzeit
+> nicht aufgelöst werden.
+>
+> **Für ein gebündeltes Frontend trifft das nicht zu.** Turbopack löst `paths` beim
+> Bündeln auf; es gibt keine Laufzeit, in der ein unaufgelöster Alias übrig bliebe. Der
+> Grund, der gegen Aliase spricht, existiert dort also nicht.
+>
+> `frontend/tsconfig.json` führt deshalb **einen** paketinternen Alias, `@/*` auf
+> `./src/*`. Anlass war der Anmeldefluss aus
+> [ADR-0014](0014-frontend-authentifizierung-ueber-bff.md): Route-Handler liegen unter
+> `src/app/api/auth/<name>/route.ts` und erreichen `src/lib/` sonst nur über vier Ebenen
+> relativer Pfade – eine Schreibweise, die beim ersten Verschieben einer Datei bricht,
+> ohne dass es auffällt.
+>
+> **Bewusst ohne `baseUrl`.** Seit TypeScript 4.1 werden `paths` ohne `baseUrl` relativ
+> zur `tsconfig.json` aufgelöst. Mit `baseUrl: "."` wäre zusätzlich jeder Pfad ab dem
+> Paketstamm als blanker Bezeichner auflösbar – `lib/auth/sitzung` würde dann ebenso
+> greifen und könnte ein gleichnamiges Paket überdecken. Der Alias bleibt so auf das
+> beschränkt, was er leisten soll.
+>
+> **Unverändert gilt:** Zwischen Paketen wird ausschließlich über `"workspace:*"`
+> verwiesen. Die Services führen weiterhin keine Aliase; ihre Verzeichnistiefe verlangt
+> es nicht, und sie werden nicht gebündelt.
+
 ## Betrachtete Alternativen
 
 ### Bei TypeScript 7.0.2 bleiben

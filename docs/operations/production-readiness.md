@@ -49,22 +49,32 @@ Das gilt für alle Beteiligten, einschließlich der KI in ihrer Beraterrolle
 |---|---|---|---|
 | A – Transportverschlüsselung und Netzwerk | 7 | 5 | – |
 | *davon Voraussetzung für ADR-0013:* | `PROD-006`, `PROD-007`, `PROD-032` | | |
-| B – Geheimnisse und Zugangsdaten | 5 | 5 | – |
-| C – Identität und Zugriff | 5 | 2 | – |
+| B – Geheimnisse und Zugangsdaten | 5 | 4 | – |
+| C – Identität und Zugriff | 9 | 2 | – |
 | D – Daten | 4 | 3 | – |
-| E – Container und Lieferkette | 10 | 1 | **2** |
-| F – Betrieb und Verfügbarkeit | 5 | 1 | – |
+| E – Container und Lieferkette | 9 | 1 | **2** |
+| F – Betrieb und Verfügbarkeit | 6 | 1 | – |
 | G – Anwendungssicherheit | 5 | 1 | – |
-| **Gesamt** | **41** | **18** | **2** |
+| **Gesamt** | **45** | **17** | **2** |
+
+> **Nummern werden nicht neu vergeben.** `PROD-026` ist unbesetzt. Eine Lücke ist kein
+> Fehler – eine wiederverwendete Nummer wäre einer, weil Verweise aus ADRs, Commits und
+> Pull Requests dann auf etwas anderes zeigen als zum Zeitpunkt ihrer Entstehung.
 
 **Stand 2026-08-06**, Abschluss von Meilenstein M1: Zwei Einträge erledigt – `PROD-022`
 und `PROD-036`, beide zur Lieferkette. Sie wurden vorgezogen, weil ihre Voraussetzung
 (Renovate im Betrieb) mit M1 erfüllt war und eine unbeaufsichtigte Festlegung ohne
 automatische Aktualisierung schlechter wäre als gar keine.
 
-Die übrigen 39 bleiben offen. Das ist für diesen Projektstand erwartbar: Der überwiegende
+Die übrigen 43 bleiben offen. Das ist für diesen Projektstand erwartbar: Der überwiegende
 Teil betrifft Betrieb, Verschlüsselung und Geheimnisverwaltung und wird erst mit der
 ersten nicht-lokalen Umgebung greifbar.
+
+**Zugang zu Beginn von M2.3:** Vier Einträge (`PROD-042` bis `PROD-045`) aus den
+Entscheidungen ADR-0014 und ADR-0015. Keiner davon ist ein Umsetzungsfehler – alle vier
+sind die benannten Kehrseiten zweier bewusst getroffener Festlegungen. Genau dafür ist
+diese Liste da: Eine Entscheidung, deren Nachteil nirgends steht, ist eine Entscheidung,
+die beim nächsten Mal niemand mehr überprüft.
 
 ---
 
@@ -280,6 +290,127 @@ dokumentiertes Widerrufsverfahren, Prüfung gegen die Rollenkritikalität.
 
 Objekt- und Feldebene aus §8 ist noch nicht umgesetzt; die Policy-Engine ist bewusst bis
 M5 vertagt. Ein Produktivgang vor M5 ist damit ausgeschlossen.
+
+#### PROD-043 — Abmeldung endet an der Vermittlungsgrenze
+**Schwere:** Mittel · **Status:** Offen · **Betrifft:** §13 · **Verweis:** [ADR-0015](../adr/0015-mehrere-identitaetsquellen.md)
+
+Meldet sich ein über eine Fremdquelle vermittelter Anwender bei uns ab, endet zuverlässig
+nur die Sitzung in unserem Realm. Die Sitzung bei der Ursprungsquelle – einer anderen
+Keycloak-Instanz, Entra ID, ADFS – bleibt bestehen. Ein erneuter Anmeldeversuch führt dann
+ohne Zutun des Anwenders zurück in die angemeldete Sitzung, was als „Abmeldung hat nicht
+funktioniert" wahrgenommen wird.
+
+Sicherheitlich relevant wird das an gemeinsam genutzten Arbeitsplätzen: Wer sich abmeldet
+und den Platz verlässt, geht davon aus, dass die nächste Person neu anmelden muss.
+
+**Zielzustand:** Für jede vermittelte Quelle ist festgelegt und dokumentiert, ob sie
+abgemeldete Sitzungen rückwärts propagiert (OIDC RP-Initiated Logout bzw. SAML Single
+Logout). Wo das nicht möglich ist, weist die Oberfläche nach der Abmeldung ausdrücklich
+darauf hin, dass die Sitzung beim Identitätsanbieter fortbesteht.
+
+#### PROD-044 — Vermittelte Merkmale sind nur so aktuell wie die letzte Anmeldung
+**Schwere:** Hoch · **Status:** Offen · **Betrifft:** §8, §13 · **Verweis:** [ADR-0015](../adr/0015-mehrere-identitaetsquellen.md)
+
+Bei der Anbindung fremder Quellen übernimmt Keycloak Merkmale und Gruppen zum Zeitpunkt
+der Anmeldung. Wird ein Konto anschließend im Ursprungsverzeichnis deaktiviert oder aus
+einer Gruppe entfernt, wirkt das **nicht sofort**, sondern frühestens beim nächsten
+Anmelde- oder Erneuerungsvorgang.
+
+**Folge:** Ein im Active Directory gesperrter Anwender kann bis zum Ablauf seiner Sitzung
+weiterarbeiten. Das ist genau der Fall, für den eine Sperre gedacht ist – Austritt,
+Freistellung, kompromittiertes Konto.
+
+**Zielzustand:** Verbindliche Obergrenze für die Sitzungsdauer, abgestimmt mit `PROD-016`,
+sodass die Wirkverzögerung einer Sperre bekannt und begrenzt ist. Zusätzlich zu prüfen:
+periodischer Abgleich gegen die Ursprungsquelle statt ausschließlich bei der Anmeldung.
+Hängt unmittelbar an `PROD-045` – solange die Sitzung nicht widerrufbar ist, ist die
+Sitzungsdauer die einzige wirksame Stellschraube.
+
+#### PROD-046 — Ursprungsquelle einer Identität ist im Token nicht sichtbar
+**Schwere:** Mittel · **Status:** Offen · **Betrifft:** §19.3 · **Verweis:** [ADR-0015](../adr/0015-mehrere-identitaetsquellen.md) Punkt 5
+
+ADR-0015 verlangt einen Protocol Mapper, der den Alias der vermittelnden Quelle als
+Anspruch in das Token schreibt. Er ist noch nicht angelegt.
+
+**Solange der eigene Realm die einzige Quelle ist, hat das keine Wirkung** – Keycloak setzt
+`identity_provider` ausschließlich bei vermittelten Anmeldungen, der Anspruch wäre bei
+jedem Anwender abwesend. Der Eintrag steht hier nicht als Mangel des jetzigen Zustands,
+sondern als Bedingung für einen künftigen.
+
+**Auslöser:** die Anbindung der ersten Fremdquelle – im **selben** Arbeitsschritt, nicht
+danach. Der maßgebliche Zeitpunkt ist nicht die Anbindung, sondern die erste
+Schreiboperation eines vermittelten Anwenders: Ab dann verlangt §19.3 die Auskunft, welche
+Quelle einen Wert gesetzt hat, und für bereits geschriebene Datensätze ist sie nicht
+nachträglich herstellbar.
+
+**Zielzustand:** Protocol Mapper im Client-Scope, versioniert über
+`infra/keycloak/realms/`, mit einem Test, der den Anspruch für einen vermittelten Anwender
+nachweist.
+
+#### PROD-045 — Sitzung im Cookie ist nicht widerrufbar
+**Schwere:** Hoch · **Status:** Offen · **Betrifft:** §13 · **Verweis:** [ADR-0014](../adr/0014-frontend-authentifizierung-ueber-bff.md)
+
+Nach ADR-0014 ist die Sitzung zustandslos und liegt vollständig im verschlüsselten Cookie.
+Das ist eine bewusste Entscheidung gegen zusätzliche Infrastruktur – sie hat aber eine
+Folge, die dort nicht ausgeschrieben war:
+
+**Es gibt keine Stelle, an der eine laufende Sitzung beendet werden kann.** Ein Widerruf
+in Keycloak beendet die Sitzung dort, nicht bei uns. Das Cookie bleibt bis zu seinem
+Ablauf gültig, weil seine Gültigkeit ausschließlich aus seinem Inhalt folgt. Eine
+Sperrung wirkt erst, wenn der Erneuerungsvorgang das nächste Mal fehlschlägt.
+
+Zweite, unabhängige Grenze derselben Entscheidung: Browser begrenzen ein Cookie auf
+**4096 Byte**. Die Grenze wird nicht angekündigt – das Cookie wird stillschweigend nicht
+gesetzt, und die Anmeldung schlägt ohne verwertbare Meldung fehl.
+
+**Gemessen am 2026-08-06** nach Abschluss von M2.3, Anwender `test.author`:
+
+| Bestandteil | Byte |
+|---|---|
+| Zugriffstoken (1 Realm-Rolle, 1 Zielgruppe) | 1143 |
+| Erneuerungstoken | 712 |
+| Sitzungsinhalt roh | 1855 |
+| **Cookie einschließlich Name** | **3080** von 4096 – **75 %** |
+
+Der Aufschlag durch Verschlüsselung und Base64 beträgt rund **das 1,5-fache**. Daraus folgt
+die Steigung: **etwa 48 Byte je zusätzlicher Realm-Rolle**, etwa ebenso viel je weiterer
+Zielgruppe. Der verbleibende Spielraum von rund 1000 Byte entspricht **ungefähr
+20 Rollen**.
+
+**Das ist der minimale Fall** – ein Anwender, eine Rolle, ein Service. §8 beschreibt
+Berechtigungen über Service, Ressourcentyp, Einzelobjekt, Attribut und Aktion; ein solches
+Modell erzeugt regelmäßig zweistellige Rollenzahlen. Mit dem zweiten Service kommen dessen
+Zielgruppe und dessen Rollen hinzu. Nach ADR-0015 kommen bei vermittelten Anwendern
+Merkmale der Ursprungsquelle dazu.
+
+Dritte, kleinere Wirkung: Das Cookie wird bei **jeder** Anfrage an denselben Ursprung
+mitgeschickt, auch für statische Dateien unter `/_next/static/`. Drei Kilobyte je Anfrage
+sind kein Beinbruch, aber ein zusätzliches Argument gegen die zustandslose Ablage.
+
+**Zielzustand:** Serverseitiger Sitzungsspeicher, im Cookie nur noch eine Kennung. Damit
+sind Widerruf, Größe und Anfragelast zugleich gelöst.
+
+**Auslöser für die Umsetzung – ersetzt den zuvor hier genannten Schwellwert von 3,5 KB.**
+Ein Stand-Schwellwert war die falsche Kennzahl: Er misst, wo wir sind, nicht wie schnell
+wir uns bewegen. Verbindlich ist stattdessen:
+
+- **Spätestens vor M3.** Der zweite Service bringt Zielgruppe und Rollen mit; danach ist
+  der Umbau teurer, weil der Weiterleitungspfad aus M2.4 daran hängt.
+- **Sofort, wenn die gemessene Größe 3600 Byte überschreitet.**
+
+**Die Überwachung fehlt noch.** Der Wert oben ist von Hand gemessen. Ein Eintrag in dieser
+Liste warnt niemanden zum richtigen Zeitpunkt – die Grenze fällt sonst erst auf, wenn die
+Anmeldung im Browser eines Anwenders stillschweigend nicht mehr greift. Erforderlich ist
+ein Integrationstest, der den Anmeldefluss gegen einen laufenden Keycloak durchläuft und
+bei mehr als 3600 Byte fehlschlägt. Das Frontend hat dafür bislang **keine
+Testinfrastruktur** – Vitest ist nur in den Services eingerichtet
+([ADR-0008](../adr/0008-teststrategie-und-testinfrastruktur.md)). Aufzubauen zu Beginn von
+M2.4, gemeinsam mit den Tests des Weiterleitungspfads.
+
+**Zur Wahl des Speichers ist nichts vorentschieden.** Die naheliegende Antwort –
+PostgreSQL, das ohnehin läuft – widerspricht [ADR-0002](../adr/0002-repository-struktur.md):
+Das Frontend hat bewusst keine eigene Datenhaltung. Die Entscheidung braucht daher ein
+eigenes ADR und ist im Index der vertagten Entscheidungen geführt.
 
 ---
 
@@ -658,6 +789,23 @@ die Plattform selbst möglich.
 §14 fordert OpenTelemetry, Prometheus, Grafana und Loki. Zusätzlich fehlt eine
 Alarmierung für sicherheitsrelevante Ereignisse – fehlgeschlagene Anmeldungen,
 Berechtigungsverweigerungen, ungewöhnliche Service-Account-Aktivität (§13).
+
+#### PROD-042 — Der Realm ist ein gemeinsamer Ausfallbereich
+**Schwere:** Hoch · **Status:** Offen · **Betrifft:** §15 · **Verweis:** [ADR-0015](../adr/0015-mehrere-identitaetsquellen.md)
+
+ADR-0015 bündelt sämtliche Identitätsquellen in einem Realm. Das ist für die Eindeutigkeit
+der Identität richtig und für die Verfügbarkeit die schlechtere Wahl: Fällt Keycloak aus,
+kann sich **niemand** mehr anmelden – auch nicht die Anwender, deren Verzeichnis
+einwandfrei läuft. Ohne die Bündelung wäre der Ausfall auf einen Mandanten begrenzt.
+
+Verschärfend kommt hinzu, dass nach ADR-0014 auch jede Tokenerneuerung über Keycloak
+läuft. Ein Ausfall trifft damit nicht nur neue Anmeldungen, sondern beendet nach und nach
+auch alle laufenden Sitzungen.
+
+**Zielzustand:** Keycloak im Verbund über mehrere Verfügbarkeitszonen, Datenbank
+hochverfügbar, definiertes SLO abgestimmt mit `PROD-030`. Der Ausfall der
+Identitätsverwaltung ist als eigenes Szenario zu üben, nicht als Randfall des
+Datenbankausfalls mitzubehandeln.
 
 ---
 

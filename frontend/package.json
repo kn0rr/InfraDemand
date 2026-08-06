@@ -5,13 +5,16 @@
   "license": "Apache-2.0",
   "type": "module",
   "scripts": {
-    "dev": "next dev --port 3000",
+    "dev": "node scripts/next-mit-umgebung.mjs dev --port 3000",
     "build": "next build",
-    "start": "next start --port 3000",
+    "start": "node scripts/next-mit-umgebung.mjs start --port 3000",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "iron-session": "^8.0.4",
+    "jose": "^6.2.8",
     "next": "^16.3.0",
+    "openid-client": "^6.8.4",
     "react": "^19.2.8",
     "react-dom": "^19.2.8"
   },
