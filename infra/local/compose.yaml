@@ -21,7 +21,7 @@ services:
       start_period: 10s
 
   keycloak:
-    image: quay.io/keycloak/keycloak:26.7.0
+    image: quay.io/keycloak/keycloak:26.7.1
     container_name: id-keycloak
     command: ["start-dev", "--import-realm"]
     environment:
