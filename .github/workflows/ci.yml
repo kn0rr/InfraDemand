@@ -19,6 +19,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
 
       - name: Workflow-Dateien pruefen
         run: docker run --rm -v "$PWD:/repo" --workdir /repo rhysd/actionlint:1.7.12 -color
@@ -35,6 +37,26 @@ jobs:
 
       - name: Lint
         run: pnpm lint
+
+      - name: OpenAPI-Contract erzeugen
+        run: pnpm run api:generate
+
+      - name: OpenAPI-Contract pruefen
+        run: pnpm run api:lint
+
+      - name: Contract-Drift pruefen
+        run: |
+          if ! git diff --exit-code -- docs/api/; then
+            echo "::error::Der eingecheckte OpenAPI-Contract weicht vom Code ab."
+            echo "::error::Lokal 'pnpm run api:generate' ausfuehren und das Ergebnis committen."
+            exit 1
+          fi
+
+      - name: Inkompatible Aenderungen pruefen
+        run: |
+          git show origin/${{ github.base_ref || 'main' }}:docs/api/requirement.openapi.yaml > /tmp/vorher.yaml 2>/dev/null || exit 0
+          docker run --rm -v /tmp:/tmp -v "$PWD:/repo" tufin/oasdiff:v1.27.0 \
+            breaking /tmp/vorher.yaml /repo/docs/api/requirement.openapi.yaml --fail-on ERR
 
   realm:
     name: Keycloak-Realm validieren

@@ -58,7 +58,7 @@ describe("Anforderungen lesen", () => {
   });
 
   it("liefert gespeicherte Anforderungen", async () => {
-    const projektId = "11111111-1111-1111-1111-111111111111";
+    const projektId = "11111111-1111-4111-8111-111111111111";
 
     await drizzle(pool)
       .insert(requirements)
@@ -87,7 +87,7 @@ describe("Anforderungen lesen", () => {
 
   it("gibt keine Datenbankspalten preis, die nicht zum Vertrag gehoeren", async () => {
     await drizzle(pool).insert(requirements).values({
-      projectId: "22222222-2222-2222-2222-222222222222",
+      projectId: "22222222-2222-4222-8222-222222222222",
       requirementType: "bug",
       status: "neu",
       owner: "test.author",
@@ -98,10 +98,12 @@ describe("Anforderungen lesen", () => {
     expect(Object.keys(antwort.body[0]).sort()).toEqual([
       "createdAt",
       "dynamicAttributes",
+      "externalId",
       "id",
       "owner",
       "projectId",
       "requirementType",
+      "sourceSystem",
       "status",
       "updatedAt",
       "version",

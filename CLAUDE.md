@@ -302,3 +302,85 @@ Bevorzugte Open-Source-Bausteine: Apache Kafka/NATS, MinIO, Airbyte
 - Capacity Service: Overhead-Berechnung, Forecasting-Input
 - Infrastructure Service: Kapazitätsprüfung/-reservierung gegen passenden Pool der Kategorie
 - Änderungen am Overhead-Modell/an Kategorien: Auditierungsereignis
+- **Entkopplung von Aufnahme und Berechnung: siehe Abschnitt 19**
+
+---
+
+# 19. Datenherkunft, Datenhoheit und Versionierung
+
+> Ergänzt am 2026-08-05. Präzisiert und erweitert die Abschnitte 6, 12, 16 und 18.
+
+## 19.1 Entkopplung von Anforderungsaufnahme und Kapazitätsberechnung
+
+- Anforderungsaufnahme und Kapazitätsberechnung müssen **unabhängig voneinander
+  funktionieren**. Keine der beiden Seiten ist für die Kernfunktion der anderen
+  erforderlich
+- Beide müssen **einzeln durch Fremdsysteme ersetzbar** sein. Die Kapazitätsberechnung
+  muss mit Daten arbeiten können, die nicht aus dem eigenen Requirement Service stammen
+- Die Grenze zwischen beiden ist ein **Integrationsvertrag**, kein interner Aufruf:
+  versioniert, OpenAPI-dokumentiert, mit Kompatibilitätsgarantie wie eine öffentliche
+  Schnittstelle (Abschnitt 12)
+- Über die Grenze werden **keine internen Bezeichner** gereicht. Datensätze werden über
+  Herkunftssystem und dortigen Bezeichner identifiziert
+- Über die Grenze werden **keine konfigurierbaren Statuswerte** gereicht. Die
+  Workflow-Zustände aus Abschnitt 7 sind Fachdaten und ohne Redeploy änderbar; der
+  Vertrag führt ein eigenes, stabiles Statusvokabular, auf das abgebildet wird
+- Wiederholte Übermittlung desselben Datensatzes erzeugt keine Dubletten (Idempotenz).
+  Bei Dateiimporten ist die Wiederholung der Normalfall
+
+## 19.2 Drei gleichwertige Eingangswege
+
+Daten erreichen die Plattform über drei gleichrangige Wege:
+
+1. **Versionierte Schnittstelle** (Abschnitt 16)
+2. **Dateiupload** (z. B. CSV, JSON)
+3. **Manuelle Erfassung im Webfrontend**
+
+- Alle drei durchlaufen **dieselbe Validierung und denselben Verarbeitungspfad**. Sie
+  unterscheiden sich ausschließlich in Transport und Herkunftsangabe
+- Der Dateiimport ist eine Transportform desselben Vorgangs, **keine zweite
+  Implementierung**. Zwei Validierungswege laufen auseinander, und der seltener genutzte
+  ist der schwächere
+- Jede Schreiboperation führt ihre Herkunft mit
+
+## 19.3 Datenhoheit je Feld und Kontext
+
+- Je Feld und je Kontext ist konfigurierbar, **welche Quelle führend** ist
+- Datenhoheit ist **nicht dasselbe wie Schreibberechtigung**. Ein Feld kann für eine
+  Quelle beschreibbar sein, ohne dass diese Quelle dafür führend ist. Abschnitt 6
+  („API-beschreibbar", „API-überschreibbar") und Abschnitt 16 (Konfliktregel) regeln das
+  Dürfen; dieser Abschnitt regelt den Vorrang
+- Die Herkunft einer Schreiboperation ist damit **Eingabe der Schreibentscheidung**, nicht
+  nur Protokollangabe
+- Hoheitsregeln sind **Fachdaten** wie die Attributdefinitionen: ohne Redeploy änderbar,
+  versioniert, über die Admin-Oberfläche gepflegt
+- Zu jedem Feld muss ermittelbar sein, **welche Quelle es zuletzt gesetzt hat**
+- Der Begriff „Kontext" ist noch nicht abschließend festgelegt – siehe ADR-0011
+
+## 19.4 Vollständige Versionierung mit Zeitbezug
+
+- **Jede Änderung fachlicher Daten erzeugt eine neue Version.** Versioniert wird der
+  vollständige Zustand, nicht nur das geänderte Feld
+- Der Zustand zu einem **beliebigen vergangenen Zeitpunkt** muss abfragbar und auswertbar
+  sein – nicht nur rekonstruierbar
+- Zweck ist **Nachweisfähigkeit**, nicht Protokollierung: belegen zu können, welchen
+  Anforderungsbestand das System zu einem bestimmten Zeitpunkt kannte, und damit, dass die
+  Kapazitätsplanung auf dieser Grundlage angemessen reagiert hat
+- Die Veränderung von Anforderungen über die Zeit muss **grafisch darstellbar** sein
+  (Abschnitt 11) und in Auswertungen eingehen (Abschnitt 10)
+- Die Versionshistorie **ist zugleich der Auditpfad** aus Abschnitt 16. Es entstehen nicht
+  zwei Mechanismen
+- **Löschungen sind fachlich, nicht physisch.** Ein physisch entfernter Datensatz zerstört
+  die Nachweisfähigkeit
+- Daraus folgt ein **Zielkonflikt mit Löschpflichten** (Abschnitt 13, DSGVO), der vor
+  einem Produktivgang bewusst aufzulösen ist
+
+## 19.5 Verweise
+
+Die zugehörigen Architekturentscheidungen mit Begründung, Alternativen und Konsequenzen:
+
+| ADR | Inhalt |
+|---|---|
+| `docs/adr/0010-entkopplung-anforderung-und-kapazitaet.md` | 19.1 |
+| `docs/adr/0011-datenhoheit-je-feld-und-kontext.md` | 19.2, 19.3 |
+| `docs/adr/0012-vollstaendige-versionierung-mit-zeitbezug.md` | 19.4 |

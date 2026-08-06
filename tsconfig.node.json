@@ -10,6 +10,7 @@
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
     "verbatimModuleSyntax": false,
+    "useDefineForClassFields": false,
     "incremental": true
   }
 }

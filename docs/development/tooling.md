@@ -71,6 +71,7 @@ Wahrheitswert:
 |---|---|---|
 | `@swc/core` | `true` | Verlinkt die plattformspezifische native Binärdatei; ohne sie funktioniert die Transformation der Tests nicht ([ADR-0008](../adr/0008-teststrategie-und-testinfrastruktur.md)) |
 | `esbuild` | `true` | `drizzle-kit` lädt damit die TypeScript-Konfiguration; das Skript verlinkt die plattformspezifische Binärdatei ([ADR-0009](../adr/0009-orm-und-migrationswerkzeug.md)) |
+| `@scarf/scarf` | `false` | **Telemetrie.** Meldet bei jeder Installation Nutzungsdaten an einen Dritten – Paket, Version, Betriebssystem, IP, CI-Kennzeichen. Kommt über `swagger-ui-dist` zu `@nestjs/swagger`, hat keine funktionale Rolle |
 | `ssh2` | `false` | Kommt über `dockerode` zu Testcontainers und dient Docker-Verbindungen über SSH. Wir sprechen den lokalen Socket an – nicht benötigt |
 | `cpu-features` | `false` | Optionale native Abhängigkeit von `ssh2` zur Beschleunigung der SSH-Kryptografie. Kompiliert zur Installationszeit nativen Code, ohne Nutzen für uns |
 | `protobufjs` | `false` | Das Skript erzeugt Hilfsdateien für die Kommandozeile; für die Nutzung als Bibliothek nicht erforderlich |

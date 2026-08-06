@@ -6,6 +6,7 @@ import { ExtractJwt, Strategy } from "passport-jwt";
 
 export interface JwtPayload {
   sub: string;
+  azp?: string;
   preferred_username?: string;
   realm_access?: { roles?: string[] };
 }
@@ -13,6 +14,8 @@ export interface JwtPayload {
 export interface AuthenticatedUser {
   userId: string;
   username: string;
+  /** Client, der das Token angefordert hat (azp). Grundlage von change_source. */
+  clientId: string;
   roles: string[];
 }
 
@@ -44,6 +47,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     return {
       userId: payload.sub,
       username: payload.preferred_username ?? payload.sub,
+      clientId: payload.azp ?? "unbekannt",
       roles: payload.realm_access?.roles ?? [],
     };
   }

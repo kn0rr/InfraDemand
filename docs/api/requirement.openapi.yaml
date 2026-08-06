@@ -1,0 +1,311 @@
+components:
+  schemas:
+    CreateRequirementDto:
+      properties:
+        dynamicAttributes:
+          additionalProperties: true
+          type: object
+        externalId:
+          description: >-
+            Bezeichner im Herkunftssystem. Zusammen mit sourceSystem eindeutig - eine Wiederholung
+            wird mit 409 abgewiesen (Idempotenz nach §19.1).
+          example: A-4711
+          maxLength: 200
+          type: string
+        owner:
+          maxLength: 200
+          type: string
+        projectId:
+          format: uuid
+          type: string
+        requirementType:
+          example: feature
+          maxLength: 100
+          type: string
+        sourceSystem:
+          description: 'Herkunft der Daten (§19.1). Ohne Angabe: eigene Erfassung.'
+          example: sap
+          maxLength: 100
+          type: string
+        status:
+          description: >-
+            Kein Vorgabewert: Ein fest verdrahteter Anfangszustand waere eine Workflow-Annahme, und
+            §7 macht Zustaende konfigurierbar. Ab M4 liefert ihn die Workflow-Definition.
+          example: neu
+          maxLength: 100
+          type: string
+      required:
+        - projectId
+        - requirementType
+        - status
+        - owner
+      type: object
+    RequirementResponse:
+      properties:
+        createdAt:
+          format: date-time
+          type: string
+        dynamicAttributes:
+          additionalProperties: true
+          description: >-
+            Dynamische Attribute nach §6. Das gueltige Schema je Anforderungstyp wird zur Laufzeit
+            ausgeliefert und ist hier bewusst nicht abgebildet.
+          type: object
+        externalId:
+          description: Bezeichner im Herkunftssystem. Leer bei eigener Erfassung.
+          type:
+            - string
+            - 'null'
+        id:
+          format: uuid
+          type: string
+        owner:
+          type: string
+        projectId:
+          format: uuid
+          type: string
+        requirementType:
+          example: feature
+          type: string
+        sourceSystem:
+          description: 'Herkunftssystem des Datensatzes (§19.1). Eigene Erfassung: infrademand.'
+          example: infrademand
+          type: string
+        status:
+          description: >-
+            Interner Status. Noch nicht das stabile Statusvokabular des Integrationsvertrags nach
+            CLAUDE.md §19.1 - die Abbildung folgt mit der Workflow-Engine in M4.
+          example: neu
+          type: string
+        updatedAt:
+          format: date-time
+          type: string
+        version:
+          example: 1
+          type: integer
+      required:
+        - id
+        - projectId
+        - requirementType
+        - status
+        - owner
+        - sourceSystem
+        - externalId
+        - dynamicAttributes
+        - createdAt
+        - updatedAt
+        - version
+      type: object
+    RequirementVersionResponse:
+      properties:
+        changeSource:
+          description: Client, der die Aenderung ausgefuehrt hat - aus dem Token.
+          type: string
+        changedBy:
+          description: Ausloesende Identitaet.
+          type: string
+        createdAt:
+          format: date-time
+          type: string
+        dynamicAttributes:
+          additionalProperties: true
+          description: >-
+            Dynamische Attribute nach §6. Das gueltige Schema je Anforderungstyp wird zur Laufzeit
+            ausgeliefert und ist hier bewusst nicht abgebildet.
+          type: object
+        externalId:
+          description: Bezeichner im Herkunftssystem. Leer bei eigener Erfassung.
+          type:
+            - string
+            - 'null'
+        id:
+          format: uuid
+          type: string
+        operation:
+          enum:
+            - insert
+            - update
+            - delete
+          type: string
+        owner:
+          type: string
+        projectId:
+          format: uuid
+          type: string
+        requirementType:
+          example: feature
+          type: string
+        sourceSystem:
+          description: 'Herkunftssystem des Datensatzes (§19.1). Eigene Erfassung: infrademand.'
+          example: infrademand
+          type: string
+        status:
+          description: >-
+            Interner Status. Noch nicht das stabile Statusvokabular des Integrationsvertrags nach
+            CLAUDE.md §19.1 - die Abbildung folgt mit der Workflow-Engine in M4.
+          example: neu
+          type: string
+        updatedAt:
+          format: date-time
+          type: string
+        validFrom:
+          format: date-time
+          type: string
+        validTo:
+          description: Leer bei der aktuell gueltigen Version.
+          format: date-time
+          type:
+            - string
+            - 'null'
+        version:
+          example: 1
+          type: integer
+      required:
+        - id
+        - projectId
+        - requirementType
+        - status
+        - owner
+        - sourceSystem
+        - externalId
+        - dynamicAttributes
+        - createdAt
+        - updatedAt
+        - version
+        - validFrom
+        - validTo
+        - operation
+        - changedBy
+        - changeSource
+      type: object
+  securitySchemes:
+    bearer:
+      bearerFormat: JWT
+      scheme: bearer
+      type: http
+info:
+  contact: {}
+  description: >-
+    Anforderungen, Projekte und Lebenszyklus. Versionierter Contract nach CLAUDE.md §12 -
+    Aenderungen unterliegen der Kompatibilitaetspruefung.
+  license:
+    name: Apache-2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0
+  title: Requirement Service
+  version: '1'
+openapi: 3.1.0
+paths:
+  /health:
+    get:
+      description: Unversioniert und ohne Token erreichbar - Ziel der Orchestrierungsschicht.
+      operationId: HealthController_getHealth
+      parameters: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                properties:
+                  status:
+                    example: ok
+                    type: string
+                type: object
+          description: Dienst ist bereit
+      security: []
+      summary: Bereitschaftspruefung
+      tags:
+        - Betrieb
+  /v1/requirements:
+    get:
+      description: Ohne asOf der aktuelle Bestand, mit asOf der Zustand zum Stichtag (§19.4).
+      operationId: RequirementsController_findAll_v1
+      parameters:
+        - description: >-
+            Stichtag. Ohne Angabe der aktuelle Bestand, mit Angabe der Zustand, den das System zu
+            diesem Zeitpunkt kannte (§19.4).
+          in: query
+          name: asOf
+          required: false
+          schema:
+            format: date-time
+            type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/RequirementResponse'
+                type: array
+          description: Bestand
+        '400':
+          description: Unlesbarer Stichtag
+        '401':
+          description: Kein oder ungueltiges Token
+      security:
+        - bearer: []
+      summary: Anforderungen auflisten
+      tags:
+        - Anforderungen
+    post:
+      operationId: RequirementsController_create_v1
+      parameters: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateRequirementDto'
+        required: true
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RequirementResponse'
+          description: Angelegte Anforderung
+        '400':
+          description: Rumpf unvollstaendig oder unbekannte Felder
+        '401':
+          description: Kein oder ungueltiges Token
+        '409':
+          description: sourceSystem und externalId existieren bereits (Idempotenz nach §19.1)
+      security:
+        - bearer: []
+      summary: Anforderung anlegen
+      tags:
+        - Anforderungen
+  /v1/requirements/{id}/versions:
+    get:
+      description: >-
+        Alle Versionen, aelteste zuerst. Aus dem Vergleich aufeinanderfolgender Versionen ergeben
+        sich alter Wert, neuer Wert und feldgenaue Herkunft (§16).
+      operationId: RequirementsController_findVersions_v1
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: uuid
+            type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/RequirementVersionResponse'
+                type: array
+          description: Alle Versionen
+        '400':
+          description: Unlesbare Kennung
+        '401':
+          description: Kein oder ungueltiges Token
+      security:
+        - bearer: []
+      summary: Versionshistorie einer Anforderung
+      tags:
+        - Anforderungen
+servers:
+  - description: Gleicher Ursprung wie dieses Dokument
+    url: /
+tags: []
