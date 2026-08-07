@@ -33,4 +33,14 @@ export class SourceSystemsService {
 
     return zeile.kind;
   }
+
+  /**
+   * Alle Quellen mit ihrer Klasse. Wird je Schreibvorgang einmal geladen, statt je Feld
+   * eine Abfrage abzusetzen - die Herkunft eines Feldes kann jede eingetragene Quelle
+   * sein.
+   */
+  async klassenkarte(): Promise<Map<string, SourceSystemKind>> {
+    const zeilen = await this.repository.findAll();
+    return new Map(zeilen.map((zeile) => [zeile.key, zeile.kind]));
+  }
 }

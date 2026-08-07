@@ -16,4 +16,7 @@ export class SourceSystemsRepository {
 
     return zeile;
   }
+  findAll(): Promise<SourceSystemRow[]> {
+    return this.db.select().from(sourceSystems);
+  }
 }

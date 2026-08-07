@@ -374,13 +374,30 @@ brauchten Luft. Die Integrationskonfiguration senkte ihn auf `30_000` – **ausg
 dort, wo die Container tatsächlich starten.** Mit vier gleichzeitig hochfahrenden
 PostgreSQL-Containern wurde die Grenze erreicht.
 
-Behoben, indem `vitest.integration.config.mts` beide Zeitgrenzen nicht mehr überschreibt.
-Sie setzt nur noch Einrichtungsdatei und Dateimuster. Sollte es erneut auftreten, ist der
-nächste Griff `fileParallelism: false` – vier Container nacheinander statt gleichzeitig.
+`vitest.integration.config.mts` überschreibt beide Zeitgrenzen seither nicht mehr und setzt
+nur noch Einrichtungsdatei und Dateimuster. **Das war eine echte Verbesserung, aber nicht
+die Ursache** – der Fehlschlag trat mit dem fünften Testfile erneut auf.
 
-**Merksatz:** Eine abgeleitete Konfiguration, die einen Wert der Basis verengt, braucht
-denselben begründenden Kommentar wie die Basis. Ohne ihn kippt die Absicht bei der ersten
-Änderung.
+**Die Ursache ist nicht geklärt.** Was beobachtet wurde:
+
+- Beide Male im **ersten Lauf nach dem Anlegen einer neuen Testdatei**, jeweils für genau
+  diese Datei
+- Danach nie wieder herstellbar: nicht einzeln, nicht im Verbund, nicht mit geleertem
+  Transformationszwischenspeicher, nicht über mehrere Wiederholungen
+
+Eine dazu passende, **unbewiesene** Erklärung: Die Datei wurde gerade vom Editor
+geschrieben, Vitest liest einen unvollständigen Stand, und ein abgeschnittener Anfang ist
+syntaktisch gültig und enthält null Testblöcke – genau das meldet Vitest als
+„No test suite found", ohne Fehler.
+
+**Wie sich das entscheiden lässt:** Tritt es je in der CI auf, ist die Erklärung falsch –
+dort kommen die Dateien aus einem Checkout und sind vollständig geschrieben, bevor
+irgendetwas läuft. Bis dahin: **erneut ausführen.** Wer stattdessen an der Konfiguration
+dreht, behebt vermutlich wieder etwas anderes.
+
+**Merksatz aus dem ersten Anlauf, unabhängig davon gültig:** Eine abgeleitete
+Konfiguration, die einen Wert der Basis verengt, braucht denselben begründenden Kommentar
+wie die Basis. Ohne ihn kippt die Absicht bei der ersten Änderung.
 
 ### `Cannot resolve dependency at index [0]` im Test
 

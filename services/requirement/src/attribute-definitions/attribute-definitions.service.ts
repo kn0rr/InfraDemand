@@ -6,6 +6,7 @@ import {
 } from "@nestjs/common";
 import type { AuthenticatedUser } from "../auth/jwt.strategy";
 import type { AttributeDefinitionHistoryRow, AttributeDefinitionRow } from "../database/schema";
+import { REGELBARE_KERNFELDER } from "../mastership/mastership.dto";
 import type { GeltendeDefinition } from "./attribut-pruefung";
 import {
   type AttributeDefinitionResponse,
@@ -16,6 +17,7 @@ import {
   DuplicateAttributeKeyError,
 } from "./attribute-definitions.errors";
 import { AttributeDefinitionsRepository } from "./attribute-definitions.repository";
+
 import type { CreateAttributeDefinitionDto } from "./create-attribute-definition.dto";
 import type { UpdateAttributeDefinitionDto } from "./update-attribute-definition.dto";
 
@@ -67,6 +69,13 @@ export class AttributeDefinitionsService {
     eingabe: CreateAttributeDefinitionDto,
     benutzer: AuthenticatedUser,
   ): Promise<AttributeDefinitionResponse> {
+    // Der Feldraum ist flach: Eine Hoheitsregel fuer "owner" meint das Kernfeld. Ein
+    // gleichnamiges Attribut wuerde es verdecken, und keine der beiden Bedeutungen waere
+    // noch eindeutig.
+    if ((REGELBARE_KERNFELDER as readonly string[]).includes(eingabe.key)) {
+      throw new BadRequestException(`"${eingabe.key}" ist ein Kernfeld und kein Attributname`);
+    }
+
     AttributeDefinitionsService.pruefeWerteliste(eingabe.dataType, eingabe.allowedValues);
 
     try {

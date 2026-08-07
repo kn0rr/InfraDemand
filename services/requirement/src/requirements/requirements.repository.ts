@@ -3,11 +3,13 @@ import { and, asc, eq, gt, isNull, lte, ne, or, sql } from "drizzle-orm";
 import { DATABASE, type Database } from "../database/database.tokens";
 import { istEindeutigkeitsverletzung } from "../database/fehler";
 import {
+  type NewWriteRejectionRow,
   REQUIREMENT_SOURCE_EXTERNAL_CONSTRAINT,
   type RequirementHistoryRow,
   type RequirementRow,
   requirementHistory,
   requirements,
+  writeRejections,
 } from "../database/schema";
 import { DuplicateExternalIdError, RequirementNotFoundError } from "./requirements.errors";
 
@@ -126,6 +128,21 @@ export class RequirementsRepository {
       }
       throw fehler;
     }
+  }
+
+  /**
+   * Verzeichnet abgewiesene Schreiboperationen (ADR-0017 B10).
+   *
+   * Bewusst ausserhalb der Schreibtransaktion: Bei einer manuellen Abweisung scheitert
+   * der Vorgang (ADR-0019 Punkt 1), und der Eintrag soll trotzdem bestehen bleiben. Er
+   * belegt gerade, was **nicht** geschah.
+   */
+  async recordRejections(eintraege: NewWriteRejectionRow[]): Promise<void> {
+    if (eintraege.length === 0) {
+      return;
+    }
+
+    await this.db.insert(writeRejections).values(eintraege);
   }
 
   /** Zuordnung des fremden Bezeichners auf unseren Datensatz (ADR-0010). */

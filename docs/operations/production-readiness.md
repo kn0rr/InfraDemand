@@ -301,6 +301,27 @@ M5 vertagt. Ein Produktivgang vor M5 ist damit ausgeschlossen.
 > Mandantenzuschnitt und Attributsichtbarkeit fehlen unverändert. Wer die vorhandene
 > Prüfung für ausreichend hält, hält diesen Eintrag für erledigt – er ist es nicht.
 
+#### PROD-051 — Die Herkunftsregistratur ist ein Berechtigungsobjekt ohne Berechtigungsschutz
+**Schwere:** Hoch · **Status:** Offen · **Betrifft:** §8, §19.3 · **Verweis:** [ADR-0017](../adr/0017-regelvokabular-der-datenhoheit-und-mandantenbegriff.md) A4
+
+Seit M3.4c entscheidet der Eintrag eines OAuth-Clients in `source_system` darüber, ob
+seine Schreiboperationen als *automatisch* oder *manuell* gelten – und damit, ob die
+Hoheitsregeln auf ihn zutreffen.
+
+**Wer einen Client als `automatic` einträgt, hebt für ihn sämtliche Hoheitsregeln auf.**
+`automatic_wins` und `manual_locked` beschränken ausschließlich manuelle Quellen; eine
+automatische wird von keiner Regel abgewiesen. Ein einzelner Datensatz in einer
+Stammdatentabelle setzt damit das gesamte Regelwerk für einen Aufrufer außer Kraft.
+
+Heute schützt nur die grobe Rolle `platform-admin` – dieselbe, die auch Attributdefinitionen
+pflegt. Ein Administrator, der Quellen eintragen darf, kann folglich jede Hoheitsregel
+umgehen, ohne eine einzige Regel zu ändern.
+
+**Zielzustand:** Die Registratur wird als eigenes Berechtigungsobjekt nach §8 geführt, mit
+eigenem Recht für das Setzen der Klasse. Zusätzlich gehört die Änderung einer Klasse
+auffällig auditiert – sie ist wirkungsgleich mit dem Abschalten aller Regeln für einen
+Aufrufer. Gemeinsam mit `PROD-017` zu entscheiden, spätestens mit M5.
+
 #### PROD-043 — Abmeldung endet an der Vermittlungsgrenze
 **Schwere:** Mittel · **Status:** Offen · **Betrifft:** §13 · **Verweis:** [ADR-0015](../adr/0015-mehrere-identitaetsquellen.md)
 

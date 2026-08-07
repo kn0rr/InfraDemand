@@ -34,7 +34,7 @@ describe("Eindeutigkeit von Herkunft und externem Bezeichner", () => {
   });
 
   beforeEach(async () => {
-    await pool.query("TRUNCATE TABLE requirement");
+    await pool.query("TRUNCATE TABLE requirement CASCADE");
   });
 
   it("erlaubt mehrere eigene Datensaetze ohne externen Bezeichner", async () => {

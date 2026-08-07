@@ -54,7 +54,7 @@ describe("Stichtagsabfrage", () => {
   });
 
   beforeEach(async () => {
-    await pool.query("TRUNCATE TABLE requirement, requirement_history");
+    await pool.query("TRUNCATE TABLE requirement, requirement_history CASCADE");
   });
 
   const mitToken = () => `Bearer ${token}`;

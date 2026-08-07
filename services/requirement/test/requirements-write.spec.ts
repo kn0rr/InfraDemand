@@ -62,7 +62,7 @@ describe("Anforderungen anlegen", () => {
     // mitgeleert werden. Ohne das aendert ein in einem Test angelegtes Pflichtattribut
     // das Verhalten jedes folgenden Tests.
     await pool.query(
-      "TRUNCATE TABLE requirement, requirement_history, attribute_definition, attribute_definition_history",
+      "TRUNCATE TABLE requirement, requirement_history, attribute_definition, attribute_definition_history CASCADE",
     );
 
     await registriereAttribut(pool, { key: "kostenstelle", label: "Kostenstelle" });

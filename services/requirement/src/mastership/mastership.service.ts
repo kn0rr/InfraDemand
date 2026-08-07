@@ -108,6 +108,12 @@ export class MastershipService {
     throw new BadRequestException(new UnknownFieldError(field).message);
   }
 
+  /** Die geltenden Regeln als Nachschlagewerk, Feld auf Modus. */
+  async regeln(): Promise<Map<string, MastershipRuleRow["mode"]>> {
+    const zeilen = await this.repository.findAll();
+    return new Map(zeilen.map((zeile) => [zeile.field, zeile.mode]));
+  }
+
   private static toResponse(row: MastershipRuleRow): MastershipRuleResponse {
     return {
       id: row.id,

@@ -333,6 +333,55 @@ export const mastershipRuleHistory = pgTable(
   ],
 );
 
+/** Warum eine Schreiboperation auf ein Feld abgewiesen wurde. */
+export const rejectionReason = pgEnum("rejection_reason", [
+  "automatic_wins",
+  "manual_locked",
+  /** Wird ab M3.4d verwendet - Festhaltung je Datensatz und Feld (ADR-0017 B6). */
+  "field_held",
+]);
+
+/**
+ * Abgewiesene Schreiboperationen (ADR-0017 B10).
+ *
+ * **Keine Version** (ADR-0017 B11): Eine abgewiesene Operation aendert den Datensatz
+ * nicht. Sie als Version zu fuehren erzeugte Versionen, die sich von ihrer Vorgaengerin
+ * nicht unterscheiden. Der Speicher beantwortet eine andere Frage als die Historie -
+ * nicht "wie sah der Datensatz aus", sondern "was hat eine Quelle geliefert, das wir
+ * nicht uebernommen haben".
+ *
+ * Nur fuer bestehende Datensaetze (ADR-0019 Punkt 4): Scheitert eine Anlage, gibt es
+ * keinen Wert, bei dem wir geblieben waeren.
+ *
+ * Nur angefuegt, nie geaendert - deshalb ohne Versionierungsspalten.
+ */
+export const writeRejections = pgTable(
+  "write_rejection",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    requirementId: uuid("requirement_id")
+      .notNull()
+      .references(() => requirements.id),
+    field: text("field").notNull(),
+    /** Der Wert, den die Quelle setzen wollte. `null` ist ein zulaessiger Wunsch. */
+    rejectedValue: jsonb("rejected_value"),
+    /** Herkunft der abgewiesenen Operation, nicht des Datensatzes. */
+    sourceSystem: text("source_system").notNull(),
+    changedBy: text("changed_by").notNull(),
+    reason: rejectionReason("reason").notNull(),
+    occurredAt: timestamp("occurred_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    // Zugriffspfad der Uebersicht aus ADR-0017 B14: die zuletzt abgewiesene Lieferung
+    // je Datensatz und Feld.
+    index("write_rejection_requirement_field_idx").on(
+      table.requirementId,
+      table.field,
+      table.occurredAt,
+    ),
+  ],
+);
+
 export type RequirementRow = typeof requirements.$inferSelect;
 export type NewRequirementRow = typeof requirements.$inferInsert;
 export type RequirementHistoryRow = typeof requirementHistory.$inferSelect;
@@ -345,3 +394,5 @@ export type NewAttributeDefinitionRow = typeof attributeDefinitions.$inferInsert
 export type AttributeDefinitionHistoryRow = typeof attributeDefinitionHistory.$inferSelect;
 export type MastershipRuleRow = typeof mastershipRules.$inferSelect;
 export type MastershipRuleHistoryRow = typeof mastershipRuleHistory.$inferSelect;
+export type WriteRejectionRow = typeof writeRejections.$inferSelect;
+export type NewWriteRejectionRow = typeof writeRejections.$inferInsert;
