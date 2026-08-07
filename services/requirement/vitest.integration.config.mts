@@ -8,8 +8,6 @@ export default mergeConfig(
       // Ersetzt die Platzhalter aus test/setup.ts durch die echten lokalen Werte
       setupFiles: ["./test/setup.integration.ts"],
       include: ["test/**/*.integration.spec.ts"],
-      testTimeout: 30_000,
-      hookTimeout: 30_000,
     },
   }),
 );

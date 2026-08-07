@@ -6,6 +6,6 @@ import { AttributeDefinitionsService } from "./attribute-definitions.service";
 @Module({
   controllers: [AttributeDefinitionsController],
   providers: [AttributeDefinitionsService, AttributeDefinitionsRepository],
-  exports: [AttributeDefinitionsService],
+  exports: [AttributeDefinitionsService, AttributeDefinitionsRepository],
 })
 export class AttributeDefinitionsModule {}

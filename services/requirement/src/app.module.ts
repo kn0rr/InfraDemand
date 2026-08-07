@@ -4,6 +4,7 @@ import { AttributeDefinitionsModule } from "./attribute-definitions/attribute-de
 import { AuthModule } from "./auth/auth.module";
 import { DatabaseModule } from "./database/database.module";
 import { HealthModule } from "./health/health.module";
+import { MastershipModule } from "./mastership/mastership.module";
 import { RequirementsModule } from "./requirements/requirements.module";
 
 @Module({
@@ -19,6 +20,7 @@ import { RequirementsModule } from "./requirements/requirements.module";
     HealthModule,
     RequirementsModule,
     AttributeDefinitionsModule,
+    MastershipModule,
   ],
 })
 export class AppModule {}

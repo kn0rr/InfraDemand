@@ -308,6 +308,47 @@ und läsen sich später als ein anderes Datum.
 **Für Tests:** `registriereAttribut` aus `test/support/attribute-definitions.ts`. Ohne
 Definition wird jedes dynamische Attribut abgewiesen.
 
+#### Hoheitsregeln (`mastership_rule`)
+
+Welche Quellenklasse für ein Feld den Vorrang hat (§19.3,
+[ADR-0017](../../docs/adr/0017-regelvokabular-der-datenhoheit-und-mandantenbegriff.md)).
+
+**Die Spalte heißt `field`, nicht `attributeKey`.** Der Schlüsselraum umfasst Kernfelder
+wie `owner` **und** Schlüssel dynamischer Attribute – ADR-0017 spricht von Datenhoheit „je
+Feld", und sein eigenes Beispiel ist ein Kernfeld. Deshalb auch kein Fremdschlüssel auf
+`attribute_definition`; Kernfelder stehen dort nicht.
+
+**Kein `active`.** Bei Attributdefinitionen ist das Außerkraftsetzen nötig, weil eine
+gelöschte Definition Werte unlesbar machen würde. Hier ist der Vorgabewert
+`manual_allowed` selbst der Zustand „keine Einschränkung" – eine Regel abzuschalten und sie
+auf den Vorgabewert zu setzen wäre dasselbe.
+
+**Die Eindeutigkeit liegt auf `(field, bindings)`.** ADR-0017 A6 verspricht, dass ein
+späterer Geltungsbereich ein Datensatz und keine Migration ist. Läge sie nur auf `field`,
+bräuchte die zweite Regel für dasselbe Feld genau die Schemaänderung, die A6 ausschließt.
+PostgreSQL normalisiert dabei die Schlüsselreihenfolge in `jsonb`: `{"a":1,"b":2}` und
+`{"b":2,"a":1}` sind derselbe Geltungsbereich – genau das ist gewollt.
+
+#### Warum der versionierte Schreibpfad nicht extrahiert ist
+
+Drei Entitäten schreiben inzwischen Versionen, und der Ablauf ist jedes Mal derselbe. Er
+ist **trotzdem ausgeschrieben**, nicht in eine generische Hilfsfunktion gezogen.
+
+Der mechanische Teil scheitert laut, wenn man ihn falsch abschreibt. Riskant ist die
+zeitliche Zusicherung: derselbe Zeitstempel auf beiden Seiten, die Vorgängerversion mit
+genau diesem Wert geschlossen, genau eine offene Version. Wird das falsch, **korrumpiert
+die Historie stillschweigend** – Stichtagsabfragen liefern einfach andere Ergebnisse.
+
+Eine generische Funktion über Drizzle-Tabellen bräuchte schwere Generik oder
+Typausnahmen – und würde genau die Eigenschaft wieder einführen, wegen der
+[ADR-0009](../../docs/adr/0009-orm-und-migrationswerkzeug.md) MikroORM verworfen hat: einen
+Mechanismus, dessen Versagen an der Aufrufstelle nicht sichtbar ist.
+
+Stattdessen prüft `test/support/versionierung.ts` die Zusicherung für **jede**
+Historientabelle: lückenlos, überschneidungsfrei, fortlaufende Versionen, genau eine offene,
+und die Fachtabelle trägt die höchste Versionsnummer. **Eine neue versionierte Entität wird
+nur in die Liste in `test/versionierung.integration.spec.ts` aufgenommen.**
+
 ### Schichtung
 
 ```
@@ -321,6 +362,25 @@ später eine interne Spalte hinzu und reichst die Zeile versehentlich durch, wir
 bevor das Feld Vertragsbestandteil einer öffentlichen API wird (§12).
 
 ## Bekannte Stolpersteine
+
+### Sporadisches `No test suite found` in den Integrationstests
+
+Trat mit dem vierten Integrationstest auf: Ein Testfile meldete null Suiten, einzeln
+ausgeführt lief dasselbe File grün.
+
+Ursache war keine Datei, sondern eine Einstellung, die sich selbst widersprach.
+`vitest.base.mts` setzt `hookTimeout: 90_000` mit der Begründung, Container-Starts
+brauchten Luft. Die Integrationskonfiguration senkte ihn auf `30_000` – **ausgerechnet
+dort, wo die Container tatsächlich starten.** Mit vier gleichzeitig hochfahrenden
+PostgreSQL-Containern wurde die Grenze erreicht.
+
+Behoben, indem `vitest.integration.config.mts` beide Zeitgrenzen nicht mehr überschreibt.
+Sie setzt nur noch Einrichtungsdatei und Dateimuster. Sollte es erneut auftreten, ist der
+nächste Griff `fileParallelism: false` – vier Container nacheinander statt gleichzeitig.
+
+**Merksatz:** Eine abgeleitete Konfiguration, die einen Wert der Basis verengt, braucht
+denselben begründenden Kommentar wie die Basis. Ohne ihn kippt die Absicht bei der ersten
+Änderung.
 
 ### `Cannot resolve dependency at index [0]` im Test
 
