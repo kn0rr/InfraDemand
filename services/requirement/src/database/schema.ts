@@ -13,8 +13,34 @@ import {
 
 /** Name der Eindeutigkeit aus §19.1. Wird beim Abfangen des Konflikts gebraucht. */
 export const REQUIREMENT_SOURCE_EXTERNAL_CONSTRAINT = "requirement_source_external_uq";
+
+/** Name der Eindeutigkeit je Schluessel und Anforderungstyp (§6). */
+export const ATTRIBUTE_DEFINITION_KEY_TYPE_CONSTRAINT = "attribute_definition_key_type_uq";
 /** Art der Änderung in der Versionshistorie (ADR-0012). */
 export const historyOperation = pgEnum("history_operation", ["insert", "update", "delete"]);
+
+/**
+ * Spalten, die jede Historientabelle nach
+ * [ADR-0012](../../../../docs/adr/0012-vollstaendige-versionierung-mit-zeitbezug.md) traegt.
+ *
+ * Eine Funktion und keine Konstante: Drizzle bindet Spaltenbauer beim Erzeugen der
+ * Tabelle an genau diese Tabelle. Dieselben Bauer in zwei Tabellen zu verwenden waere
+ * ein stiller Fehler - jeder Aufruf liefert deshalb frische.
+ */
+function versionierungsSpalten() {
+  return {
+    version: integer("version").notNull(),
+    /** Beginn des Zeitraums, in dem diese Version galt. */
+    validFrom: timestamp("valid_from", { withTimezone: true }).notNull(),
+    /** Ende; leer bei der aktuellen Version. */
+    validTo: timestamp("valid_to", { withTimezone: true }),
+    operation: historyOperation("operation").notNull(),
+    /** Ausloesende Identitaet: Benutzer oder Service Account. */
+    changedBy: text("changed_by").notNull(),
+    /** Quelle **dieser Aenderung** (§19.3) - nicht zwingend die Herkunft des Datensatzes. */
+    changeSource: text("change_source").notNull(),
+  };
+}
 
 /** Klasse einer Quelle nach ADR-0017 A4. Entscheidet ueber die Hoheitsregel. */
 export const sourceSystemKind = pgEnum("source_system_kind", ["automatic", "manual"]);
@@ -56,13 +82,7 @@ export const sourceSystemHistory = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull(),
 
-    version: integer("version").notNull(),
-    validFrom: timestamp("valid_from", { withTimezone: true }).notNull(),
-    validTo: timestamp("valid_to", { withTimezone: true }),
-    operation: historyOperation("operation").notNull(),
-
-    changedBy: text("changed_by").notNull(),
-    changeSource: text("change_source").notNull(),
+    ...versionierungsSpalten(),
   },
   (table) => [
     index("source_system_history_key_valid_from_idx").on(table.key, table.validFrom),
@@ -143,18 +163,7 @@ export const requirementHistory = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull(),
 
     // --- Versionierung ---
-    version: integer("version").notNull(),
-    /** Beginn des Zeitraums, in dem diese Version galt. */
-    validFrom: timestamp("valid_from", { withTimezone: true }).notNull(),
-    /** Ende; leer bei der aktuellen Version. */
-    validTo: timestamp("valid_to", { withTimezone: true }),
-    operation: historyOperation("operation").notNull(),
-
-    /** Ausloesende Identitaet: Benutzer oder Service Account. */
-    changedBy: text("changed_by").notNull(),
-    /** Quelle **dieser Aenderung** (§19.3) - nicht zwingend das Herkunftssystem des
-     *  Datensatzes. Ein aus SAP stammender Datensatz kann manuell geaendert werden. */
-    changeSource: text("change_source").notNull(),
+    ...versionierungsSpalten(),
   },
   (table) => [
     // Zugriffspfad jeder Stichtagsabfrage fuer einen einzelnen Datensatz
@@ -166,6 +175,95 @@ export const requirementHistory = pgTable(
   ],
 );
 
+/**
+ * Datentyp eines dynamischen Attributs (§6).
+ *
+ * Fester Satz im Code, bewusst keine Stammdaten: Jeder Typ braucht einen Pruefer (M3.3)
+ * und ein Formularfeld (M3.5), und beides ist Code. §6 macht die Attribut*definitionen*
+ * zu Fachdaten, nicht das Typsystem selbst.
+ */
+export const attributeDataType = pgEnum("attribute_data_type", [
+  "text",
+  "number",
+  "boolean",
+  "date",
+  "enum",
+  "multi_enum",
+]);
+
+/**
+ * Attributdefinition nach §6 - Fachdaten, versioniert, ohne Redeploy aenderbar.
+ *
+ * Geprueft wird zur Laufzeit gegen die **aktuell gueltige** Definition, nicht gegen die
+ * bei Anlage der Anforderung geltende. §6 legt das ausdruecklich so fest. Das ist der
+ * Unterschied zu §7, wo laufende Anforderungen auf ihrer Workflow-Fassung bleiben - die
+ * Historie hier dient der Nachweisfuehrung und Stichtagsauswertung, nicht der Festlegung.
+ */
+export const attributeDefinitions = pgTable(
+  "attribute_definition",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    /** Schluessel im JSONB-Feld `dynamic_attributes` der Anforderung. */
+    key: text("key").notNull(),
+    /** Anforderungstyp, fuer den die Definition gilt. NULL bedeutet: fuer alle. */
+    requirementType: text("requirement_type"),
+    label: text("label").notNull(),
+    dataType: attributeDataType("data_type").notNull(),
+    required: boolean("required").notNull().default(false),
+    /** Vorgabewert, dem Datentyp entsprechend. */
+    defaultValue: jsonb("default_value"),
+    /** Zulaessige Werte bei `enum` und `multi_enum`; sonst leer. */
+    allowedValues: jsonb("allowed_values").$type<string[]>(),
+    /**
+     * Ausser Kraft gesetzte Definitionen bleiben bestehen. Sie werden nicht geloescht,
+     * weil bestehende Anforderungen Werte tragen, die nur mit ihnen deutbar sind
+     * (ADR-0012 Punkt 6).
+     */
+    active: boolean("active").notNull().default(true),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    version: integer("version").notNull().default(1),
+  },
+  (table) => [
+    /**
+     * Ein Schluessel je Anforderungstyp. `nullsNotDistinct` ist erforderlich: Ohne sie
+     * behandelt PostgreSQL zwei NULL-Werte als verschieden, und es koennte mehrere
+     * allgemeingueltige Definitionen desselben Schluessels geben.
+     */
+    unique(ATTRIBUTE_DEFINITION_KEY_TYPE_CONSTRAINT)
+      .on(table.key, table.requirementType)
+      .nullsNotDistinct(),
+    index("attribute_definition_type_idx").on(table.requirementType),
+  ],
+);
+
+/** Versionshistorie der Attributdefinitionen (ADR-0012). */
+export const attributeDefinitionHistory = pgTable(
+  "attribute_definition_history",
+  {
+    historyId: uuid("history_id").primaryKey().defaultRandom(),
+
+    // --- fachlicher Zeilenzustand, Kopie der Fachtabelle ---
+    id: uuid("id").notNull(),
+    key: text("key").notNull(),
+    requirementType: text("requirement_type"),
+    label: text("label").notNull(),
+    dataType: attributeDataType("data_type").notNull(),
+    required: boolean("required").notNull(),
+    defaultValue: jsonb("default_value"),
+    allowedValues: jsonb("allowed_values").$type<string[]>(),
+    active: boolean("active").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull(),
+
+    ...versionierungsSpalten(),
+  },
+  (table) => [
+    index("attribute_definition_history_id_valid_from_idx").on(table.id, table.validFrom),
+    unique("attribute_definition_history_id_version_uq").on(table.id, table.version),
+  ],
+);
+
 export type RequirementRow = typeof requirements.$inferSelect;
 export type NewRequirementRow = typeof requirements.$inferInsert;
 export type RequirementHistoryRow = typeof requirementHistory.$inferSelect;
@@ -173,3 +271,6 @@ export type NewRequirementHistoryRow = typeof requirementHistory.$inferInsert;
 export type SourceSystemRow = typeof sourceSystems.$inferSelect;
 export type NewSourceSystemRow = typeof sourceSystems.$inferInsert;
 export type SourceSystemHistoryRow = typeof sourceSystemHistory.$inferSelect;
+export type AttributeDefinitionRow = typeof attributeDefinitions.$inferSelect;
+export type NewAttributeDefinitionRow = typeof attributeDefinitions.$inferInsert;
+export type AttributeDefinitionHistoryRow = typeof attributeDefinitionHistory.$inferSelect;

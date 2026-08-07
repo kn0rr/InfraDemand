@@ -1,6 +1,7 @@
 import { Inject, Injectable } from "@nestjs/common";
 import { and, asc, eq, gt, isNull, lte, ne, or } from "drizzle-orm";
 import { DATABASE, type Database } from "../database/database.tokens";
+import { istEindeutigkeitsverletzung } from "../database/fehler";
 import {
   REQUIREMENT_SOURCE_EXTERNAL_CONSTRAINT,
   type RequirementHistoryRow,
@@ -22,34 +23,6 @@ export interface RequirementCreateInput {
   changedBy: string;
   /** Client, der die Aenderung ausgefuehrt hat - aus dem Token, nicht vom Aufrufer. */
   changeSource: string;
-}
-
-/**
- * Drizzle verpackt Treiberfehler in DrizzleQueryError; die PostgreSQL-Angaben liegen
- * unter .cause. Die Kette wird durchlaufen, damit die Erkennung auch dann traegt, wenn
- * sich die Verpackungstiefe mit einer neuen Drizzle-Fassung aendert.
- */
-function istEindeutigkeitsverletzung(fehler: unknown): boolean {
-  let aktuell: unknown = fehler;
-
-  for (let tiefe = 0; tiefe < 5; tiefe += 1) {
-    if (typeof aktuell !== "object" || aktuell === null) {
-      return false;
-    }
-
-    const kandidat = aktuell as { code?: unknown; constraint?: unknown; cause?: unknown };
-
-    if (
-      kandidat.code === "23505" &&
-      kandidat.constraint === REQUIREMENT_SOURCE_EXTERNAL_CONSTRAINT
-    ) {
-      return true;
-    }
-
-    aktuell = kandidat.cause;
-  }
-
-  return false;
 }
 
 @Injectable()
@@ -138,7 +111,7 @@ export class RequirementsRepository {
         return zeile;
       });
     } catch (fehler) {
-      if (istEindeutigkeitsverletzung(fehler)) {
+      if (istEindeutigkeitsverletzung(fehler, REQUIREMENT_SOURCE_EXTERNAL_CONSTRAINT)) {
         throw new DuplicateExternalIdError(eingabe.sourceSystem, eingabe.externalId ?? "");
       }
       throw fehler;

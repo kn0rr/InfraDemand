@@ -1,5 +1,6 @@
 import { Module } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
+import { AttributeDefinitionsModule } from "./attribute-definitions/attribute-definitions.module";
 import { AuthModule } from "./auth/auth.module";
 import { DatabaseModule } from "./database/database.module";
 import { HealthModule } from "./health/health.module";
@@ -17,6 +18,7 @@ import { RequirementsModule } from "./requirements/requirements.module";
     AuthModule,
     HealthModule,
     RequirementsModule,
+    AttributeDefinitionsModule,
   ],
 })
 export class AppModule {}

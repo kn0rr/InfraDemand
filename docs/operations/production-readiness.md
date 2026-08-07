@@ -51,11 +51,11 @@ Das gilt für alle Beteiligten, einschließlich der KI in ihrer Beraterrolle
 | *davon Voraussetzung für ADR-0013:* | `PROD-006`, `PROD-007`, `PROD-032` | | |
 | B – Geheimnisse und Zugangsdaten | 5 | 4 | – |
 | C – Identität und Zugriff | 10 | 2 | – |
-| D – Daten | 4 | 3 | – |
+| D – Daten | 5 | 3 | – |
 | E – Container und Lieferkette | 9 | 1 | **2** |
 | F – Betrieb und Verfügbarkeit | 6 | 1 | – |
 | G – Anwendungssicherheit | 7 | 1 | – |
-| **Gesamt** | **48** | **17** | **2** |
+| **Gesamt** | **49** | **17** | **2** |
 
 > **Nummern werden nicht neu vergeben.** `PROD-026` ist unbesetzt. Eine Lücke ist kein
 > Fehler – eine wiederverwendete Nummer wäre einer, weil Verweise aus ADRs, Commits und
@@ -66,7 +66,7 @@ und `PROD-036`, beide zur Lieferkette. Sie wurden vorgezogen, weil ihre Vorausse
 (Renovate im Betrieb) mit M1 erfüllt war und eine unbeaufsichtigte Festlegung ohne
 automatische Aktualisierung schlechter wäre als gar keine.
 
-Die übrigen 46 bleiben offen. Das ist für diesen Projektstand erwartbar: Der überwiegende
+Die übrigen 47 bleiben offen. Das ist für diesen Projektstand erwartbar: Der überwiegende
 Teil betrifft Betrieb, Verschlüsselung und Geheimnisverwaltung und wird erst mit der
 ersten nicht-lokalen Umgebung greifbar.
 
@@ -291,6 +291,16 @@ dokumentiertes Widerrufsverfahren, Prüfung gegen die Rollenkritikalität.
 Objekt- und Feldebene aus §8 ist noch nicht umgesetzt; die Policy-Engine ist bewusst bis
 M5 vertagt. Ein Produktivgang vor M5 ist damit ausgeschlossen.
 
+> **Ergänzt am 2026-08-07 mit M3.2.** Seither gibt es eine **grobe** Rollenprüfung:
+> `@Rollen("platform-admin")` über einen zweiten `APP_GUARD`. Sie schützt die
+> Attributdefinitionen, weil deren Änderung das gültige Datenmodell umschreibt – „gar
+> keine Prüfung" war dort die falsche Näherung.
+>
+> **Das erfüllt §8 nicht und darf nicht dafür gehalten werden.** Geprüft wird
+> ausschließlich, ob das Token eine Realm-Rolle trägt. Objektbezug, Feldebene,
+> Mandantenzuschnitt und Attributsichtbarkeit fehlen unverändert. Wer die vorhandene
+> Prüfung für ausreichend hält, hält diesen Eintrag für erledigt – er ist es nicht.
+
 #### PROD-043 — Abmeldung endet an der Vermittlungsgrenze
 **Schwere:** Mittel · **Status:** Offen · **Betrifft:** §13 · **Verweis:** [ADR-0015](../adr/0015-mehrere-identitaetsquellen.md)
 
@@ -439,6 +449,29 @@ eigenes ADR und ist im Index der vertagten Entscheidungen geführt.
 ---
 
 ## D – Daten
+
+#### PROD-050 — Datentypwechsel einer Attributdefinition lässt vorhandene Werte ungeprüft zurück
+**Schwere:** Hoch · **Status:** Offen · **Betrifft:** §6 · **Fundstelle:** `services/requirement/src/attribute-definitions/`
+
+Der Datentyp einer Attributdefinition ist änderbar. Wird er gewechselt – etwa von `text`
+auf `number` –, entsprechen die bereits in `dynamic_attributes` gespeicherten Werte der
+neuen Definition nicht mehr. Es gibt weder eine Warnung noch einen Abgleich noch eine
+Umwandlung.
+
+**Die Änderung bleibt bewusst erlaubt.** Ein Vertipper beim Anlegen muss korrigierbar
+sein, und bis zur ersten Anforderung mit diesem Attribut ist der Wechsel folgenlos. Ein
+Verbot würde die Definition unbrauchbar machen, statt das Problem zu lösen.
+
+**Die Wirkung tritt zeitversetzt und an anderer Stelle auf.** Die vorhandenen Werte werden
+nicht rückwirkend geprüft; auffallen wird es beim nächsten Schreibvorgang auf denselben
+Datensatz, wenn die Prüfung aus M3.3 den Altwert gegen die neue Definition hält und
+ablehnt. Der Anwender sieht dann eine Ablehnung für ein Feld, das er nicht angefasst hat.
+
+**Zielzustand:** Beim Wechsel des Datentyps zählt die Verwaltungsoberfläche die
+betroffenen Datensätze und weist darauf hin. Zu entscheiden ist zusätzlich, was mit
+Altwerten geschieht, die der neuen Definition nicht genügen – umwandeln, kennzeichnen oder
+unangetastet lassen. Gemeinsam mit M3.3 zu klären, weil dort die Prüfung entsteht, die
+sie sichtbar macht.
 
 #### PROD-018 — Keine Verschlüsselung im Ruhezustand
 **Schwere:** Kritisch · **Status:** Offen · **Betrifft:** §13 · **Verweis:** [ADR-0003](../adr/0003-datenbank-und-datenhoheit.md)
