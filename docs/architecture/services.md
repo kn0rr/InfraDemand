@@ -55,10 +55,36 @@ Wesentliche Entitäten:
 | `attribute_definition` | Attributdefinitionen als Fachdaten, versioniert (§6) |
 | `workflow_definition` | Zustandsgraphen als Fachdaten, versioniert (§7) |
 | `comment`, `attachment` | Kommunikation und Belege |
+| `source_system` | Registratur der Herkunftssysteme mit Klasse *automatisch* / *manuell* ([ADR-0017](../adr/0017-regelvokabular-der-datenhoheit-und-mandantenbegriff.md) A4) |
 | `requirement_history` | Historisierung jeder Änderung (§16) |
 
 Die Kernentität trägt das dynamische Attributfeld **ab M1**, auch wenn die Validierung
 erst in M3 entsteht. Das Datenmodell darf die spätere Erweiterung nicht ausschließen.
+
+#### Warum die Herkunftsregistratur hier liegt und nicht zentral
+
+Die Registratur sieht nach gemeinsamer Stammdatenhaltung aus. Sie beschreibt aber nicht
+das Fremdsystem, sondern **wie Daten diesen Service erreichen** – und das ist je Service
+verschieden, ohne dass eine der Antworten falsch wäre:
+
+> SAP schiebt Anforderungen nachts über die Schnittstelle – im Requirement Service ist
+> `sap` damit **automatisch**. Für die Kapazitätsseite exportiert jemand aus demselben SAP
+> eine Tabelle und lädt sie hoch – dort ist `sap` **manuell**.
+
+Eine zentrale Registratur müsste sich für eine der beiden Klassen entscheiden und läge in
+einem Fall falsch. Hinzu kommt, dass sie im Schreibpfad **jedes** Service läge: Fiele sie
+aus, könnte kein Service mehr schreiben – genau die Kopplung, die
+[ADR-0010](../adr/0010-entkopplung-anforderung-und-kapazitaet.md) zwischen
+Anforderungsaufnahme und Kapazitätsberechnung ausschließt.
+
+**Geteilt wird ausschließlich der Bezeichner.** ADR-0010 macht ihn bereits zu
+Vertragsvokabular: Datensätze werden über Herkunftssystem und dortigen Bezeichner
+identifiziert. Die Zeichenkette `sap` bedeutet überall dasselbe System; was ein Service
+daraus folgert, ist seine eigene Angelegenheit.
+
+Regel 4 aus der Einleitung ist damit gewahrt: Es wird keine fremde Fachlichkeit
+ersatzweise untergebracht, sondern der Service führt die Metadaten seines eigenen
+Schreibpfads – wie `changed_by` und `change_source` auch.
 
 ### Schnittstellen
 

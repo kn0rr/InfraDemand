@@ -1,6 +1,9 @@
-import { ConflictException, Injectable } from "@nestjs/common";
+import { BadRequestException, ConflictException, Injectable } from "@nestjs/common";
+
 import type { AuthenticatedUser } from "../auth/jwt.strategy";
 import type { RequirementHistoryRow, RequirementRow } from "../database/schema";
+import { UnknownSourceSystemError } from "../source-systems/source-systems.errors";
+import { SourceSystemsService } from "../source-systems/source-systems.service";
 import type { CreateRequirementDto } from "./create-requirement.dto";
 import type { RequirementResponse } from "./requirement.dto";
 import type { RequirementVersionResponse } from "./requirement-version.dto";
@@ -9,7 +12,10 @@ import { RequirementsRepository } from "./requirements.repository";
 
 @Injectable()
 export class RequirementsService {
-  constructor(private readonly repository: RequirementsRepository) {}
+  constructor(
+    private readonly repository: RequirementsRepository,
+    private readonly sourceSystems: SourceSystemsService,
+  ) {}
 
   /**
    * Ohne Stichtag der aktuelle Bestand aus der Fachtabelle, mit Stichtag der Zustand aus
@@ -34,13 +40,20 @@ export class RequirementsService {
     eingabe: CreateRequirementDto,
     benutzer: AuthenticatedUser,
   ): Promise<RequirementResponse> {
+    const herkunft = eingabe.sourceSystem ?? "infrademand";
+
     try {
+      // ADR-0017 A4: Wessen Klasse unbekannt ist, darf nicht schreiben. Die Klasse selbst
+      // wird ab M3.4 fuer die Hoheitsregel gebraucht; hier zaehlt zunaechst, dass die
+      // Quelle ueberhaupt eingetragen und in Betrieb ist.
+      await this.sourceSystems.pruefeSchreibquelle(herkunft);
+
       const zeile = await this.repository.create({
         projectId: eingabe.projectId,
         requirementType: eingabe.requirementType,
         status: eingabe.status,
         owner: eingabe.owner,
-        sourceSystem: eingabe.sourceSystem ?? "infrademand",
+        sourceSystem: herkunft,
         externalId: eingabe.externalId ?? null,
         dynamicAttributes: eingabe.dynamicAttributes ?? {},
         changedBy: benutzer.userId,
@@ -49,6 +62,9 @@ export class RequirementsService {
 
       return RequirementsService.toResponse(zeile);
     } catch (fehler) {
+      if (fehler instanceof UnknownSourceSystemError) {
+        throw new BadRequestException(fehler.message);
+      }
       if (fehler instanceof DuplicateExternalIdError) {
         throw new ConflictException(fehler.message);
       }

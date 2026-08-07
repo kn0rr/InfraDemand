@@ -54,8 +54,8 @@ Das gilt für alle Beteiligten, einschließlich der KI in ihrer Beraterrolle
 | D – Daten | 4 | 3 | – |
 | E – Container und Lieferkette | 9 | 1 | **2** |
 | F – Betrieb und Verfügbarkeit | 6 | 1 | – |
-| G – Anwendungssicherheit | 6 | 1 | – |
-| **Gesamt** | **47** | **17** | **2** |
+| G – Anwendungssicherheit | 7 | 1 | – |
+| **Gesamt** | **48** | **17** | **2** |
 
 > **Nummern werden nicht neu vergeben.** `PROD-026` ist unbesetzt. Eine Lücke ist kein
 > Fehler – eine wiederverwendete Nummer wäre einer, weil Verweise aus ADRs, Commits und
@@ -66,7 +66,7 @@ und `PROD-036`, beide zur Lieferkette. Sie wurden vorgezogen, weil ihre Vorausse
 (Renovate im Betrieb) mit M1 erfüllt war und eine unbeaufsichtigte Festlegung ohne
 automatische Aktualisierung schlechter wäre als gar keine.
 
-Die übrigen 45 bleiben offen. Das ist für diesen Projektstand erwartbar: Der überwiegende
+Die übrigen 46 bleiben offen. Das ist für diesen Projektstand erwartbar: Der überwiegende
 Teil betrifft Betrieb, Verschlüsselung und Geheimnisverwaltung und wird erst mit der
 ersten nicht-lokalen Umgebung greifbar.
 
@@ -842,6 +842,32 @@ Datenbankausfalls mitzubehandeln.
 ---
 
 ## G – Anwendungssicherheit
+
+#### PROD-049 — Das Tor für inkompatible Änderungen sieht nur das Schema
+**Schwere:** Mittel · **Status:** Offen · **Betrifft:** §12 · **Fundstelle:** `.github/workflows/ci.yml`, Job `lint`, Schritt „Inkompatible Contract-Aenderungen pruefen"
+
+`oasdiff` vergleicht den OpenAPI-Contract. Es erkennt entfernte Felder, verengte Typen und
+verschwundene Endpunkte. **Es erkennt keine Verschärfung der Laufzeitprüfung bei
+unverändertem Schema.**
+
+Aufgefallen in M3.1: `sourceSystem` ist im Contract weiterhin `string` mit `maxLength`.
+Seither wird der Wert zusätzlich gegen die Herkunftsregistratur geprüft
+([ADR-0017](../adr/0017-regelvokabular-der-datenhoheit-und-mandantenbegriff.md) A4). Ein
+Client, der bisher einen beliebigen Wert schickte, erhält jetzt 400 – für ihn eine
+inkompatible Änderung. Das Tor blieb grün, und zwar zu Recht: Am Schema hat sich nichts
+geändert.
+
+**Heute ohne Wirkung**, weil außer dem eigenen Frontend kein Konsument existiert. Der
+Eintrag steht hier, weil §12 versionierte Schnittstellen mit Kompatibilitätsgarantie
+verlangt – und ein Tor, das eine Zusicherung nur teilweise abdeckt, ist gefährlicher als
+gar keines: Es erzeugt Vertrauen für den Bereich, den es nicht prüft.
+
+**Zielzustand:** Verschärfungen der Laufzeitprüfung gelten als inkompatible Änderung und
+sind wie Schemaänderungen zu behandeln – angekündigt, versioniert, im Änderungsprotokoll
+vermerkt. Wo möglich, gehört die Einschränkung ins Schema, damit `oasdiff` sie sieht: eine
+Aufzählung zulässiger Herkünfte ist allerdings gerade nicht möglich, weil die Registratur
+zur Laufzeit gepflegt wird. Für solche Fälle braucht es eine Prüfliste im Review, keine
+Automatisierung, die es nicht geben kann.
 
 #### PROD-048 — Swagger-UI wird ungeschützt ausgeliefert
 **Schwere:** Mittel · **Status:** Offen · **Betrifft:** §12, §13 · **Fundstelle:** `services/requirement/src/main.ts`, `SwaggerModule.setup("api-docs", ...)`

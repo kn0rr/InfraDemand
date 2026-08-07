@@ -5,6 +5,7 @@ import request from "supertest";
 import { AppModule } from "../src/app.module";
 import { configureApp } from "../src/app.setup";
 import { type JwksTestServer, startJwksTestServer } from "./support/jwks-test-server";
+import { registriereQuelle } from "./support/source-systems";
 import { startTestDatabase, type TestDatabase } from "./support/test-database";
 
 describe("Stichtagsabfrage", () => {
@@ -31,6 +32,8 @@ describe("Stichtagsabfrage", () => {
 
     token = jwks.sign({ sub: "benutzer-1", azp: "frontend", preferred_username: "test.author" });
     pool = new Pool({ connectionString: database.connectionString });
+
+    await registriereQuelle(pool, "sap");
 
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],

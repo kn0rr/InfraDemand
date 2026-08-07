@@ -190,7 +190,7 @@ nacheinander. Die Begründung steht in
 | **M0** | Fundament: Monorepo, lokale Infrastruktur, CI, Entscheidungen als ADRs | abgeschlossen |
 | **M1** | Walking Skeleton Requirement Service: Kernentität, Authentifizierung, Persistenz, Versionshistorie, OpenAPI-Contract | abgeschlossen |
 | **M2** | Frontend-Durchstich: Anmeldung, Liste, Anlegen, generierter API-Client | abgeschlossen |
-| **M3** | Dynamisches Attributmodell (§6) | offen |
+| **M3** | Dynamisches Attributmodell (§6) und Datenhoheit (§19.3) | offen, zugeschnitten |
 | **M4** | Workflow-Engine (§7) | offen |
 | **M5** | Feingranulares Berechtigungsmodell (§8), Identity & Access Service | offen |
 | **M6** | Infrastructure Service, Bereitstellungskategorien und Service-Katalog (§17, §18) | offen |
@@ -226,6 +226,37 @@ Ergebnis: Mantine als Komponentengrundlage ([ADR-0016](../adr/0016-ui-grundlage-
 **Aus M2 sind sieben Einträge in die Produktionsreife gekommen** – `PROD-042` bis
 `PROD-048`. Keiner davon ist ein Umsetzungsfehler; es sind die benannten Kehrseiten der
 Entscheidungen ADR-0014 bis ADR-0016.
+
+### M3 im Detail
+
+M3 setzt §6 um – das dynamische Attributmodell – und damit zugleich die Datenhoheit aus
+§19.3. Die tragenden Entscheidungen sind vorab getroffen:
+[ADR-0011](../adr/0011-datenhoheit-je-feld-und-kontext.md) und
+[ADR-0017](../adr/0017-regelvokabular-der-datenhoheit-und-mandantenbegriff.md).
+
+| | Inhalt | Beweist | Stand |
+|---|---|---|---|
+| **M3.1** | Herkunftssysteme als Stammdaten, mit Merkmal *automatisch* oder *manuell* | Die Quellenklasse einer Schreiboperation ist bestimmbar (ADR-0017 A4) | offen |
+| **M3.2** | Attributdefinitionen als versionierte Fachdaten | Ein Attribut entsteht ohne Redeploy; ältere Definitionen bleiben auswertbar | offen |
+| **M3.3** | Laufzeitvalidierung dynamischer Attribute gegen die gültige Definition | Alle drei Eingangswege aus §19.2 durchlaufen **einen** Prüfpfad | offen |
+| **M3.4** | Hoheitsregeln im Schreibpfad, Festhalten, Aufzeichnung abgewiesener Lieferungen | Die Regel aus ADR-0017 A2 wirkt, und eine Festhaltung ist als Entscheidung belegbar | offen |
+| **M3.5** | Formulare zur Laufzeit aus dem Schema | Eine neue Pflichtangabe erscheint im Formular, ohne dass jemand eine Komponente anfasst | offen |
+| **M3.6** | Administrationsoberfläche: Definitionen, Regeln, Übersicht festgehaltener Felder | Die Konfigurationsfläche ist ohne Kenntnis des Datenmodells bedienbar (ADR-0017 B14) | offen |
+
+**Zur Reihenfolge.** M3.1 ist der kleinste Schritt des Meilensteins und blockiert alle
+übrigen: Ohne die Registratur lässt sich nicht entscheiden, ob eine Schreiboperation
+automatisch oder manuell ist, und damit greift keine einzige Hoheitsregel. Genau deshalb
+steht er vorn und nicht „nebenbei" – als Nebensache erledigt, wird aus der Unterscheidung
+eine freie Zeichenkette, die niemand pflegt.
+
+M3.5 vor M3.6, weil das Formular aus dem Schema der eigentliche Nachweis für §6 ist. M3.6
+ist umfangreicher, aber es verwaltet nur, was M3.2 bis M3.4 bereits können.
+
+**Zum Umfang.** M3 ist deutlich größer als M2, und M3.2 bis M3.4 sind der fachlich
+schwierigste Teil der Plattform.
+[ADR-0007](../adr/0007-inkrementeller-aufbau-der-servicelandschaft.md) hat sie aus diesem
+Grund bewusst spät eingeordnet: Sie brauchen ein belastbares Fundament, sonst werden sie
+zweimal gebaut.
 
 ### Warum diese Reihenfolge
 

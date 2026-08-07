@@ -59,7 +59,11 @@ export class RequirementsController {
   @Post()
   @ApiOperation({ summary: "Anforderung anlegen" })
   @ApiResponse({ status: 201, type: RequirementResponse, description: "Angelegte Anforderung" })
-  @ApiResponse({ status: 400, description: "Rumpf unvollstaendig oder unbekannte Felder" })
+  @ApiResponse({
+    status: 400,
+    description:
+      "Rumpf unvollstaendig, unbekannte Felder, oder sourceSystem nicht in der Registratur (ADR-0017 A4)",
+  })
   @ApiResponse({
     status: 409,
     description: "sourceSystem und externalId existieren bereits (Idempotenz nach §19.1)",
