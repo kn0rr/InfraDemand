@@ -155,9 +155,10 @@ describe("Datenhoheit im Schreibpfad", () => {
         rejected_value: unknown;
         source_system: string;
         reason: string;
-      }>("SELECT field, rejected_value, source_system, reason FROM write_rejection WHERE requirement_id = $1", [
-        angelegt.body.id,
-      ]);
+      }>(
+        "SELECT field, rejected_value, source_system, reason FROM write_rejection WHERE requirement_id = $1",
+        [angelegt.body.id],
+      );
 
       expect(rows).toEqual([
         {
