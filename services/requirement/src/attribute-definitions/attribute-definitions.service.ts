@@ -6,6 +6,7 @@ import {
 } from "@nestjs/common";
 import type { AuthenticatedUser } from "../auth/jwt.strategy";
 import type { AttributeDefinitionHistoryRow, AttributeDefinitionRow } from "../database/schema";
+import type { GeltendeDefinition } from "./attribut-pruefung";
 import {
   type AttributeDefinitionResponse,
   type AttributeDefinitionVersionResponse,
@@ -32,6 +33,24 @@ export class AttributeDefinitionsService {
         : await this.repository.findForRequirementType(requirementType);
 
     return zeilen.map(AttributeDefinitionsService.toResponse);
+  }
+
+  /**
+   * Die fuer einen Anforderungstyp geltenden Definitionen, zugeschnitten auf das, was
+   * die Pruefung braucht. Die Zuordnung ist ausgeschrieben und nicht durchgereicht -
+   * dadurch verlaesst keine Datenbankzeile den Bereich.
+   */
+  async geltendeDefinitionen(requirementType: string): Promise<GeltendeDefinition[]> {
+    const zeilen = await this.repository.findForRequirementType(requirementType);
+
+    return zeilen.map((zeile) => ({
+      key: zeile.key,
+      label: zeile.label,
+      dataType: zeile.dataType,
+      required: zeile.required,
+      defaultValue: zeile.defaultValue,
+      allowedValues: zeile.allowedValues,
+    }));
   }
 
   async findVersions(id: string): Promise<AttributeDefinitionVersionResponse[]> {

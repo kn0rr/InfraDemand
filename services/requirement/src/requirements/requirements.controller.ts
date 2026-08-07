@@ -62,7 +62,10 @@ export class RequirementsController {
   @ApiResponse({
     status: 400,
     description:
-      "Rumpf unvollstaendig, unbekannte Felder, oder sourceSystem nicht in der Registratur (ADR-0017 A4)",
+      "Rumpf unvollstaendig, unbekannte Felder, sourceSystem nicht in der Registratur " +
+      "(ADR-0017 A4), oder dynamische Attribute genuegen den geltenden Definitionen " +
+      "nicht (§6). Im letzten Fall traegt die Antwort zusaetzlich ein Feld `attributes` " +
+      "mit je einem Eintrag aus `key` und `message` fuer jedes beanstandete Attribut.",
   })
   @ApiResponse({
     status: 409,

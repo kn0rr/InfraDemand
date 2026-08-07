@@ -1,5 +1,7 @@
 import { BadRequestException, ConflictException, Injectable } from "@nestjs/common";
-
+import { pruefeDynamischeAttribute } from "../attribute-definitions/attribut-pruefung";
+import { DynamicAttributeValidationError } from "../attribute-definitions/attribute-definitions.errors";
+import { AttributeDefinitionsService } from "../attribute-definitions/attribute-definitions.service";
 import type { AuthenticatedUser } from "../auth/jwt.strategy";
 import type { RequirementHistoryRow, RequirementRow } from "../database/schema";
 import { UnknownSourceSystemError } from "../source-systems/source-systems.errors";
@@ -15,6 +17,7 @@ export class RequirementsService {
   constructor(
     private readonly repository: RequirementsRepository,
     private readonly sourceSystems: SourceSystemsService,
+    private readonly attributeDefinitions: AttributeDefinitionsService,
   ) {}
 
   /**
@@ -43,10 +46,19 @@ export class RequirementsService {
     const herkunft = eingabe.sourceSystem ?? "infrademand";
 
     try {
-      // ADR-0017 A4: Wessen Klasse unbekannt ist, darf nicht schreiben. Die Klasse selbst
-      // wird ab M3.4 fuer die Hoheitsregel gebraucht; hier zaehlt zunaechst, dass die
-      // Quelle ueberhaupt eingetragen und in Betrieb ist.
+      // ADR-0017 A4: Wessen Klasse unbekannt ist, darf nicht schreiben.
       await this.sourceSystems.pruefeSchreibquelle(herkunft);
+
+      // §6: gegen die **aktuell** gueltigen Definitionen, nicht gegen die bei Anlage
+      // des Datensatzes geltenden. §19.2: derselbe Pruefpfad fuer jeden Eingangsweg.
+      const definitionen = await this.attributeDefinitions.geltendeDefinitionen(
+        eingabe.requirementType,
+      );
+      const pruefung = pruefeDynamischeAttribute(eingabe.dynamicAttributes ?? {}, definitionen);
+
+      if (pruefung.fehler.length > 0) {
+        throw new DynamicAttributeValidationError(pruefung.fehler);
+      }
 
       const zeile = await this.repository.create({
         projectId: eingabe.projectId,
@@ -55,13 +67,25 @@ export class RequirementsService {
         owner: eingabe.owner,
         sourceSystem: herkunft,
         externalId: eingabe.externalId ?? null,
-        dynamicAttributes: eingabe.dynamicAttributes ?? {},
+        // Die geprueften Werte, nicht die eingereichten: Vorgabewerte sind ergaenzt,
+        // leere optionale Attribute entfernt.
+        dynamicAttributes: pruefung.werte,
         changedBy: benutzer.userId,
         changeSource: benutzer.clientId,
       });
 
       return RequirementsService.toResponse(zeile);
     } catch (fehler) {
+      if (fehler instanceof DynamicAttributeValidationError) {
+        throw new BadRequestException({
+          statusCode: 400,
+          error: "Bad Request",
+          message: "Dynamische Attribute genuegen den geltenden Definitionen nicht",
+          // Feldbezogen, damit ein Formular alle beanstandeten Felder auf einmal
+          // anzeigen kann statt eines nach dem anderen.
+          attributes: fehler.fehler,
+        });
+      }
       if (fehler instanceof UnknownSourceSystemError) {
         throw new BadRequestException(fehler.message);
       }

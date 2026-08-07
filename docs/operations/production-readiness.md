@@ -922,6 +922,18 @@ Eintrag steht hier, weil §12 versionierte Schnittstellen mit Kompatibilitätsga
 verlangt – und ein Tor, das eine Zusicherung nur teilweise abdeckt, ist gefährlicher als
 gar keines: Es erzeugt Vertrauen für den Bereich, den es nicht prüft.
 
+> **Zweiter Fall am 2026-08-07 mit M3.3.** `dynamicAttributes` nahm bisher jeden Inhalt
+> an. Seither werden Schlüssel abgewiesen, für die keine Attributdefinition gilt (§6).
+> Im Contract steht dort unverändert `type: object, additionalProperties: true` – das
+> Schema **kann** die Einschränkung gar nicht ausdrücken, weil die Definitionen zur
+> Laufzeit gepflegt werden. `oasdiff` blieb erneut grün.
+>
+> **Zweimal derselbe Vorgang innerhalb von zwei Meilensteinen** – das ist kein Zufall,
+> sondern die Regel bei einer Plattform, deren Datenmodell Fachdatum ist. Je mehr §6
+> greift, desto mehr Zusicherungen liegen außerhalb dessen, was ein Schemavergleich
+> sehen kann. Der Zielzustand unten ist damit dringlicher als bei seiner Aufnahme
+> angenommen.
+
 **Zielzustand:** Verschärfungen der Laufzeitprüfung gelten als inkompatible Änderung und
 sind wie Schemaänderungen zu behandeln – angekündigt, versioniert, im Änderungsprotokoll
 vermerkt. Wo möglich, gehört die Einschränkung ins Schema, damit `oasdiff` sie sieht: eine
