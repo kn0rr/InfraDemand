@@ -685,9 +685,25 @@ bewusst für eine begrenzte Zeit.
 #### PROD-038 — Von Keycloak gebündelte Bibliotheken mit offenen Schwachstellen
 **Schwere:** Hoch · **Status:** Bewusst akzeptiert (befristet) · **Betrifft:** §13 · **Fundstelle:** `.trivyignore.yaml`
 
-Keycloak 26.7.0 – die zum 2026-08-04 neueste Fassung – bündelt Bibliotheken mit
-11 bekannten Schwachstellen (14 Meldungen, kein Befund kritisch). Ein Update ist nicht
-möglich; die Fixes liegen in Bibliotheksfassungen, die Keycloak noch nicht übernommen hat.
+Keycloak 26.7.1 – die zum 2026-08-07 neueste Fassung – bündelt Bibliotheken mit bekannten
+Schwachstellen. Ein Update ist nicht möglich; die Fixes liegen in Bibliotheksfassungen,
+die Keycloak noch nicht übernommen hat.
+
+> **Aktualisiert am 2026-08-07 von 26.7.0 auf 26.7.1.** Anlass war ein Trivy-Befund zu
+> `micrometer-core` (CVE-2026-40983, CVE-2026-40984, beide HOCH, DoS). Das Upgrade behebt
+> ihn **nicht** – beide Fassungen verwenden Quarkus 3.33.2.1 und damit dieselbe
+> Micrometer-Fassung 1.16.3; die Fixes liegen in 1.16.6 beziehungsweise 1.15.12.
+>
+> **Der eigentliche Ertrag lag woanders.** Die Prüfung des Upgradepfads brachte zutage,
+> dass 26.7.1 ein Sicherheitsrelease mit **fünf Keycloak-eigenen CVEs** ist – darunter
+> Rechteausweitung über Rollenmapper-Injektion (CVE-2026-4629) und die Umgehung von
+> `requestObjectSignatureAlg` per JWE (CVE-2026-9793). Diese wiegen deutlich schwerer als
+> der Auslöser und wären ohne ihn nicht aufgefallen.
+>
+> **Daraus die Lehre für dieses Verfahren:** Ein Befund ist ein Anlass, den Upgradepfad
+> insgesamt anzusehen – nicht nur zu prüfen, ob er genau diesen Befund schließt. Die Frage
+> „behebt das Update meinen Fehlschlag?" hätte hier zu einem Nein und damit zum Verzicht
+> auf das Upgrade geführt.
 
 **Nicht erreichbar (7)** – Begründungen je Eintrag in `.trivyignore.yaml`:
 CVE-2025-59250 (MS-SQL-Treiber wird nie geladen, zudem Vergleichsartefakt bei der
@@ -821,6 +837,17 @@ die Plattform selbst möglich.
 §14 fordert OpenTelemetry, Prometheus, Grafana und Loki. Zusätzlich fehlt eine
 Alarmierung für sicherheitsrelevante Ereignisse – fehlgeschlagene Anmeldungen,
 Berechtigungsverweigerungen, ungewöhnliche Service-Account-Aktivität (§13).
+
+> **Ergänzt am 2026-08-07.** Die Metriken von Keycloak sind seither abgeschaltet
+> (`KC_METRICS_ENABLED=false`). Sie wurden von nichts abgeholt und aktivierten die
+> HTTP-Instrumentierung von `micrometer-core`, deren offene DoS-Schwachstellen
+> CVE-2026-40983 und CVE-2026-40984 **kein Keycloak-Update behebt** – Micrometer kommt
+> über die Abhängigkeitsliste von Quarkus, und 26.7.0 wie 26.7.1 verwenden 3.33.2.1.
+>
+> **Beim Aufbau der Beobachtbarkeit sind beide Einträge neu zu bewerten**, bevor die
+> Metriken wieder eingeschaltet werden. Die Abschaltung ist eine Minderung, keine
+> Behebung – sie ist in `.trivyignore.yaml` deshalb bewusst unter „Risiko akzeptiert"
+> geführt und nicht als Unerreichbarkeit.
 
 #### PROD-042 — Der Realm ist ein gemeinsamer Ausfallbereich
 **Schwere:** Hoch · **Status:** Offen · **Betrifft:** §15 · **Verweis:** [ADR-0015](../adr/0015-mehrere-identitaetsquellen.md)

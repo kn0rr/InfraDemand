@@ -75,10 +75,9 @@ vulnerabilities:
     statement: "mime in gosu nicht erreichbar."
     expired_at: 2026-11-04
 
-  # --- Keycloak 26.7.0: gebuendelte Bibliotheken ----------------------------
-  # Keycloak 26.7.0 ist die neueste Fassung. Ein Update ist nicht moeglich -
+  # --- Keycloak 26.7.1: gebuendelte Bibliotheken ----------------------------
+  # Keycloak 26.7.1 ist die neueste Fassung. Ein Update ist nicht moeglich -
   # die Fixes liegen in Bibliotheksfassungen, die Keycloak nicht bundelt.
-  # Bewertung je Eintrag: docs/operations/production-readiness.md, PROD-038.
 
   # Nicht erreichbar
   - id: CVE-2025-59250
@@ -115,4 +114,10 @@ vulnerabilities:
     expired_at: 2026-09-15
   - id: CVE-2026-56819
     statement: "RISIKO AKZEPTIERT, UPSTREAM AUSSTEHEND. Netty, Speicherleck ueber HTTP/2-DATA-Frames. Keycloak bedient HTTP/2, also erreichbar."
+    expired_at: 2026-09-15
+  - id: CVE-2026-40983
+    statement: "RISIKO AKZEPTIERT, UPSTREAM AUSSTEHEND. micrometer-core 1.16.3, DoS ueber gRPC-Anfragen. Fix in 1.16.6; Keycloak 26.7.1 bezieht Micrometer ueber Quarkus 3.33.2.1 und kann die Fassung nicht einzeln anheben. Keycloak bedient kein gRPC, die Instrumentierung ist zudem mit KC_METRICS_ENABLED=false nicht aktiv. Bewusst NICHT als unerreichbar gefuehrt: beides ist Konfiguration, kein Beweis."
+    expired_at: 2026-09-15
+  - id: CVE-2026-40984
+    statement: "RISIKO AKZEPTIERT, UPSTREAM AUSSTEHEND. micrometer-core 1.16.3, DoS ueber HTTP-Anfragen. Betrifft die HTTP-Instrumentierung, die mit KC_METRICS_ENABLED=false nicht aktiv ist - eine Minderung, keine Unerreichbarkeit. NEU BEWERTEN, sobald PROD-031 die Metriken wieder einschaltet."
     expired_at: 2026-09-15
