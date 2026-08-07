@@ -28,7 +28,7 @@ das Repository festgelegt und nicht von Hand installiert:
 | TypeScript | 5.9.3 (exakt) | `package.json`, siehe [ADR-0006](../adr/0006-typescript-version-und-modulsemantik.md) |
 | Biome | 2.5.6 | `package.json` |
 | PostgreSQL | 18 (Alpine) | `infra/local/compose.yaml` |
-| Keycloak | 26.7.0 | `infra/local/compose.yaml` |
+| Keycloak | 26.7.1 | `infra/local/compose.yaml` |
 
 ---
 

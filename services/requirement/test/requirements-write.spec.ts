@@ -8,6 +8,7 @@ import { AppModule } from "../src/app.module";
 import { configureApp } from "../src/app.setup";
 import { requirementHistory } from "../src/database/schema";
 import { type JwksTestServer, startJwksTestServer } from "./support/jwks-test-server";
+import { registriereQuelle } from "./support/source-systems";
 import { startTestDatabase, type TestDatabase } from "./support/test-database";
 
 describe("Anforderungen anlegen", () => {
@@ -34,6 +35,8 @@ describe("Anforderungen anlegen", () => {
 
     token = jwks.sign({ sub: "benutzer-1", azp: "frontend", preferred_username: "test.author" });
     pool = new Pool({ connectionString: database.connectionString });
+
+    await registriereQuelle(pool, "sap");
 
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
@@ -143,5 +146,28 @@ describe("Anforderungen anlegen", () => {
       .expect(200);
 
     expect(antwort.body).toHaveLength(1);
+  });
+  it("weist ein nicht eingetragenes Herkunftssystem ab", async () => {
+    const antwort = await post()
+      .send({ ...gueltig, sourceSystem: "nicht-registriert", externalId: "A-1" })
+      .expect(400);
+
+    expect(antwort.body.message).toContain("nicht-registriert");
+  });
+
+  it("nimmt ein eingetragenes Herkunftssystem an", async () => {
+    const antwort = await post()
+      .send({ ...gueltig, sourceSystem: "sap", externalId: "A-4711" })
+      .expect(201);
+
+    expect(antwort.body.sourceSystem).toBe("sap");
+  });
+
+  it("weist eine ausser Betrieb genommene Quelle ab", async () => {
+    await registriereQuelle(pool, "altsystem", "automatic", false);
+
+    await post()
+      .send({ ...gueltig, sourceSystem: "altsystem", externalId: "A-9" })
+      .expect(400);
   });
 });

@@ -255,6 +255,28 @@ Filter auf dynamische Attribute wären damit schneller. Die Historientabelle wir
 die größte des Service, und der Index kostet bei jedem Schreibvorgang. Vertagt, bis ein
 konkreter Auswertungsbedarf ihn rechtfertigt.
 
+#### Die Herkunftsregistratur (`source_system`)
+
+Seit M3.1 führt der Service eine Registratur der Herkunftssysteme mit dem Merkmal
+*automatisch* oder *manuell*
+([ADR-0017](../../docs/adr/0017-regelvokabular-der-datenhoheit-und-mandantenbegriff.md) A4).
+Ohne sie lässt sich zu einer Schreiboperation die Quellenklasse nicht bestimmen, und ab
+M3.4 greift ohne sie keine Hoheitsregel.
+
+**`requirement.source_system` trägt einen Fremdschlüssel darauf, `requirement_history`
+nicht.** Dieselbe Begründung wie oben: Die Historie darf nie durch den aktuellen Zustand
+eingeschränkt werden. Wird eine Quelle außer Betrieb genommen, muss die Historie der
+Datensätze, die aus ihr stammen, unverändert lesbar bleiben.
+
+**Der Fremdschlüssel ist nicht die Prüfung.** Abgewiesen wird in
+`SourceSystemsService.pruefeSchreibquelle` mit einer verwertbaren Meldung (400); der
+Fremdschlüssel ist die Zusicherung, dass kein späterer Schreibpfad daran vorbeikommt –
+dieselbe Arbeitsteilung wie bei der Eindeutigkeit aus §19.1.
+
+**Für Tests:** Wer eine fremde Herkunft verwendet, muss sie zuvor eintragen –
+`registriereQuelle` aus `test/support/source-systems.ts`. Nur `infrademand` kommt aus der
+Migration.
+
 ### Schichtung
 
 ```

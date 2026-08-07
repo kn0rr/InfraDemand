@@ -77,6 +77,15 @@ Dateiupload mit der Herkunft eines Vorsystems ist damit automatisch; ein Upload 
 Herkunftssystem ist manuelle Masseneingabe. Das setzt §19.2 um, wonach sich die drei
 Eingangswege ausschließlich in Transport und Herkunftsangabe unterscheiden.
 
+> **Präzisierung vom 2026-08-06, Beginn von M3.1.** A4 legt nicht fest, **wo** diese
+> Stammdaten liegen. Sie liegen **je Service**, nicht zentral: Die Registratur beschreibt
+> nicht das Fremdsystem, sondern wie Daten den jeweiligen Service erreichen – dasselbe
+> System kann Anforderungen automatisch liefern und Kapazitätsdaten von Hand. Eine
+> zentrale Registratur läge zudem im Schreibpfad jedes Service und widerspräche der
+> Entkopplung aus [ADR-0010](0010-entkopplung-anforderung-und-kapazitaet.md). Geteilt wird
+> ausschließlich der Bezeichner, der dort bereits Vertragsvokabular ist. Ausgeführt in
+> [services.md](../architecture/services.md), Abschnitt *Requirement Service*.
+
 **A5. Es gibt keine Kontextdimension.** Eine Regel gilt für alle Anforderungen. Die in
 ADR-0011 offene Frage nach dem Kontext wird damit beantwortet – mit *keiner*, nicht mit
 einer bestimmten.

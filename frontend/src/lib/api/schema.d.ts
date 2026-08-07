@@ -260,7 +260,7 @@ export interface operations {
                     "application/json": components["schemas"]["RequirementResponse"];
                 };
             };
-            /** @description Rumpf unvollstaendig oder unbekannte Felder */
+            /** @description Rumpf unvollstaendig, unbekannte Felder, oder sourceSystem nicht in der Registratur (ADR-0017 A4) */
             400: {
                 headers: {
                     [name: string]: unknown;

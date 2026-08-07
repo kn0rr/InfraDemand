@@ -1,4 +1,5 @@
 import {
+  boolean,
   index,
   integer,
   jsonb,
@@ -15,6 +16,60 @@ export const REQUIREMENT_SOURCE_EXTERNAL_CONSTRAINT = "requirement_source_extern
 /** Art der Änderung in der Versionshistorie (ADR-0012). */
 export const historyOperation = pgEnum("history_operation", ["insert", "update", "delete"]);
 
+/** Klasse einer Quelle nach ADR-0017 A4. Entscheidet ueber die Hoheitsregel. */
+export const sourceSystemKind = pgEnum("source_system_kind", ["automatic", "manual"]);
+
+/**
+ * Registratur der Herkunftssysteme (ADR-0017 A4).
+ *
+ * Ohne sie laesst sich zu einer Schreiboperation nicht bestimmen, ob sie automatisch oder
+ * manuell erfolgt - und damit greift keine einzige Hoheitsregel aus §19.3.
+ *
+ * Der Schluessel ist zugleich der Primaerschluessel: Er ist der Bezeichner, den
+ * Fremdsysteme ueber die Schnittstelle mitgeben, und er muss stabil sein.
+ */
+export const sourceSystems = pgTable("source_system", {
+  key: text("key").primaryKey(),
+  label: text("label").notNull(),
+  kind: sourceSystemKind("kind").notNull(),
+  /**
+   * Ausser Betrieb genommene Quellen bleiben bestehen. Sie duerfen nicht geloescht
+   * werden, weil Datensaetze und deren Historie auf sie verweisen - fachliche Loeschung
+   * statt physischer, wie in ADR-0012 Punkt 6.
+   */
+  active: boolean("active").notNull().default(true),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  version: integer("version").notNull().default(1),
+});
+
+/** Versionshistorie der Registratur. Gleiches Muster wie requirement_history (ADR-0012). */
+export const sourceSystemHistory = pgTable(
+  "source_system_history",
+  {
+    historyId: uuid("history_id").primaryKey().defaultRandom(),
+
+    key: text("key").notNull(),
+    label: text("label").notNull(),
+    kind: sourceSystemKind("kind").notNull(),
+    active: boolean("active").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull(),
+
+    version: integer("version").notNull(),
+    validFrom: timestamp("valid_from", { withTimezone: true }).notNull(),
+    validTo: timestamp("valid_to", { withTimezone: true }),
+    operation: historyOperation("operation").notNull(),
+
+    changedBy: text("changed_by").notNull(),
+    changeSource: text("change_source").notNull(),
+  },
+  (table) => [
+    index("source_system_history_key_valid_from_idx").on(table.key, table.validFrom),
+    unique("source_system_history_key_version_uq").on(table.key, table.version),
+  ],
+);
+
 /**
  * Kernentitaet nach CLAUDE.md §6 und §19.
  *
@@ -30,8 +85,13 @@ export const requirements = pgTable(
     status: text("status").notNull(),
     owner: text("owner").notNull(),
 
-    /** Herkunftssystem des Datensatzes (§19.1). Eigene Erfassung: "infrademand". */
-    sourceSystem: text("source_system").notNull().default("infrademand"),
+    /** Herkunftssystem des Datensatzes (§19.1). Eigene Erfassung: "infrademand".
+     *  Fremdschluessel auf die Registratur: Eine Quelle, deren Klasse unbekannt ist,
+     *  darf nicht schreiben (ADR-0017 A4). */
+    sourceSystem: text("source_system")
+      .notNull()
+      .default("infrademand")
+      .references(() => sourceSystems.key),
     /**
      * Bezeichner im Herkunftssystem. Bewusst NULL fuer eigene Erfassung: Dort gibt es
      * kein externes System, und ein erfundener Wert waere eine Behauptung.
@@ -110,3 +170,6 @@ export type RequirementRow = typeof requirements.$inferSelect;
 export type NewRequirementRow = typeof requirements.$inferInsert;
 export type RequirementHistoryRow = typeof requirementHistory.$inferSelect;
 export type NewRequirementHistoryRow = typeof requirementHistory.$inferInsert;
+export type SourceSystemRow = typeof sourceSystems.$inferSelect;
+export type NewSourceSystemRow = typeof sourceSystems.$inferInsert;
+export type SourceSystemHistoryRow = typeof sourceSystemHistory.$inferSelect;

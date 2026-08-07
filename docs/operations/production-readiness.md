@@ -54,8 +54,8 @@ Das gilt für alle Beteiligten, einschließlich der KI in ihrer Beraterrolle
 | D – Daten | 4 | 3 | – |
 | E – Container und Lieferkette | 9 | 1 | **2** |
 | F – Betrieb und Verfügbarkeit | 6 | 1 | – |
-| G – Anwendungssicherheit | 6 | 1 | – |
-| **Gesamt** | **47** | **17** | **2** |
+| G – Anwendungssicherheit | 7 | 1 | – |
+| **Gesamt** | **48** | **17** | **2** |
 
 > **Nummern werden nicht neu vergeben.** `PROD-026` ist unbesetzt. Eine Lücke ist kein
 > Fehler – eine wiederverwendete Nummer wäre einer, weil Verweise aus ADRs, Commits und
@@ -66,7 +66,7 @@ und `PROD-036`, beide zur Lieferkette. Sie wurden vorgezogen, weil ihre Vorausse
 (Renovate im Betrieb) mit M1 erfüllt war und eine unbeaufsichtigte Festlegung ohne
 automatische Aktualisierung schlechter wäre als gar keine.
 
-Die übrigen 45 bleiben offen. Das ist für diesen Projektstand erwartbar: Der überwiegende
+Die übrigen 46 bleiben offen. Das ist für diesen Projektstand erwartbar: Der überwiegende
 Teil betrifft Betrieb, Verschlüsselung und Geheimnisverwaltung und wird erst mit der
 ersten nicht-lokalen Umgebung greifbar.
 
@@ -685,9 +685,25 @@ bewusst für eine begrenzte Zeit.
 #### PROD-038 — Von Keycloak gebündelte Bibliotheken mit offenen Schwachstellen
 **Schwere:** Hoch · **Status:** Bewusst akzeptiert (befristet) · **Betrifft:** §13 · **Fundstelle:** `.trivyignore.yaml`
 
-Keycloak 26.7.0 – die zum 2026-08-04 neueste Fassung – bündelt Bibliotheken mit
-11 bekannten Schwachstellen (14 Meldungen, kein Befund kritisch). Ein Update ist nicht
-möglich; die Fixes liegen in Bibliotheksfassungen, die Keycloak noch nicht übernommen hat.
+Keycloak 26.7.1 – die zum 2026-08-07 neueste Fassung – bündelt Bibliotheken mit bekannten
+Schwachstellen. Ein Update ist nicht möglich; die Fixes liegen in Bibliotheksfassungen,
+die Keycloak noch nicht übernommen hat.
+
+> **Aktualisiert am 2026-08-07 von 26.7.0 auf 26.7.1.** Anlass war ein Trivy-Befund zu
+> `micrometer-core` (CVE-2026-40983, CVE-2026-40984, beide HOCH, DoS). Das Upgrade behebt
+> ihn **nicht** – beide Fassungen verwenden Quarkus 3.33.2.1 und damit dieselbe
+> Micrometer-Fassung 1.16.3; die Fixes liegen in 1.16.6 beziehungsweise 1.15.12.
+>
+> **Der eigentliche Ertrag lag woanders.** Die Prüfung des Upgradepfads brachte zutage,
+> dass 26.7.1 ein Sicherheitsrelease mit **fünf Keycloak-eigenen CVEs** ist – darunter
+> Rechteausweitung über Rollenmapper-Injektion (CVE-2026-4629) und die Umgehung von
+> `requestObjectSignatureAlg` per JWE (CVE-2026-9793). Diese wiegen deutlich schwerer als
+> der Auslöser und wären ohne ihn nicht aufgefallen.
+>
+> **Daraus die Lehre für dieses Verfahren:** Ein Befund ist ein Anlass, den Upgradepfad
+> insgesamt anzusehen – nicht nur zu prüfen, ob er genau diesen Befund schließt. Die Frage
+> „behebt das Update meinen Fehlschlag?" hätte hier zu einem Nein und damit zum Verzicht
+> auf das Upgrade geführt.
 
 **Nicht erreichbar (7)** – Begründungen je Eintrag in `.trivyignore.yaml`:
 CVE-2025-59250 (MS-SQL-Treiber wird nie geladen, zudem Vergleichsartefakt bei der
@@ -822,6 +838,17 @@ die Plattform selbst möglich.
 Alarmierung für sicherheitsrelevante Ereignisse – fehlgeschlagene Anmeldungen,
 Berechtigungsverweigerungen, ungewöhnliche Service-Account-Aktivität (§13).
 
+> **Ergänzt am 2026-08-07.** Die Metriken von Keycloak sind seither abgeschaltet
+> (`KC_METRICS_ENABLED=false`). Sie wurden von nichts abgeholt und aktivierten die
+> HTTP-Instrumentierung von `micrometer-core`, deren offene DoS-Schwachstellen
+> CVE-2026-40983 und CVE-2026-40984 **kein Keycloak-Update behebt** – Micrometer kommt
+> über die Abhängigkeitsliste von Quarkus, und 26.7.0 wie 26.7.1 verwenden 3.33.2.1.
+>
+> **Beim Aufbau der Beobachtbarkeit sind beide Einträge neu zu bewerten**, bevor die
+> Metriken wieder eingeschaltet werden. Die Abschaltung ist eine Minderung, keine
+> Behebung – sie ist in `.trivyignore.yaml` deshalb bewusst unter „Risiko akzeptiert"
+> geführt und nicht als Unerreichbarkeit.
+
 #### PROD-042 — Der Realm ist ein gemeinsamer Ausfallbereich
 **Schwere:** Hoch · **Status:** Offen · **Betrifft:** §15 · **Verweis:** [ADR-0015](../adr/0015-mehrere-identitaetsquellen.md)
 
@@ -842,6 +869,32 @@ Datenbankausfalls mitzubehandeln.
 ---
 
 ## G – Anwendungssicherheit
+
+#### PROD-049 — Das Tor für inkompatible Änderungen sieht nur das Schema
+**Schwere:** Mittel · **Status:** Offen · **Betrifft:** §12 · **Fundstelle:** `.github/workflows/ci.yml`, Job `lint`, Schritt „Inkompatible Contract-Aenderungen pruefen"
+
+`oasdiff` vergleicht den OpenAPI-Contract. Es erkennt entfernte Felder, verengte Typen und
+verschwundene Endpunkte. **Es erkennt keine Verschärfung der Laufzeitprüfung bei
+unverändertem Schema.**
+
+Aufgefallen in M3.1: `sourceSystem` ist im Contract weiterhin `string` mit `maxLength`.
+Seither wird der Wert zusätzlich gegen die Herkunftsregistratur geprüft
+([ADR-0017](../adr/0017-regelvokabular-der-datenhoheit-und-mandantenbegriff.md) A4). Ein
+Client, der bisher einen beliebigen Wert schickte, erhält jetzt 400 – für ihn eine
+inkompatible Änderung. Das Tor blieb grün, und zwar zu Recht: Am Schema hat sich nichts
+geändert.
+
+**Heute ohne Wirkung**, weil außer dem eigenen Frontend kein Konsument existiert. Der
+Eintrag steht hier, weil §12 versionierte Schnittstellen mit Kompatibilitätsgarantie
+verlangt – und ein Tor, das eine Zusicherung nur teilweise abdeckt, ist gefährlicher als
+gar keines: Es erzeugt Vertrauen für den Bereich, den es nicht prüft.
+
+**Zielzustand:** Verschärfungen der Laufzeitprüfung gelten als inkompatible Änderung und
+sind wie Schemaänderungen zu behandeln – angekündigt, versioniert, im Änderungsprotokoll
+vermerkt. Wo möglich, gehört die Einschränkung ins Schema, damit `oasdiff` sie sieht: eine
+Aufzählung zulässiger Herkünfte ist allerdings gerade nicht möglich, weil die Registratur
+zur Laufzeit gepflegt wird. Für solche Fälle braucht es eine Prüfliste im Review, keine
+Automatisierung, die es nicht geben kann.
 
 #### PROD-048 — Swagger-UI wird ungeschützt ausgeliefert
 **Schwere:** Mittel · **Status:** Offen · **Betrifft:** §12, §13 · **Fundstelle:** `services/requirement/src/main.ts`, `SwaggerModule.setup("api-docs", ...)`

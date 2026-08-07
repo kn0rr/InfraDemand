@@ -1,6 +1,7 @@
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
 import { requirements } from "../src/database/schema";
+import { registriereQuelle } from "./support/source-systems";
 import { startTestDatabase, type TestDatabase } from "./support/test-database";
 
 /**
@@ -22,6 +23,9 @@ describe("Eindeutigkeit von Herkunft und externem Bezeichner", () => {
   beforeAll(async () => {
     database = await startTestDatabase();
     pool = new Pool({ connectionString: database.connectionString });
+
+    await registriereQuelle(pool, "sap");
+    await registriereQuelle(pool, "servicenow");
   });
 
   afterAll(async () => {
