@@ -1,5 +1,208 @@
 components:
   schemas:
+    AttributeDefinitionResponse:
+      properties:
+        active:
+          description: >-
+            Ausser Kraft gesetzte Definitionen bleiben bestehen - bestehende Anforderungen tragen
+            Werte, die nur mit ihnen deutbar sind.
+          type: boolean
+        allowedValues:
+          description: Zulaessige Werte bei enum und multi_enum, sonst leer.
+          items:
+            type: string
+          type:
+            - array
+            - 'null'
+        createdAt:
+          format: date-time
+          type: string
+        dataType:
+          enum:
+            - text
+            - number
+            - boolean
+            - date
+            - enum
+            - multi_enum
+          example: text
+          type: string
+        defaultValue:
+          description: Vorgabewert, dem Datentyp entsprechend.
+          type:
+            - object
+            - 'null'
+        id:
+          format: uuid
+          type: string
+        key:
+          example: kostenstelle
+          type: string
+        label:
+          example: Kostenstelle
+          type: string
+        required:
+          type: boolean
+        requirementType:
+          description: 'Anforderungstyp, fuer den die Definition gilt. Leer bedeutet: fuer alle.'
+          type:
+            - string
+            - 'null'
+        updatedAt:
+          format: date-time
+          type: string
+        version:
+          example: 1
+          type: integer
+      required:
+        - id
+        - key
+        - requirementType
+        - label
+        - dataType
+        - required
+        - defaultValue
+        - allowedValues
+        - active
+        - createdAt
+        - updatedAt
+        - version
+      type: object
+    AttributeDefinitionVersionResponse:
+      properties:
+        active:
+          description: >-
+            Ausser Kraft gesetzte Definitionen bleiben bestehen - bestehende Anforderungen tragen
+            Werte, die nur mit ihnen deutbar sind.
+          type: boolean
+        allowedValues:
+          description: Zulaessige Werte bei enum und multi_enum, sonst leer.
+          items:
+            type: string
+          type:
+            - array
+            - 'null'
+        changeSource:
+          type: string
+        changedBy:
+          type: string
+        createdAt:
+          format: date-time
+          type: string
+        dataType:
+          enum:
+            - text
+            - number
+            - boolean
+            - date
+            - enum
+            - multi_enum
+          example: text
+          type: string
+        defaultValue:
+          description: Vorgabewert, dem Datentyp entsprechend.
+          type:
+            - object
+            - 'null'
+        id:
+          format: uuid
+          type: string
+        key:
+          example: kostenstelle
+          type: string
+        label:
+          example: Kostenstelle
+          type: string
+        operation:
+          enum:
+            - insert
+            - update
+            - delete
+          type: string
+        required:
+          type: boolean
+        requirementType:
+          description: 'Anforderungstyp, fuer den die Definition gilt. Leer bedeutet: fuer alle.'
+          type:
+            - string
+            - 'null'
+        updatedAt:
+          format: date-time
+          type: string
+        validFrom:
+          format: date-time
+          type: string
+        validTo:
+          format: date-time
+          type:
+            - string
+            - 'null'
+        version:
+          example: 1
+          type: integer
+      required:
+        - id
+        - key
+        - requirementType
+        - label
+        - dataType
+        - required
+        - defaultValue
+        - allowedValues
+        - active
+        - createdAt
+        - updatedAt
+        - version
+        - validFrom
+        - validTo
+        - operation
+        - changedBy
+        - changeSource
+      type: object
+    CreateAttributeDefinitionDto:
+      properties:
+        allowedValues:
+          description: Pflicht bei enum und multi_enum, unzulaessig bei allen anderen Typen.
+          items:
+            type: string
+          type: array
+        dataType:
+          enum:
+            - text
+            - number
+            - boolean
+            - date
+            - enum
+            - multi_enum
+          example: text
+          type: string
+        defaultValue:
+          description: Vorgabewert, dem Datentyp entsprechend.
+          type: object
+        key:
+          description: >-
+            Schluessel im Feld dynamicAttributes. Kleinbuchstaben, Ziffern und Unterstrich - der
+            Wert wird zum JSON-Schluessel und zum Formularfeldnamen.
+          example: kostenstelle
+          maxLength: 100
+          type: string
+        label:
+          example: Kostenstelle
+          maxLength: 200
+          type: string
+        required:
+          default: false
+          type: boolean
+        requirementType:
+          description: Ohne Angabe gilt die Definition fuer alle Anforderungstypen.
+          example: bestellung
+          maxLength: 100
+          type: string
+      required:
+        - key
+        - label
+        - dataType
+      type: object
     CreateRequirementDto:
       properties:
         dynamicAttributes:
@@ -178,6 +381,37 @@ components:
         - changedBy
         - changeSource
       type: object
+    UpdateAttributeDefinitionDto:
+      properties:
+        active:
+          description: false setzt die Definition ausser Kraft, ohne sie zu loeschen.
+          type: boolean
+        allowedValues:
+          items:
+            type: string
+          type: array
+        dataType:
+          enum:
+            - text
+            - number
+            - boolean
+            - date
+            - enum
+            - multi_enum
+          type: string
+        defaultValue:
+          type: object
+        label:
+          maxLength: 200
+          type: string
+        required:
+          type: boolean
+      required:
+        - label
+        - dataType
+        - required
+        - active
+      type: object
   securitySchemes:
     bearer:
       bearerFormat: JWT
@@ -215,6 +449,132 @@ paths:
       summary: Bereitschaftspruefung
       tags:
         - Betrieb
+  /v1/attribute-definitions:
+    get:
+      description: >-
+        Ohne requirementType alle Definitionen einschliesslich ausser Kraft gesetzter. Mit
+        requirementType die fuer diesen Typ geltenden aktiven - typbezogene und allgemeine zusammen.
+        Lesen ist nicht auf platform-admin beschraenkt: Das Frontend braucht die Definitionen, um
+        Formulare aufzubauen (§6).
+      operationId: AttributeDefinitionsController_findAll_v1
+      parameters:
+        - in: query
+          name: requirementType
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/AttributeDefinitionResponse'
+                type: array
+          description: ''
+        '401':
+          description: Kein oder ungueltiges Token
+      security:
+        - bearer: []
+      summary: Attributdefinitionen auflisten
+      tags:
+        - Attributdefinitionen
+    post:
+      description: Aendert das gueltige Datenmodell und verlangt daher platform-admin.
+      operationId: AttributeDefinitionsController_create_v1
+      parameters: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAttributeDefinitionDto'
+        required: true
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AttributeDefinitionResponse'
+          description: ''
+        '400':
+          description: Rumpf unvollstaendig oder Werteliste unpassend
+        '401':
+          description: Kein oder ungueltiges Token
+        '403':
+          description: Rolle platform-admin fehlt
+        '409':
+          description: Schluessel fuer diesen Anforderungstyp bereits vergeben
+      security:
+        - bearer: []
+      summary: Attributdefinition anlegen
+      tags:
+        - Attributdefinitionen
+  /v1/attribute-definitions/{id}:
+    put:
+      description: >-
+        Erzeugt eine neue Version (ADR-0012). key und requirementType sind unveraenderlich - sie
+        bezeichnen die Definition.
+      operationId: AttributeDefinitionsController_update_v1
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: uuid
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateAttributeDefinitionDto'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AttributeDefinitionResponse'
+          description: ''
+        '401':
+          description: Kein oder ungueltiges Token
+        '403':
+          description: Rolle platform-admin fehlt
+        '404':
+          description: Definition existiert nicht
+      security:
+        - bearer: []
+      summary: Attributdefinition aendern
+      tags:
+        - Attributdefinitionen
+  /v1/attribute-definitions/{id}/versions:
+    get:
+      description: Vollstaendige Historie nach §19.4.
+      operationId: AttributeDefinitionsController_findVersions_v1
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: uuid
+            type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/AttributeDefinitionVersionResponse'
+                type: array
+          description: ''
+        '401':
+          description: Kein oder ungueltiges Token
+        '404':
+          description: Definition existiert nicht
+      security:
+        - bearer: []
+      summary: Versionen einer Attributdefinition
+      tags:
+        - Attributdefinitionen
   /v1/requirements:
     get:
       description: Ohne asOf der aktuelle Bestand, mit asOf der Zustand zum Stichtag (§19.4).

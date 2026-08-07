@@ -236,8 +236,8 @@ M3 setzt §6 um – das dynamische Attributmodell – und damit zugleich die Dat
 
 | | Inhalt | Beweist | Stand |
 |---|---|---|---|
-| **M3.1** | Herkunftssysteme als Stammdaten, mit Merkmal *automatisch* oder *manuell* | Die Quellenklasse einer Schreiboperation ist bestimmbar (ADR-0017 A4) | offen |
-| **M3.2** | Attributdefinitionen als versionierte Fachdaten | Ein Attribut entsteht ohne Redeploy; ältere Definitionen bleiben auswertbar | offen |
+| **M3.1** | Herkunftssysteme als Stammdaten, mit Merkmal *automatisch* oder *manuell* | Die Quellenklasse einer Schreiboperation ist bestimmbar (ADR-0017 A4) | abgeschlossen |
+| **M3.2** | Attributdefinitionen als versionierte Fachdaten | Ein Attribut entsteht ohne Redeploy; ältere Definitionen bleiben auswertbar | abgeschlossen |
 | **M3.3** | Laufzeitvalidierung dynamischer Attribute gegen die gültige Definition | Alle drei Eingangswege aus §19.2 durchlaufen **einen** Prüfpfad | offen |
 | **M3.4** | Hoheitsregeln im Schreibpfad, Festhalten, Aufzeichnung abgewiesener Lieferungen | Die Regel aus ADR-0017 A2 wirkt, und eine Festhaltung ist als Entscheidung belegbar | offen |
 | **M3.5** | Formulare zur Laufzeit aus dem Schema | Eine neue Pflichtangabe erscheint im Formular, ohne dass jemand eine Komponente anfasst | offen |

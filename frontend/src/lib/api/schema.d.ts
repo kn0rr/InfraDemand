@@ -24,6 +24,70 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/attribute-definitions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Attributdefinitionen auflisten
+         * @description Ohne requirementType alle Definitionen einschliesslich ausser Kraft gesetzter. Mit requirementType die fuer diesen Typ geltenden aktiven - typbezogene und allgemeine zusammen. Lesen ist nicht auf platform-admin beschraenkt: Das Frontend braucht die Definitionen, um Formulare aufzubauen (§6).
+         */
+        get: operations["AttributeDefinitionsController_findAll_v1"];
+        put?: never;
+        /**
+         * Attributdefinition anlegen
+         * @description Aendert das gueltige Datenmodell und verlangt daher platform-admin.
+         */
+        post: operations["AttributeDefinitionsController_create_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/attribute-definitions/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Attributdefinition aendern
+         * @description Erzeugt eine neue Version (ADR-0012). key und requirementType sind unveraenderlich - sie bezeichnen die Definition.
+         */
+        put: operations["AttributeDefinitionsController_update_v1"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/attribute-definitions/{id}/versions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Versionen einer Attributdefinition
+         * @description Vollstaendige Historie nach §19.4.
+         */
+        get: operations["AttributeDefinitionsController_findVersions_v1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/requirements": {
         parameters: {
             query?: never;
@@ -69,6 +133,95 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        AttributeDefinitionResponse: {
+            /** @description Ausser Kraft gesetzte Definitionen bleiben bestehen - bestehende Anforderungen tragen Werte, die nur mit ihnen deutbar sind. */
+            active: boolean;
+            /** @description Zulaessige Werte bei enum und multi_enum, sonst leer. */
+            allowedValues: string[] | null;
+            /** Format: date-time */
+            createdAt: string;
+            /**
+             * @example text
+             * @enum {string}
+             */
+            dataType: "text" | "number" | "boolean" | "date" | "enum" | "multi_enum";
+            /** @description Vorgabewert, dem Datentyp entsprechend. */
+            defaultValue: Record<string, never> | null;
+            /** Format: uuid */
+            id: string;
+            /** @example kostenstelle */
+            key: string;
+            /** @example Kostenstelle */
+            label: string;
+            required: boolean;
+            /** @description Anforderungstyp, fuer den die Definition gilt. Leer bedeutet: fuer alle. */
+            requirementType: string | null;
+            /** Format: date-time */
+            updatedAt: string;
+            /** @example 1 */
+            version: number;
+        };
+        AttributeDefinitionVersionResponse: {
+            /** @description Ausser Kraft gesetzte Definitionen bleiben bestehen - bestehende Anforderungen tragen Werte, die nur mit ihnen deutbar sind. */
+            active: boolean;
+            /** @description Zulaessige Werte bei enum und multi_enum, sonst leer. */
+            allowedValues: string[] | null;
+            changeSource: string;
+            changedBy: string;
+            /** Format: date-time */
+            createdAt: string;
+            /**
+             * @example text
+             * @enum {string}
+             */
+            dataType: "text" | "number" | "boolean" | "date" | "enum" | "multi_enum";
+            /** @description Vorgabewert, dem Datentyp entsprechend. */
+            defaultValue: Record<string, never> | null;
+            /** Format: uuid */
+            id: string;
+            /** @example kostenstelle */
+            key: string;
+            /** @example Kostenstelle */
+            label: string;
+            /** @enum {string} */
+            operation: "insert" | "update" | "delete";
+            required: boolean;
+            /** @description Anforderungstyp, fuer den die Definition gilt. Leer bedeutet: fuer alle. */
+            requirementType: string | null;
+            /** Format: date-time */
+            updatedAt: string;
+            /** Format: date-time */
+            validFrom: string;
+            /** Format: date-time */
+            validTo: string | null;
+            /** @example 1 */
+            version: number;
+        };
+        CreateAttributeDefinitionDto: {
+            /** @description Pflicht bei enum und multi_enum, unzulaessig bei allen anderen Typen. */
+            allowedValues?: string[];
+            /**
+             * @example text
+             * @enum {string}
+             */
+            dataType: "text" | "number" | "boolean" | "date" | "enum" | "multi_enum";
+            /** @description Vorgabewert, dem Datentyp entsprechend. */
+            defaultValue?: Record<string, never>;
+            /**
+             * @description Schluessel im Feld dynamicAttributes. Kleinbuchstaben, Ziffern und Unterstrich - der Wert wird zum JSON-Schluessel und zum Formularfeldnamen.
+             * @example kostenstelle
+             */
+            key: string;
+            /** @example Kostenstelle */
+            label: string;
+            /** @default false */
+            required: boolean;
+            /**
+             * @description Ohne Angabe gilt die Definition fuer alle Anforderungstypen.
+             * @example bestellung
+             */
+            requirementType?: string;
+        };
         CreateRequirementDto: {
             dynamicAttributes?: {
                 [key: string]: unknown;
@@ -169,6 +322,16 @@ export interface components {
             /** @example 1 */
             version: number;
         };
+        UpdateAttributeDefinitionDto: {
+            /** @description false setzt die Definition ausser Kraft, ohne sie zu loeschen. */
+            active: boolean;
+            allowedValues?: string[];
+            /** @enum {string} */
+            dataType: "text" | "number" | "boolean" | "date" | "enum" | "multi_enum";
+            defaultValue?: Record<string, never>;
+            label: string;
+            required: boolean;
+        };
     };
     responses: never;
     parameters: never;
@@ -198,6 +361,166 @@ export interface operations {
                         status?: string;
                     };
                 };
+            };
+        };
+    };
+    AttributeDefinitionsController_findAll_v1: {
+        parameters: {
+            query?: {
+                requirementType?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AttributeDefinitionResponse"][];
+                };
+            };
+            /** @description Kein oder ungueltiges Token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AttributeDefinitionsController_create_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateAttributeDefinitionDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AttributeDefinitionResponse"];
+                };
+            };
+            /** @description Rumpf unvollstaendig oder Werteliste unpassend */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Kein oder ungueltiges Token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Rolle platform-admin fehlt */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Schluessel fuer diesen Anforderungstyp bereits vergeben */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AttributeDefinitionsController_update_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateAttributeDefinitionDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AttributeDefinitionResponse"];
+                };
+            };
+            /** @description Kein oder ungueltiges Token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Rolle platform-admin fehlt */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Definition existiert nicht */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AttributeDefinitionsController_findVersions_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AttributeDefinitionVersionResponse"][];
+                };
+            };
+            /** @description Kein oder ungueltiges Token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Definition existiert nicht */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
