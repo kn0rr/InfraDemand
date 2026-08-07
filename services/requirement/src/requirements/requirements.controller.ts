@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, ParseUUIDPipe, Post, Query } from "@nestjs/common";
+import { Body, Controller, Get, Param, ParseUUIDPipe, Patch, Post, Query } from "@nestjs/common";
 import {
   ApiBearerAuth,
   ApiOperation,
@@ -11,6 +11,7 @@ import { CurrentUser } from "../auth/current-user.decorator";
 import type { AuthenticatedUser } from "../auth/jwt.strategy";
 import { CreateRequirementDto } from "./create-requirement.dto";
 import { ListRequirementsQuery } from "./list-requirements.query";
+import { PatchRequirementDto } from "./patch-requirement.dto";
 import { RequirementResponse } from "./requirement.dto";
 import { RequirementVersionResponse } from "./requirement-version.dto";
 import { RequirementsService } from "./requirements.service";
@@ -76,5 +77,30 @@ export class RequirementsController {
     @CurrentUser() benutzer: AuthenticatedUser,
   ): Promise<RequirementResponse> {
     return this.service.create(eingabe, benutzer);
+  }
+
+  @Patch("by-source/:sourceSystem/:externalId")
+  @ApiOperation({
+    summary: "Anforderung ueber den fremden Bezeichner aendern",
+    description:
+      "Adressiert ueber Herkunftssystem und dortigen Bezeichner - interne Kennungen " +
+      "werden ueber die Servicegrenze nicht gereicht (ADR-0010). Teilweise Aenderung: " +
+      "ein nicht genanntes Feld bleibt unveraendert. Legt nicht an; dafuer POST.",
+  })
+  @ApiParam({ name: "sourceSystem", example: "sap" })
+  @ApiParam({ name: "externalId", example: "A-4711" })
+  @ApiResponse({ status: 200, type: RequirementResponse, description: "Geaenderte Anforderung" })
+  @ApiResponse({
+    status: 400,
+    description: "Rumpf unzulaessig oder dynamische Attribute ungueltig",
+  })
+  @ApiResponse({ status: 404, description: "Kein Datensatz unter dieser Herkunft" })
+  patchBySource(
+    @Param("sourceSystem") sourceSystem: string,
+    @Param("externalId") externalId: string,
+    @Body() eingabe: PatchRequirementDto,
+    @CurrentUser() benutzer: AuthenticatedUser,
+  ): Promise<RequirementResponse> {
+    return this.service.patchBySource(sourceSystem, externalId, eingabe, benutzer);
   }
 }

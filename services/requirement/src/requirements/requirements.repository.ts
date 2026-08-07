@@ -1,5 +1,5 @@
 import { Inject, Injectable } from "@nestjs/common";
-import { and, asc, eq, gt, isNull, lte, ne, or } from "drizzle-orm";
+import { and, asc, eq, gt, isNull, lte, ne, or, sql } from "drizzle-orm";
 import { DATABASE, type Database } from "../database/database.tokens";
 import { istEindeutigkeitsverletzung } from "../database/fehler";
 import {
@@ -9,7 +9,7 @@ import {
   requirementHistory,
   requirements,
 } from "../database/schema";
-import { DuplicateExternalIdError } from "./requirements.errors";
+import { DuplicateExternalIdError, RequirementNotFoundError } from "./requirements.errors";
 
 export interface RequirementCreateInput {
   projectId: string;
@@ -22,6 +22,16 @@ export interface RequirementCreateInput {
   /** Ausloesende Identitaet aus dem Token. */
   changedBy: string;
   /** Client, der die Aenderung ausgefuehrt hat - aus dem Token, nicht vom Aufrufer. */
+  changeSource: string;
+}
+
+export interface RequirementUpdateInput {
+  projectId: string;
+  requirementType: string;
+  status: string;
+  owner: string;
+  dynamicAttributes: Record<string, unknown>;
+  changedBy: string;
   changeSource: string;
 }
 
@@ -116,5 +126,77 @@ export class RequirementsRepository {
       }
       throw fehler;
     }
+  }
+
+  /** Zuordnung des fremden Bezeichners auf unseren Datensatz (ADR-0010). */
+  async findBySource(
+    sourceSystem: string,
+    externalId: string,
+  ): Promise<RequirementRow | undefined> {
+    const [zeile] = await this.db
+      .select()
+      .from(requirements)
+      .where(
+        and(eq(requirements.sourceSystem, sourceSystem), eq(requirements.externalId, externalId)),
+      )
+      .limit(1);
+
+    return zeile;
+  }
+
+  /**
+   * Erzeugt eine neue Version (ADR-0012). Die bisher aktuelle wird geschlossen, die neue
+   * beginnt im selben Augenblick - `validTo` der alten und `validFrom` der neuen tragen
+   * denselben Wert. Die Zeitraeume stossen lueckenlos aneinander und ueberlappen nicht.
+   *
+   * `sourceSystem` und `externalId` aendern sich nie: Sie sind die Adresse des
+   * Datensatzes ueber die Servicegrenze hinweg.
+   */
+  async update(id: string, eingabe: RequirementUpdateInput): Promise<RequirementRow> {
+    return this.db.transaction(async (tx) => {
+      const [zeile] = await tx
+        .update(requirements)
+        .set({
+          projectId: eingabe.projectId,
+          requirementType: eingabe.requirementType,
+          status: eingabe.status,
+          owner: eingabe.owner,
+          dynamicAttributes: eingabe.dynamicAttributes,
+          updatedAt: new Date(),
+          version: sql`${requirements.version} + 1`,
+        })
+        .where(eq(requirements.id, id))
+        .returning();
+
+      if (!zeile) {
+        throw new Error(`Datensatz ${id} verschwand waehrend der Aenderung`);
+      }
+
+      await tx
+        .update(requirementHistory)
+        .set({ validTo: zeile.updatedAt })
+        .where(and(eq(requirementHistory.id, id), isNull(requirementHistory.validTo)));
+
+      await tx.insert(requirementHistory).values({
+        id: zeile.id,
+        projectId: zeile.projectId,
+        requirementType: zeile.requirementType,
+        status: zeile.status,
+        owner: zeile.owner,
+        sourceSystem: zeile.sourceSystem,
+        externalId: zeile.externalId,
+        dynamicAttributes: zeile.dynamicAttributes,
+        createdAt: zeile.createdAt,
+        updatedAt: zeile.updatedAt,
+        version: zeile.version,
+        validFrom: zeile.updatedAt,
+        validTo: null,
+        operation: "update",
+        changedBy: eingabe.changedBy,
+        changeSource: eingabe.changeSource,
+      });
+
+      return zeile;
+    });
   }
 }

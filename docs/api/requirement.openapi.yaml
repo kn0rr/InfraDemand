@@ -243,6 +243,29 @@ components:
         - status
         - owner
       type: object
+    PatchRequirementDto:
+      properties:
+        dynamicAttributes:
+          additionalProperties: true
+          description: >-
+            Wird schluesselweise mit dem Bestand zusammengefuehrt. Ein nicht genannter Schluessel
+            bleibt unveraendert; `null` loescht ihn.
+          type: object
+        owner:
+          maxLength: 200
+          type: string
+        projectId:
+          format: uuid
+          type: string
+        requirementType:
+          example: feature
+          maxLength: 100
+          type: string
+        status:
+          example: in_arbeit
+          maxLength: 100
+          type: string
+      type: object
     RequirementResponse:
       properties:
         createdAt:
@@ -636,6 +659,50 @@ paths:
       security:
         - bearer: []
       summary: Anforderung anlegen
+      tags:
+        - Anforderungen
+  /v1/requirements/by-source/{sourceSystem}/{externalId}:
+    patch:
+      description: >-
+        Adressiert ueber Herkunftssystem und dortigen Bezeichner - interne Kennungen werden ueber
+        die Servicegrenze nicht gereicht (ADR-0010). Teilweise Aenderung: ein nicht genanntes Feld
+        bleibt unveraendert. Legt nicht an; dafuer POST.
+      operationId: RequirementsController_patchBySource_v1
+      parameters:
+        - in: path
+          name: sourceSystem
+          required: true
+          schema:
+            example: sap
+            type: string
+        - in: path
+          name: externalId
+          required: true
+          schema:
+            example: A-4711
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchRequirementDto'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RequirementResponse'
+          description: Geaenderte Anforderung
+        '400':
+          description: Rumpf unzulaessig oder dynamische Attribute ungueltig
+        '401':
+          description: Kein oder ungueltiges Token
+        '404':
+          description: Kein Datensatz unter dieser Herkunft
+      security:
+        - bearer: []
+      summary: Anforderung ueber den fremden Bezeichner aendern
       tags:
         - Anforderungen
   /v1/requirements/{id}/versions:
