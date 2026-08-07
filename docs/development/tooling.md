@@ -361,9 +361,32 @@ angegebenen Meilenstein ergänzt.
 | OpenTelemetry | Ablaufverfolgung und Metriken (CLAUDE.md §14) | offen |
 | SAST / DAST | Statische und dynamische Sicherheitsprüfung (CLAUDE.md §13, `PROD-025`) | offen |
 | `@nestjs/terminus` | Bereitschaftsprüfung mit Datenbank- und JWKS-Kontrolle (`PROD-029`) | offen |
-| `ajv` | Laufzeitvalidierung dynamischer Attribute gegen JSON Schema (CLAUDE.md §6) | M3 |
+| ~~`ajv`~~ | **Nicht eingeführt.** Begründung siehe unten | – |
 | JSONLogic oder `json-rules-engine` | Regelauswertung für Workflow-Übergänge (CLAUDE.md §7) | M4 |
 | OPA oder OpenFGA | Feingranulare Autorisierung ([ADR-0004](../adr/0004-authentifizierung-und-autorisierung.md)) | M5 |
+
+### Warum kein `ajv` für die dynamischen Attribute
+
+Mit M3.3 entstand die Laufzeitprüfung aus CLAUDE.md §6. Sie ist **von Hand geschrieben**,
+nicht über JSON Schema mit `ajv` – anders als hier ursprünglich vorgesehen. Drei Gründe:
+
+- **Der Typsatz ist geschlossen und flach.** Sechs skalare Typen, keine Verschachtelung,
+  keine Komposition. Die Prüfung ist rund hundert Zeilen; ein Schemagenerator davor wäre
+  mehr Bewegung als Ertrag.
+- **Die Form der Fehler zählt mehr als die Ausdrucksstärke.** Die Oberfläche braucht
+  feldbezogene Meldungen auf Deutsch. `ajv`-Fehler (`instancePath`, `keyword`, `params`)
+  müssten dafür ohnehin übersetzt werden – die Übersetzungsschicht wäre umfangreicher als
+  die Prüfung selbst.
+- **Geteilt wird die Definition, nicht ein Schema.** Backend und Frontend lesen beide
+  `dataType`, `required` und `allowedValues` aus derselben Attributdefinition. Ein
+  zusätzlich abgeleitetes JSON Schema wäre eine zweite Darstellung desselben Sachverhalts.
+
+§6 nennt JSON Schema mit „z. B.", also als Beispiel und nicht als Vorgabe.
+
+**Wann die Entscheidung neu zu treffen ist:** Sobald Attributdefinitionen zusammensetzbare
+Einschränkungen tragen – Wertebereiche, Muster, Formate, bedingte Pflichtfelder. Dann
+wächst eine handgeschriebene Prüfung schneller als ein Schema, und `ajv` wird die
+kleinere Lösung.
 
 ---
 

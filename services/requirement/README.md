@@ -277,6 +277,37 @@ dieselbe Arbeitsteilung wie bei der Eindeutigkeit aus §19.1.
 `registriereQuelle` aus `test/support/source-systems.ts`. Nur `infrademand` kommt aus der
 Migration.
 
+#### Attributdefinitionen und ihre Prüfung
+
+`attribute_definition` führt die dynamischen Attribute aus §6 als versionierte Fachdaten.
+Die Geltung je Anforderungstyp steht in `requirement_type`; **`NULL` bedeutet: für alle**.
+Die Eindeutigkeit trägt deshalb `NULLS NOT DISTINCT` – ohne sie wären zwei
+allgemeingültige Definitionen desselben Schlüssels möglich, weil PostgreSQL `NULL`-Werte
+sonst als verschieden behandelt.
+
+**Geprüft wird gegen die aktuell gültige Definition**, nicht gegen die bei Anlage des
+Datensatzes geltende. §6 legt das so fest. Das ist der Unterschied zu §7, wo laufende
+Anforderungen auf ihrer Workflow-Fassung bleiben; die Historie hier dient der
+Nachweisführung, nicht der Festlegung.
+
+**`pruefeDynamischeAttribute` ist der einzige Prüfpfad** und bewusst frei von NestJS und
+Datenbank. §19.2 verlangt, dass Schnittstelle, Dateiimport und manuelle Erfassung dieselbe
+Validierung durchlaufen – eine reine Funktion lässt sich von jedem Eingangsweg aufrufen
+und mit gewöhnlichen Unittests abdecken.
+
+**Was gespeichert wird, ist nicht, was gesendet wurde.** Die Prüfung liefert normalisierte
+Werte zurück: Vorgabewerte ergänzt, leere optionale Attribute entfernt, nicht definierte
+Schlüssel abgewiesen. In `dynamic_attributes` steht damit nie ein Schlüssel, den keine
+Definition erklärt.
+
+**Zur Datumsprüfung:** Der Rückvergleich in `istKalenderdatum` ist nicht überflüssig.
+JavaScript liefert für `2026-02-31` kein `NaN`, sondern stillschweigend den 3. März – nur
+der Monatsüberlauf erzeugt `NaN`. Ohne den Vergleich gingen ungültige Tagesangaben durch
+und läsen sich später als ein anderes Datum.
+
+**Für Tests:** `registriereAttribut` aus `test/support/attribute-definitions.ts`. Ohne
+Definition wird jedes dynamische Attribut abgewiesen.
+
 ### Schichtung
 
 ```

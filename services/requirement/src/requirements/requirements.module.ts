@@ -1,11 +1,12 @@
 import { Module } from "@nestjs/common";
+import { AttributeDefinitionsModule } from "../attribute-definitions/attribute-definitions.module";
 import { SourceSystemsModule } from "../source-systems/source-systems.module";
 import { RequirementsController } from "./requirements.controller";
 import { RequirementsRepository } from "./requirements.repository";
 import { RequirementsService } from "./requirements.service";
 
 @Module({
-  imports: [SourceSystemsModule],
+  imports: [SourceSystemsModule, AttributeDefinitionsModule],
   controllers: [RequirementsController],
   providers: [RequirementsService, RequirementsRepository],
 })

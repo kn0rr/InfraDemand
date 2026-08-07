@@ -7,6 +7,7 @@ import request from "supertest";
 import { AppModule } from "../src/app.module";
 import { configureApp } from "../src/app.setup";
 import { requirementHistory } from "../src/database/schema";
+import { registriereAttribut } from "./support/attribute-definitions";
 import { type JwksTestServer, startJwksTestServer } from "./support/jwks-test-server";
 import { registriereQuelle } from "./support/source-systems";
 import { startTestDatabase, type TestDatabase } from "./support/test-database";
@@ -37,6 +38,7 @@ describe("Anforderungen anlegen", () => {
     pool = new Pool({ connectionString: database.connectionString });
 
     await registriereQuelle(pool, "sap");
+    await registriereAttribut(pool, { key: "kostenstelle", label: "Kostenstelle" });
 
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
@@ -169,5 +171,47 @@ describe("Anforderungen anlegen", () => {
     await post()
       .send({ ...gueltig, sourceSystem: "altsystem", externalId: "A-9" })
       .expect(400);
+  });
+
+  describe("Dynamische Attribute", () => {
+    it("weist ein nicht definiertes Attribut ab", async () => {
+      const antwort = await post()
+        .send({ ...gueltig, dynamicAttributes: { erfunden: "x" } })
+        .expect(400);
+
+      expect(antwort.body.attributes).toEqual([
+        { key: "erfunden", message: expect.stringContaining("nicht definiert") },
+      ]);
+    });
+
+    it("weist einen falschen Typ ab", async () => {
+      await registriereAttribut(pool, { key: "aufwand", dataType: "number" });
+
+      await post()
+        .send({ ...gueltig, dynamicAttributes: { aufwand: "viel" } })
+        .expect(400);
+    });
+
+    it("meldet alle beanstandeten Felder auf einmal", async () => {
+      await registriereAttribut(pool, { key: "aufwand", dataType: "number" });
+
+      const antwort = await post()
+        .send({ ...gueltig, dynamicAttributes: { aufwand: "viel", erfunden: 1 } })
+        .expect(400);
+
+      expect(antwort.body.attributes).toHaveLength(2);
+    });
+
+    it("ergaenzt Vorgabewerte und entfernt leere optionale Attribute", async () => {
+      await pool.query(
+        "INSERT INTO attribute_definition (key, label, data_type, default_value) VALUES ('prio', 'Prio', 'text', '\"mittel\"') ON CONFLICT DO NOTHING",
+      );
+
+      const antwort = await post()
+        .send({ ...gueltig, dynamicAttributes: { kostenstelle: "" } })
+        .expect(201);
+
+      expect(antwort.body.dynamicAttributes).toEqual({ prio: "mittel" });
+    });
   });
 });
