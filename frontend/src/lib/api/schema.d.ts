@@ -88,6 +88,67 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/mastership-rules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Hoheitsregeln auflisten
+         * @description Welche Quellenklasse fuer ein Feld den Vorrang hat (§19.3). Lesen ist nicht auf platform-admin beschraenkt - die Oberflaeche zeigt anhand der Regel, welche Felder von Hand pflegbar sind.
+         */
+        get: operations["MastershipController_findAll_v1"];
+        put?: never;
+        /**
+         * Hoheitsregel anlegen
+         * @description Entscheidet, wessen Schreibvorgang gewinnt, und verlangt platform-admin.
+         */
+        post: operations["MastershipController_create_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/mastership-rules/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Hoheitsregel aendern
+         * @description Erzeugt eine neue Version (ADR-0012). `field` ist unveraenderlich.
+         */
+        put: operations["MastershipController_update_v1"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/mastership-rules/{id}/versions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Versionen einer Hoheitsregel */
+        get: operations["MastershipController_findVersions_v1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/requirements": {
         parameters: {
             query?: never;
@@ -242,6 +303,12 @@ export interface components {
              */
             requirementType?: string;
         };
+        CreateMastershipRuleDto: {
+            /** @example owner */
+            field: string;
+            /** @enum {string} */
+            mode: "manual_allowed" | "automatic_wins" | "manual_locked";
+        };
         CreateRequirementDto: {
             dynamicAttributes?: {
                 [key: string]: unknown;
@@ -266,6 +333,64 @@ export interface components {
              * @example neu
              */
             status: string;
+        };
+        MastershipRuleResponse: {
+            /** @description Geltungsbereich nach ADR-0017 A6. Vorerst immer leer - eine Regel gilt fuer alle Anforderungen. */
+            bindings: {
+                [key: string]: string;
+            };
+            /** Format: date-time */
+            createdAt: string;
+            /**
+             * @description Kernfeld oder Schluessel eines dynamischen Attributs.
+             * @example owner
+             */
+            field: string;
+            /** Format: uuid */
+            id: string;
+            /**
+             * @description manual_allowed: jede berechtigte Quelle schreibt, die letzte gewinnt. automatic_wins: manuelle Aenderung wird abgewiesen, solange eine automatische Quelle das Feld bespielt. manual_locked: manuelle Aenderung ist immer verboten.
+             * @example automatic_wins
+             * @enum {string}
+             */
+            mode: "manual_allowed" | "automatic_wins" | "manual_locked";
+            /** Format: date-time */
+            updatedAt: string;
+            /** @example 1 */
+            version: number;
+        };
+        MastershipRuleVersionResponse: {
+            /** @description Geltungsbereich nach ADR-0017 A6. Vorerst immer leer - eine Regel gilt fuer alle Anforderungen. */
+            bindings: {
+                [key: string]: string;
+            };
+            changeSource: string;
+            changedBy: string;
+            /** Format: date-time */
+            createdAt: string;
+            /**
+             * @description Kernfeld oder Schluessel eines dynamischen Attributs.
+             * @example owner
+             */
+            field: string;
+            /** Format: uuid */
+            id: string;
+            /**
+             * @description manual_allowed: jede berechtigte Quelle schreibt, die letzte gewinnt. automatic_wins: manuelle Aenderung wird abgewiesen, solange eine automatische Quelle das Feld bespielt. manual_locked: manuelle Aenderung ist immer verboten.
+             * @example automatic_wins
+             * @enum {string}
+             */
+            mode: "manual_allowed" | "automatic_wins" | "manual_locked";
+            /** @enum {string} */
+            operation: "insert" | "update" | "delete";
+            /** Format: date-time */
+            updatedAt: string;
+            /** Format: date-time */
+            validFrom: string;
+            /** Format: date-time */
+            validTo: string | null;
+            /** @example 1 */
+            version: number;
         };
         PatchRequirementDto: {
             /** @description Wird schluesselweise mit dem Bestand zusammengefuehrt. Ein nicht genannter Schluessel bleibt unveraendert; `null` loescht ihn. */
@@ -364,6 +489,10 @@ export interface components {
             defaultValue?: Record<string, never>;
             label: string;
             required: boolean;
+        };
+        UpdateMastershipRuleDto: {
+            /** @enum {string} */
+            mode: "manual_allowed" | "automatic_wins" | "manual_locked";
         };
     };
     responses: never;
@@ -549,6 +678,164 @@ export interface operations {
                 content?: never;
             };
             /** @description Definition existiert nicht */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    MastershipController_findAll_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MastershipRuleResponse"][];
+                };
+            };
+            /** @description Kein oder ungueltiges Token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    MastershipController_create_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateMastershipRuleDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MastershipRuleResponse"];
+                };
+            };
+            /** @description Feld ist weder Kernfeld noch definiertes Attribut */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Kein oder ungueltiges Token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Rolle platform-admin fehlt */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Fuer dieses Feld besteht bereits eine Regel */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    MastershipController_update_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateMastershipRuleDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MastershipRuleResponse"];
+                };
+            };
+            /** @description Kein oder ungueltiges Token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Rolle platform-admin fehlt */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Regel existiert nicht */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    MastershipController_findVersions_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MastershipRuleVersionResponse"][];
+                };
+            };
+            /** @description Kein oder ungueltiges Token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Regel existiert nicht */
             404: {
                 headers: {
                     [name: string]: unknown;

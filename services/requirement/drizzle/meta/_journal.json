@@ -29,6 +29,13 @@
       "when": 1786096260245,
       "tag": "0003_numerous_amphibian",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1786105494018,
+      "tag": "0004_fixed_the_hand",
+      "breakpoints": true
     }
   ]
 }

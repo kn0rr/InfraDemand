@@ -203,6 +203,22 @@ components:
         - label
         - dataType
       type: object
+    CreateMastershipRuleDto:
+      properties:
+        field:
+          example: owner
+          maxLength: 100
+          type: string
+        mode:
+          enum:
+            - manual_allowed
+            - automatic_wins
+            - manual_locked
+          type: string
+      required:
+        - field
+        - mode
+      type: object
     CreateRequirementDto:
       properties:
         dynamicAttributes:
@@ -242,6 +258,119 @@ components:
         - requirementType
         - status
         - owner
+      type: object
+    MastershipRuleResponse:
+      properties:
+        bindings:
+          additionalProperties:
+            type: string
+          description: >-
+            Geltungsbereich nach ADR-0017 A6. Vorerst immer leer - eine Regel gilt fuer alle
+            Anforderungen.
+          type: object
+        createdAt:
+          format: date-time
+          type: string
+        field:
+          description: Kernfeld oder Schluessel eines dynamischen Attributs.
+          example: owner
+          type: string
+        id:
+          format: uuid
+          type: string
+        mode:
+          description: >-
+            manual_allowed: jede berechtigte Quelle schreibt, die letzte gewinnt. automatic_wins:
+            manuelle Aenderung wird abgewiesen, solange eine automatische Quelle das Feld bespielt.
+            manual_locked: manuelle Aenderung ist immer verboten.
+          enum:
+            - manual_allowed
+            - automatic_wins
+            - manual_locked
+          example: automatic_wins
+          type: string
+        updatedAt:
+          format: date-time
+          type: string
+        version:
+          example: 1
+          type: integer
+      required:
+        - id
+        - field
+        - mode
+        - bindings
+        - createdAt
+        - updatedAt
+        - version
+      type: object
+    MastershipRuleVersionResponse:
+      properties:
+        bindings:
+          additionalProperties:
+            type: string
+          description: >-
+            Geltungsbereich nach ADR-0017 A6. Vorerst immer leer - eine Regel gilt fuer alle
+            Anforderungen.
+          type: object
+        changeSource:
+          type: string
+        changedBy:
+          type: string
+        createdAt:
+          format: date-time
+          type: string
+        field:
+          description: Kernfeld oder Schluessel eines dynamischen Attributs.
+          example: owner
+          type: string
+        id:
+          format: uuid
+          type: string
+        mode:
+          description: >-
+            manual_allowed: jede berechtigte Quelle schreibt, die letzte gewinnt. automatic_wins:
+            manuelle Aenderung wird abgewiesen, solange eine automatische Quelle das Feld bespielt.
+            manual_locked: manuelle Aenderung ist immer verboten.
+          enum:
+            - manual_allowed
+            - automatic_wins
+            - manual_locked
+          example: automatic_wins
+          type: string
+        operation:
+          enum:
+            - insert
+            - update
+            - delete
+          type: string
+        updatedAt:
+          format: date-time
+          type: string
+        validFrom:
+          format: date-time
+          type: string
+        validTo:
+          format: date-time
+          type:
+            - string
+            - 'null'
+        version:
+          example: 1
+          type: integer
+      required:
+        - id
+        - field
+        - mode
+        - bindings
+        - createdAt
+        - updatedAt
+        - version
+        - validFrom
+        - validTo
+        - operation
+        - changedBy
+        - changeSource
       type: object
     PatchRequirementDto:
       properties:
@@ -435,6 +564,17 @@ components:
         - required
         - active
       type: object
+    UpdateMastershipRuleDto:
+      properties:
+        mode:
+          enum:
+            - manual_allowed
+            - automatic_wins
+            - manual_locked
+          type: string
+      required:
+        - mode
+      type: object
   securitySchemes:
     bearer:
       bearerFormat: JWT
@@ -598,6 +738,123 @@ paths:
       summary: Versionen einer Attributdefinition
       tags:
         - Attributdefinitionen
+  /v1/mastership-rules:
+    get:
+      description: >-
+        Welche Quellenklasse fuer ein Feld den Vorrang hat (§19.3). Lesen ist nicht auf
+        platform-admin beschraenkt - die Oberflaeche zeigt anhand der Regel, welche Felder von Hand
+        pflegbar sind.
+      operationId: MastershipController_findAll_v1
+      parameters: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/MastershipRuleResponse'
+                type: array
+          description: ''
+        '401':
+          description: Kein oder ungueltiges Token
+      security:
+        - bearer: []
+      summary: Hoheitsregeln auflisten
+      tags:
+        - Datenhoheit
+    post:
+      description: Entscheidet, wessen Schreibvorgang gewinnt, und verlangt platform-admin.
+      operationId: MastershipController_create_v1
+      parameters: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateMastershipRuleDto'
+        required: true
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MastershipRuleResponse'
+          description: ''
+        '400':
+          description: Feld ist weder Kernfeld noch definiertes Attribut
+        '401':
+          description: Kein oder ungueltiges Token
+        '403':
+          description: Rolle platform-admin fehlt
+        '409':
+          description: Fuer dieses Feld besteht bereits eine Regel
+      security:
+        - bearer: []
+      summary: Hoheitsregel anlegen
+      tags:
+        - Datenhoheit
+  /v1/mastership-rules/{id}:
+    put:
+      description: Erzeugt eine neue Version (ADR-0012). `field` ist unveraenderlich.
+      operationId: MastershipController_update_v1
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: uuid
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateMastershipRuleDto'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MastershipRuleResponse'
+          description: ''
+        '401':
+          description: Kein oder ungueltiges Token
+        '403':
+          description: Rolle platform-admin fehlt
+        '404':
+          description: Regel existiert nicht
+      security:
+        - bearer: []
+      summary: Hoheitsregel aendern
+      tags:
+        - Datenhoheit
+  /v1/mastership-rules/{id}/versions:
+    get:
+      operationId: MastershipController_findVersions_v1
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: uuid
+            type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/MastershipRuleVersionResponse'
+                type: array
+          description: ''
+        '401':
+          description: Kein oder ungueltiges Token
+        '404':
+          description: Regel existiert nicht
+      security:
+        - bearer: []
+      summary: Versionen einer Hoheitsregel
+      tags:
+        - Datenhoheit
   /v1/requirements:
     get:
       description: Ohne asOf der aktuelle Bestand, mit asOf der Zustand zum Stichtag (§19.4).

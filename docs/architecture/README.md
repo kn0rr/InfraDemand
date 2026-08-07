@@ -240,7 +240,7 @@ M3 setzt §6 um – das dynamische Attributmodell – und damit zugleich die Dat
 | **M3.2** | Attributdefinitionen als versionierte Fachdaten | Ein Attribut entsteht ohne Redeploy; ältere Definitionen bleiben auswertbar | abgeschlossen |
 | **M3.3** | Laufzeitvalidierung dynamischer Attribute gegen die gültige Definition | Alle drei Eingangswege aus §19.2 durchlaufen **einen** Prüfpfad | abgeschlossen |
 | **M3.4a** | Aktualisierung über den fremden Bezeichner, versioniert; fehlendes Feld heißt unverändert | Wiederholte Übermittlung erzeugt keine Dublette und keinen Konflikt (§19.1) | abgeschlossen |
-| **M3.4b** | Hoheitsregeln als versionierte Fachdaten (ADR-0017 A1–A7) | Eine Regel entsteht ohne Redeploy | offen |
+| **M3.4b** | Hoheitsregeln als versionierte Fachdaten (ADR-0017 A1–A7) | Eine Regel entsteht ohne Redeploy | abgeschlossen |
 | **M3.4c** | Durchsetzung im Schreibpfad, Aufzeichnung abgewiesener Schreiboperationen (ADR-0017 A2, B10) | Die Regel wirkt, und eine Abweisung ist belegbar | offen |
 | **M3.4d** | Festhaltung je Datensatz und Feld, Aufhebung, Übersicht (ADR-0017 B6–B14) | Der Einzelfall ist regelbar, ohne den Regelfall zu ändern | offen |
 | **M3.5** | Formulare zur Laufzeit aus dem Schema | Eine neue Pflichtangabe erscheint im Formular, ohne dass jemand eine Komponente anfasst | offen |
