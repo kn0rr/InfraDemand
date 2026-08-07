@@ -912,7 +912,11 @@ paths:
         '401':
           description: Kein oder ungueltiges Token
         '409':
-          description: sourceSystem und externalId existieren bereits (Idempotenz nach §19.1)
+          description: >-
+            Zwei Ursachen. Entweder sind sourceSystem und externalId bereits vergeben (Idempotenz
+            nach §19.1), oder fuer mindestens ein Feld ist eine andere Quelle massgeblich (§19.3).
+            Im zweiten Fall traegt die Antwort ein Feld `fields` mit je einem Eintrag aus `field`,
+            `reason` und `message`; im ersten fehlt es. Gespeichert wird in beiden Faellen nichts.
       security:
         - bearer: []
       summary: Anforderung anlegen
@@ -957,6 +961,11 @@ paths:
           description: Kein oder ungueltiges Token
         '404':
           description: Kein Datensatz unter dieser Herkunft
+        '409':
+          description: >-
+            Fuer mindestens ein Feld ist eine andere Quelle massgeblich (§19.3). Die Antwort traegt
+            ein Feld `fields` mit je einem Eintrag aus `field`, `reason` und `message`. Es wird
+            nichts gespeichert - auch nicht die zulaessigen Felder (ADR-0019 Punkt 1).
       security:
         - bearer: []
       summary: Anforderung ueber den fremden Bezeichner aendern

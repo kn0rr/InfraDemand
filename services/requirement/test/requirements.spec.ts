@@ -46,7 +46,7 @@ describe("Anforderungen lesen", () => {
   });
 
   beforeEach(async () => {
-    await pool.query("TRUNCATE TABLE requirement");
+    await pool.query("TRUNCATE TABLE requirement CASCADE");
   });
 
   const get = () =>

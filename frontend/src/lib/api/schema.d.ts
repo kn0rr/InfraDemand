@@ -917,7 +917,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description sourceSystem und externalId existieren bereits (Idempotenz nach §19.1) */
+            /** @description Zwei Ursachen. Entweder sind sourceSystem und externalId bereits vergeben (Idempotenz nach §19.1), oder fuer mindestens ein Feld ist eine andere Quelle massgeblich (§19.3). Im zweiten Fall traegt die Antwort ein Feld `fields` mit je einem Eintrag aus `field`, `reason` und `message`; im ersten fehlt es. Gespeichert wird in beiden Faellen nichts. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -967,6 +967,13 @@ export interface operations {
             };
             /** @description Kein Datensatz unter dieser Herkunft */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Fuer mindestens ein Feld ist eine andere Quelle massgeblich (§19.3). Die Antwort traegt ein Feld `fields` mit je einem Eintrag aus `field`, `reason` und `message`. Es wird nichts gespeichert - auch nicht die zulaessigen Felder (ADR-0019 Punkt 1). */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

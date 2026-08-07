@@ -9,9 +9,17 @@ import { DynamicAttributeValidationError } from "../attribute-definitions/attrib
 import { AttributeDefinitionsService } from "../attribute-definitions/attribute-definitions.service";
 import type { AuthenticatedUser } from "../auth/jwt.strategy";
 import type { RequirementHistoryRow, RequirementRow } from "../database/schema";
+import { MastershipService } from "../mastership/mastership.service";
 import { UnknownSourceSystemError } from "../source-systems/source-systems.errors";
 import { SourceSystemsService } from "../source-systems/source-systems.service";
 import type { CreateRequirementDto } from "./create-requirement.dto";
+import { feldwerte, letzteQuelleFuerFeld } from "./feldherkunft";
+import {
+  type Abweisung,
+  type Feldvorhaben,
+  pruefeHoheit,
+  type Quellenklasse,
+} from "./hoheitspruefung";
 import type { PatchRequirementDto } from "./patch-requirement.dto";
 import type { RequirementResponse } from "./requirement.dto";
 import type { RequirementVersionResponse } from "./requirement-version.dto";
@@ -24,6 +32,7 @@ export class RequirementsService {
     private readonly repository: RequirementsRepository,
     private readonly sourceSystems: SourceSystemsService,
     private readonly attributeDefinitions: AttributeDefinitionsService,
+    private readonly mastership: MastershipService,
   ) {}
   /**
    * Teilweise Aenderung ueber den fremden Bezeichner (ADR-0010, ADR-0018 Punkt 6).
@@ -31,6 +40,43 @@ export class RequirementsService {
    * Legt nicht an: Ein `PATCH` auf einen nicht vorhandenen Datensatz ist `404`. Der
    * Importeur legt mit `POST` an und aendert danach.
    */
+
+  /**
+   * Die Klasse der schreibenden Quelle (ADR-0017 A4).
+   *
+   * Aus dem Token, nicht aus dem Rumpf: Der Aufrufer soll nicht behaupten koennen, als
+   * was er zaehlt. Der OAuth-Client ist der Schluessel in der Registratur.
+   */
+  private async schreibendeKlasse(benutzer: AuthenticatedUser): Promise<Quellenklasse> {
+    return this.sourceSystems.pruefeSchreibquelle(benutzer.clientId);
+  }
+
+  private async abweisungenVerzeichnen(
+    requirementId: string,
+    abweisungen: readonly Abweisung[],
+    benutzer: AuthenticatedUser,
+  ): Promise<void> {
+    await this.repository.recordRejections(
+      abweisungen.map((abweisung) => ({
+        requirementId,
+        field: abweisung.field,
+        rejectedValue: abweisung.rejectedValue,
+        sourceSystem: benutzer.clientId,
+        changedBy: benutzer.userId,
+        reason: abweisung.reason,
+      })),
+    );
+  }
+
+  private static hoheitsfehler(abweisungen: readonly Abweisung[]): ConflictException {
+    return new ConflictException({
+      statusCode: 409,
+      error: "Conflict",
+      message: "Fuer diese Felder ist eine andere Quelle massgeblich",
+      fields: abweisungen.map(({ field, reason, message }) => ({ field, reason, message })),
+    });
+  }
+
   async patchBySource(
     sourceSystem: string,
     externalId: string,
@@ -64,6 +110,52 @@ export class RequirementsService {
         message: "Dynamische Attribute genuegen den geltenden Definitionen nicht",
         attributes: pruefung.fehler,
       });
+    }
+
+    const klasse = await this.schreibendeKlasse(benutzer);
+    const regeln = await this.mastership.regeln();
+    const quellen = await this.sourceSystems.klassenkarte();
+
+    const versionen = await this.repository.findVersions(bestand.id);
+    const staende = versionen.map((version) => ({
+      werte: feldwerte(version),
+      changeSource: version.changeSource,
+    }));
+
+    const bisher = feldwerte(bestand);
+    const kuenftig = feldwerte({
+      projectId: eingabe.projectId ?? bestand.projectId,
+      requirementType,
+      status: eingabe.status ?? bestand.status,
+      owner: eingabe.owner ?? bestand.owner,
+      dynamicAttributes: pruefung.werte,
+    });
+
+    // Nur die Felder, die der Aufrufer benannt hat. Ein Vorgabewert aus der
+    // Attributdefinition ist keine Aeusserung des Aufrufers und faellt nicht unter die
+    // Hoheitsregel.
+    const benannt = new Set<string>([
+      ...(["projectId", "requirementType", "status", "owner"] as const).filter(
+        (feld) => eingabe[feld] !== undefined,
+      ),
+      ...Object.keys(eingabe.dynamicAttributes ?? {}),
+    ]);
+
+    const vorhaben: Feldvorhaben[] = [...benannt].map((field) => {
+      const quelle = letzteQuelleFuerFeld(staende, field);
+
+      return {
+        field,
+        neuerWert: kuenftig[field] ?? null,
+        aktuellerWert: bisher[field] ?? null,
+        aktuelleQuellenklasse: quelle === undefined ? undefined : quellen.get(quelle),
+      };
+    });
+
+    const abweisungen = pruefeHoheit(vorhaben, klasse, regeln);
+    if (abweisungen.length > 0) {
+      await this.abweisungenVerzeichnen(bestand.id, abweisungen, benutzer);
+      throw RequirementsService.hoheitsfehler(abweisungen);
     }
 
     const zeile = await this.repository.update(bestand.id, {
@@ -117,6 +209,35 @@ export class RequirementsService {
 
       if (pruefung.fehler.length > 0) {
         throw new DynamicAttributeValidationError(pruefung.fehler);
+      }
+
+      // Auf die Anlage wirkt nur `manual_locked`: Es gibt keinen vorherigen Wert, den
+      // eine automatische Quelle halten koennte. Ein berechnetes Feld darf aber auch
+      // beim Anlegen nicht von Hand gesetzt werden.
+      const klasse = await this.schreibendeKlasse(benutzer);
+      const regeln = await this.mastership.regeln();
+
+      const vorhaben: Feldvorhaben[] = Object.entries(
+        feldwerte({
+          projectId: eingabe.projectId,
+          requirementType: eingabe.requirementType,
+          status: eingabe.status,
+          owner: eingabe.owner,
+          dynamicAttributes: pruefung.werte,
+        }),
+      ).map(([field, neuerWert]) => ({
+        field,
+        neuerWert,
+        aktuellerWert: null,
+        aktuelleQuellenklasse: undefined,
+      }));
+
+      const abweisungen = pruefeHoheit(vorhaben, klasse, regeln);
+      if (abweisungen.length > 0) {
+        // Kein Eintrag in die Aufzeichnung: Es gibt keinen Datensatz, auf den er sich
+        // beziehen koennte, und keinen Wert, bei dem wir geblieben waeren
+        // (ADR-0019 Punkt 4).
+        throw RequirementsService.hoheitsfehler(abweisungen);
       }
 
       const zeile = await this.repository.create({
