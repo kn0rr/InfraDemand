@@ -54,6 +54,7 @@ Zulässige Status: `Vorgeschlagen`, `Angenommen`, `Abgelehnt`, `Ersetzt durch AD
 | [0015](0015-mehrere-identitaetsquellen.md) | Mehrere Identitätsquellen über Brokering statt mehrerer Aussteller | Angenommen | 2026-08-06 |
 | [0016](0016-ui-grundlage-und-datenzugriff-im-frontend.md) | UI-Grundlage Mantine und Datenzugriff über TanStack Query | Angenommen | 2026-08-06 |
 | [0017](0017-regelvokabular-der-datenhoheit-und-mandantenbegriff.md) | Regelvokabular der Datenhoheit und Begriff des Mandanten | Angenommen | 2026-08-06 |
+| [0018](0018-vollstaendigkeit-und-loeschung-an-der-importgrenze.md) | Vollständigkeit und Löschung an der Importgrenze | Angenommen | 2026-08-07 |
 
 ## Offene, bewusst vertagte Entscheidungen
 

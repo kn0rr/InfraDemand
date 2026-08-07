@@ -109,6 +109,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/requirements/by-source/{sourceSystem}/{externalId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Anforderung ueber den fremden Bezeichner aendern
+         * @description Adressiert ueber Herkunftssystem und dortigen Bezeichner - interne Kennungen werden ueber die Servicegrenze nicht gereicht (ADR-0010). Teilweise Aenderung: ein nicht genanntes Feld bleibt unveraendert. Legt nicht an; dafuer POST.
+         */
+        patch: operations["RequirementsController_patchBySource_v1"];
+        trace?: never;
+    };
     "/v1/requirements/{id}/versions": {
         parameters: {
             query?: never;
@@ -246,6 +266,19 @@ export interface components {
              * @example neu
              */
             status: string;
+        };
+        PatchRequirementDto: {
+            /** @description Wird schluesselweise mit dem Bestand zusammengefuehrt. Ein nicht genannter Schluessel bleibt unveraendert; `null` loescht ihn. */
+            dynamicAttributes?: {
+                [key: string]: unknown;
+            };
+            owner?: string;
+            /** Format: uuid */
+            projectId?: string;
+            /** @example feature */
+            requirementType?: string;
+            /** @example in_arbeit */
+            status?: string;
         };
         RequirementResponse: {
             /** Format: date-time */
@@ -599,6 +632,54 @@ export interface operations {
             };
             /** @description sourceSystem und externalId existieren bereits (Idempotenz nach §19.1) */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    RequirementsController_patchBySource_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sourceSystem: string;
+                externalId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PatchRequirementDto"];
+            };
+        };
+        responses: {
+            /** @description Geaenderte Anforderung */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RequirementResponse"];
+                };
+            };
+            /** @description Rumpf unzulaessig oder dynamische Attribute ungueltig */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Kein oder ungueltiges Token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Kein Datensatz unter dieser Herkunft */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

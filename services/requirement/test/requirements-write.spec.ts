@@ -38,7 +38,6 @@ describe("Anforderungen anlegen", () => {
     pool = new Pool({ connectionString: database.connectionString });
 
     await registriereQuelle(pool, "sap");
-    await registriereAttribut(pool, { key: "kostenstelle", label: "Kostenstelle" });
 
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
@@ -59,7 +58,14 @@ describe("Anforderungen anlegen", () => {
   });
 
   beforeEach(async () => {
-    await pool.query("TRUNCATE TABLE requirement, requirement_history");
+    // Attributdefinitionen gehoeren zum Zustand des Schreibpfads und muessen deshalb
+    // mitgeleert werden. Ohne das aendert ein in einem Test angelegtes Pflichtattribut
+    // das Verhalten jedes folgenden Tests.
+    await pool.query(
+      "TRUNCATE TABLE requirement, requirement_history, attribute_definition, attribute_definition_history",
+    );
+
+    await registriereAttribut(pool, { key: "kostenstelle", label: "Kostenstelle" });
   });
 
   const post = () =>
@@ -212,6 +218,103 @@ describe("Anforderungen anlegen", () => {
         .expect(201);
 
       expect(antwort.body.dynamicAttributes).toEqual({ prio: "mittel" });
+    });
+  });
+
+  describe("Aendern ueber den fremden Bezeichner", () => {
+    const patch = (quelle: string, bezeichner: string) =>
+      request(app.getHttpServer())
+        .patch(`/v1/requirements/by-source/${quelle}/${bezeichner}`)
+        .set("Authorization", `Bearer ${token}`);
+
+    it("weist einen unbekannten Bezeichner mit 404 ab", async () => {
+      await patch("sap", "gibt-es-nicht").send({ status: "x" }).expect(404);
+    });
+
+    it("aendert genanntes und laesst nicht genanntes unberuehrt", async () => {
+      await post()
+        .send({ ...gueltig, sourceSystem: "sap", externalId: "A-1", owner: "M. Weber" })
+        .expect(201);
+
+      const antwort = await patch("sap", "A-1").send({ owner: "L. Braun" }).expect(200);
+
+      expect(antwort.body).toMatchObject({
+        owner: "L. Braun",
+        status: gueltig.status,
+        requirementType: gueltig.requirementType,
+        version: 2,
+      });
+    });
+
+    it("fuehrt dynamische Attribute schluesselweise zusammen", async () => {
+      await registriereAttribut(pool, { key: "prio" });
+
+      await post()
+        .send({
+          ...gueltig,
+          sourceSystem: "sap",
+          externalId: "A-2",
+          dynamicAttributes: { kostenstelle: "K-1", prio: "hoch" },
+        })
+        .expect(201);
+
+      const antwort = await patch("sap", "A-2")
+        .send({ dynamicAttributes: { prio: "niedrig" } })
+        .expect(200);
+
+      // kostenstelle war nicht genannt und bleibt erhalten.
+      expect(antwort.body.dynamicAttributes).toEqual({ kostenstelle: "K-1", prio: "niedrig" });
+    });
+
+    it("loescht ein Attribut, wenn null gesendet wird", async () => {
+      await post()
+        .send({
+          ...gueltig,
+          sourceSystem: "sap",
+          externalId: "A-3",
+          dynamicAttributes: { kostenstelle: "K-1" },
+        })
+        .expect(201);
+
+      const antwort = await patch("sap", "A-3")
+        .send({ dynamicAttributes: { kostenstelle: null } })
+        .expect(200);
+
+      expect(antwort.body.dynamicAttributes).toEqual({});
+    });
+
+    it("prueft den Zustand nach der Zusammenfuehrung, nicht den Rumpf", async () => {
+      await post()
+        .send({ ...gueltig, sourceSystem: "sap", externalId: "A-5" })
+        .expect(201);
+
+      await registriereAttribut(pool, { key: "pflicht", required: true });
+
+      // Der Rumpf allein waere unauffaellig - das Pflichtfeld fehlt im Bestand.
+      await patch("sap", "A-5").send({ owner: "X" }).expect(400);
+    });
+
+    it("schreibt eine zweite Version mit lueckenlosem Zeitraum", async () => {
+      const angelegt = await post()
+        .send({ ...gueltig, sourceSystem: "sap", externalId: "A-6" })
+        .expect(201);
+
+      await patch("sap", "A-6").send({ status: "in_arbeit" }).expect(200);
+
+      const { rows } = await pool.query<{
+        valid_from: Date;
+        valid_to: Date | null;
+        operation: string;
+      }>(
+        "SELECT valid_from, valid_to, operation FROM requirement_history WHERE id = $1 ORDER BY version",
+        [angelegt.body.id],
+      );
+
+      expect(rows).toHaveLength(2);
+      expect(rows[0]?.operation).toBe("insert");
+      expect(rows[0]?.valid_to).toEqual(rows[1]?.valid_from);
+      expect(rows[1]?.operation).toBe("update");
+      expect(rows[1]?.valid_to).toBeNull();
     });
   });
 });

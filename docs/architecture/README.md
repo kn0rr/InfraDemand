@@ -239,7 +239,10 @@ M3 setzt §6 um – das dynamische Attributmodell – und damit zugleich die Dat
 | **M3.1** | Herkunftssysteme als Stammdaten, mit Merkmal *automatisch* oder *manuell* | Die Quellenklasse einer Schreiboperation ist bestimmbar (ADR-0017 A4) | abgeschlossen |
 | **M3.2** | Attributdefinitionen als versionierte Fachdaten | Ein Attribut entsteht ohne Redeploy; ältere Definitionen bleiben auswertbar | abgeschlossen |
 | **M3.3** | Laufzeitvalidierung dynamischer Attribute gegen die gültige Definition | Alle drei Eingangswege aus §19.2 durchlaufen **einen** Prüfpfad | abgeschlossen |
-| **M3.4** | Hoheitsregeln im Schreibpfad, Festhalten, Aufzeichnung abgewiesener Lieferungen | Die Regel aus ADR-0017 A2 wirkt, und eine Festhaltung ist als Entscheidung belegbar | offen |
+| **M3.4a** | Aktualisierung über den fremden Bezeichner, versioniert; fehlendes Feld heißt unverändert | Wiederholte Übermittlung erzeugt keine Dublette und keinen Konflikt (§19.1) | abgeschlossen |
+| **M3.4b** | Hoheitsregeln als versionierte Fachdaten (ADR-0017 A1–A7) | Eine Regel entsteht ohne Redeploy | offen |
+| **M3.4c** | Durchsetzung im Schreibpfad, Aufzeichnung abgewiesener Schreiboperationen (ADR-0017 A2, B10) | Die Regel wirkt, und eine Abweisung ist belegbar | offen |
+| **M3.4d** | Festhaltung je Datensatz und Feld, Aufhebung, Übersicht (ADR-0017 B6–B14) | Der Einzelfall ist regelbar, ohne den Regelfall zu ändern | offen |
 | **M3.5** | Formulare zur Laufzeit aus dem Schema | Eine neue Pflichtangabe erscheint im Formular, ohne dass jemand eine Komponente anfasst | offen |
 | **M3.6** | Administrationsoberfläche: Definitionen, Regeln, Übersicht festgehaltener Felder | Die Konfigurationsfläche ist ohne Kenntnis des Datenmodells bedienbar (ADR-0017 B14) | offen |
 
@@ -248,6 +251,14 @@ M3 setzt §6 um – das dynamische Attributmodell – und damit zugleich die Dat
 automatisch oder manuell ist, und damit greift keine einzige Hoheitsregel. Genau deshalb
 steht er vorn und nicht „nebenbei" – als Nebensache erledigt, wird aus der Unterscheidung
 eine freie Zeichenkette, die niemand pflegt.
+
+**M3.4 wurde bei der Ausarbeitung geteilt.** Dabei zeigte sich, dass die Hoheitsregeln
+nichts hatten, worauf sie wirken konnten: Der Service kannte für Anforderungen nur
+Anlegen. Eine wiederholte Übermittlung endete mit `409` – und damit stellte sich die
+Frage „wer gewinnt" nie. Der Aktualisierungspfad (M3.4a) ist deshalb die Voraussetzung
+für die drei folgenden Schritte und zugleich die Erfüllung der Idempotenzforderung aus
+§19.1. Aus derselben Betrachtung entstand
+[ADR-0018](../adr/0018-vollstaendigkeit-und-loeschung-an-der-importgrenze.md).
 
 M3.5 vor M3.6, weil das Formular aus dem Schema der eigentliche Nachweis für §6 ist. M3.6
 ist umfangreicher, aber es verwaltet nur, was M3.2 bis M3.4 bereits können.

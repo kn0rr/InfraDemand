@@ -1,4 +1,9 @@
-import { BadRequestException, ConflictException, Injectable } from "@nestjs/common";
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
 import { pruefeDynamischeAttribute } from "../attribute-definitions/attribut-pruefung";
 import { DynamicAttributeValidationError } from "../attribute-definitions/attribute-definitions.errors";
 import { AttributeDefinitionsService } from "../attribute-definitions/attribute-definitions.service";
@@ -7,9 +12,10 @@ import type { RequirementHistoryRow, RequirementRow } from "../database/schema";
 import { UnknownSourceSystemError } from "../source-systems/source-systems.errors";
 import { SourceSystemsService } from "../source-systems/source-systems.service";
 import type { CreateRequirementDto } from "./create-requirement.dto";
+import type { PatchRequirementDto } from "./patch-requirement.dto";
 import type { RequirementResponse } from "./requirement.dto";
 import type { RequirementVersionResponse } from "./requirement-version.dto";
-import { DuplicateExternalIdError } from "./requirements.errors";
+import { DuplicateExternalIdError, RequirementNotFoundError } from "./requirements.errors";
 import { RequirementsRepository } from "./requirements.repository";
 
 @Injectable()
@@ -19,6 +25,59 @@ export class RequirementsService {
     private readonly sourceSystems: SourceSystemsService,
     private readonly attributeDefinitions: AttributeDefinitionsService,
   ) {}
+  /**
+   * Teilweise Aenderung ueber den fremden Bezeichner (ADR-0010, ADR-0018 Punkt 6).
+   *
+   * Legt nicht an: Ein `PATCH` auf einen nicht vorhandenen Datensatz ist `404`. Der
+   * Importeur legt mit `POST` an und aendert danach.
+   */
+  async patchBySource(
+    sourceSystem: string,
+    externalId: string,
+    eingabe: PatchRequirementDto,
+    benutzer: AuthenticatedUser,
+  ): Promise<RequirementResponse> {
+    const bestand = await this.repository.findBySource(sourceSystem, externalId);
+    if (bestand === undefined) {
+      throw new NotFoundException(new RequirementNotFoundError(sourceSystem, externalId).message);
+    }
+
+    const requirementType = eingabe.requirementType ?? bestand.requirementType;
+
+    // Schluesselweise zusammenfuehren: nicht genannt heisst unveraendert, `null` loescht.
+    // Ein vollstaendiger Ersatz wuerde jede Nacht entfernen, was eine andere Quelle pflegt.
+    const zusammengefuehrt: Record<string, unknown> = {
+      ...bestand.dynamicAttributes,
+      ...(eingabe.dynamicAttributes ?? {}),
+    };
+
+    // Geprueft wird der Zustand **nach** der Zusammenfuehrung, nicht der Rumpf. Sonst
+    // faellt ein Pflichtfeld nicht auf, das im Bestand fehlt - und ein Typwechsel des
+    // Anforderungstyps bliebe ohne Wirkung auf die bereits vorhandenen Attribute.
+    const definitionen = await this.attributeDefinitions.geltendeDefinitionen(requirementType);
+    const pruefung = pruefeDynamischeAttribute(zusammengefuehrt, definitionen);
+
+    if (pruefung.fehler.length > 0) {
+      throw new BadRequestException({
+        statusCode: 400,
+        error: "Bad Request",
+        message: "Dynamische Attribute genuegen den geltenden Definitionen nicht",
+        attributes: pruefung.fehler,
+      });
+    }
+
+    const zeile = await this.repository.update(bestand.id, {
+      projectId: eingabe.projectId ?? bestand.projectId,
+      requirementType,
+      status: eingabe.status ?? bestand.status,
+      owner: eingabe.owner ?? bestand.owner,
+      dynamicAttributes: pruefung.werte,
+      changedBy: benutzer.userId,
+      changeSource: benutzer.clientId,
+    });
+
+    return RequirementsService.toResponse(zeile);
+  }
 
   /**
    * Ohne Stichtag der aktuelle Bestand aus der Fachtabelle, mit Stichtag der Zustand aus

@@ -11,3 +11,13 @@ export class DuplicateExternalIdError extends Error {
     this.name = "DuplicateExternalIdError";
   }
 }
+/** Kein Datensatz unter dieser Herkunft und diesem fremden Bezeichner. */
+export class RequirementNotFoundError extends Error {
+  constructor(
+    readonly sourceSystem: string,
+    readonly externalId: string,
+  ) {
+    super(`Kein Datensatz ${externalId} aus ${sourceSystem}`);
+    this.name = "RequirementNotFoundError";
+  }
+}
