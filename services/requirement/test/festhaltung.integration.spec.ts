@@ -66,8 +66,9 @@ describe("Festhaltung von Feldern", () => {
     await pool.query("TRUNCATE TABLE requirement, requirement_history CASCADE");
   });
 
-  const mit = (token: string) => (methode: "post" | "patch" | "put" | "delete" | "get", pfad: string) =>
-    request(app.getHttpServer())[methode](pfad).set("Authorization", `Bearer ${token}`);
+  const mit =
+    (token: string) => (methode: "post" | "patch" | "put" | "delete" | "get", pfad: string) =>
+      request(app.getHttpServer())[methode](pfad).set("Authorization", `Bearer ${token}`);
 
   const pfad = (externalId: string) => `/v1/requirements/by-source/sap/${externalId}`;
 
@@ -165,9 +166,7 @@ describe("Festhaltung von Feldern", () => {
         [angelegt.body.id],
       );
 
-      expect(rows).toEqual([
-        { field: "owner", rejected_value: "L. Braun", reason: "field_held" },
-      ]);
+      expect(rows).toEqual([{ field: "owner", rejected_value: "L. Braun", reason: "field_held" }]);
     });
 
     it("verzeichnet nichts, wenn der Import denselben Wert liefert", async () => {
@@ -176,10 +175,9 @@ describe("Festhaltung von Feldern", () => {
 
       await mit(alsVorsystem)("patch", pfad("B-3")).send({ owner: "M. Weber" }).expect(200);
 
-      const { rows } = await pool.query(
-        "SELECT 1 FROM write_rejection WHERE requirement_id = $1",
-        [angelegt.body.id],
-      );
+      const { rows } = await pool.query("SELECT 1 FROM write_rejection WHERE requirement_id = $1", [
+        angelegt.body.id,
+      ]);
 
       expect(rows).toHaveLength(0);
     });
