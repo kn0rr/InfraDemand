@@ -8,12 +8,19 @@ import { pruefeDynamischeAttribute } from "../attribute-definitions/attribut-pru
 import { DynamicAttributeValidationError } from "../attribute-definitions/attribute-definitions.errors";
 import { AttributeDefinitionsService } from "../attribute-definitions/attribute-definitions.service";
 import type { AuthenticatedUser } from "../auth/jwt.strategy";
-import type { RequirementHistoryRow, RequirementRow } from "../database/schema";
+import type { Festhaltung, RequirementHistoryRow, RequirementRow } from "../database/schema";
 import { MastershipService } from "../mastership/mastership.service";
 import { UnknownSourceSystemError } from "../source-systems/source-systems.errors";
 import { SourceSystemsService } from "../source-systems/source-systems.service";
 import type { CreateRequirementDto } from "./create-requirement.dto";
-import { feldwerte, letzteQuelleFuerFeld } from "./feldherkunft";
+import {
+  alsDynamisch,
+  alsKern,
+  feldwerte,
+  istGleich,
+  KERNFELDER,
+  letzteQuelleFuerFeld,
+} from "./feldherkunft";
 import {
   type Abweisung,
   type Feldvorhaben,
@@ -88,20 +95,65 @@ export class RequirementsService {
       throw new NotFoundException(new RequirementNotFoundError(sourceSystem, externalId).message);
     }
 
-    const requirementType = eingabe.requirementType ?? bestand.requirementType;
+    const klasse = await this.schreibendeKlasse(benutzer);
+    const bisher = feldwerte(bestand);
 
-    // Schluesselweise zusammenfuehren: nicht genannt heisst unveraendert, `null` loescht.
-    // Ein vollstaendiger Ersatz wuerde jede Nacht entfernen, was eine andere Quelle pflegt.
-    const zusammengefuehrt: Record<string, unknown> = {
-      ...bestand.dynamicAttributes,
+    // Flacher Zielzustand: der Bestand, ueberschrieben mit dem, was der Aufrufer benannt
+    // hat. Nicht Genanntes bleibt unveraendert, `null` loescht.
+    const gewuenscht: Record<string, unknown> = {
+      ...bisher,
+      ...(eingabe.projectId === undefined ? {} : { projectId: eingabe.projectId }),
+      ...(eingabe.requirementType === undefined
+        ? {}
+        : { requirementType: eingabe.requirementType }),
+      ...(eingabe.status === undefined ? {} : { status: eingabe.status }),
+      ...(eingabe.owner === undefined ? {} : { owner: eingabe.owner }),
       ...(eingabe.dynamicAttributes ?? {}),
     };
 
-    // Geprueft wird der Zustand **nach** der Zusammenfuehrung, nicht der Rumpf. Sonst
-    // faellt ein Pflichtfeld nicht auf, das im Bestand fehlt - und ein Typwechsel des
-    // Anforderungstyps bliebe ohne Wirkung auf die bereits vorhandenen Attribute.
-    const definitionen = await this.attributeDefinitions.geltendeDefinitionen(requirementType);
-    const pruefung = pruefeDynamischeAttribute(zusammengefuehrt, definitionen);
+    // Nur die benannten Felder. Ein Vorgabewert aus der Attributdefinition ist keine
+    // Aeusserung des Aufrufers und faellt nicht unter die Regeln.
+    const benannt = new Set<string>([
+      ...KERNFELDER.filter((feld) => eingabe[feld] !== undefined),
+      ...Object.keys(eingabe.dynamicAttributes ?? {}),
+    ]);
+
+    // --- Festhaltungen (ADR-0017 B6) ---
+    // Sie halten die **Automatik** fern, nicht den Menschen: Die Festhaltung schuetzt
+    // gerade den von Hand gesetzten Wert. Und der Vorgang scheitert nicht - ein
+    // naechtlicher Lauf hat niemanden, dem er es sagen koennte (ADR-0019 Punkt 2).
+    if (klasse === "automatic") {
+      const festgehalten = [...benannt].filter((feld) => bestand.heldFields[feld] !== undefined);
+
+      await this.repository.recordRejections(
+        festgehalten
+          .filter((feld) => !istGleich(gewuenscht[feld], bisher[feld]))
+          .map((feld) => ({
+            requirementId: bestand.id,
+            field: feld,
+            rejectedValue: gewuenscht[feld] ?? null,
+            sourceSystem: benutzer.clientId,
+            changedBy: benutzer.userId,
+            reason: "field_held" as const,
+          })),
+      );
+
+      for (const feld of festgehalten) {
+        if (bisher[feld] === undefined) {
+          delete gewuenscht[feld];
+        } else {
+          gewuenscht[feld] = bisher[feld];
+        }
+        benannt.delete(feld);
+      }
+    }
+
+    const kern = alsKern(gewuenscht);
+
+    // Geprueft wird der Zustand **nach** Zusammenfuehrung und Festhaltung, nicht der
+    // Rumpf. Sonst faellt ein Pflichtfeld nicht auf, das im Bestand fehlt.
+    const definitionen = await this.attributeDefinitions.geltendeDefinitionen(kern.requirementType);
+    const pruefung = pruefeDynamischeAttribute(alsDynamisch(gewuenscht), definitionen);
 
     if (pruefung.fehler.length > 0) {
       throw new BadRequestException({
@@ -112,34 +164,15 @@ export class RequirementsService {
       });
     }
 
-    const klasse = await this.schreibendeKlasse(benutzer);
     const regeln = await this.mastership.regeln();
     const quellen = await this.sourceSystems.klassenkarte();
-
     const versionen = await this.repository.findVersions(bestand.id);
     const staende = versionen.map((version) => ({
       werte: feldwerte(version),
       changeSource: version.changeSource,
     }));
 
-    const bisher = feldwerte(bestand);
-    const kuenftig = feldwerte({
-      projectId: eingabe.projectId ?? bestand.projectId,
-      requirementType,
-      status: eingabe.status ?? bestand.status,
-      owner: eingabe.owner ?? bestand.owner,
-      dynamicAttributes: pruefung.werte,
-    });
-
-    // Nur die Felder, die der Aufrufer benannt hat. Ein Vorgabewert aus der
-    // Attributdefinition ist keine Aeusserung des Aufrufers und faellt nicht unter die
-    // Hoheitsregel.
-    const benannt = new Set<string>([
-      ...(["projectId", "requirementType", "status", "owner"] as const).filter(
-        (feld) => eingabe[feld] !== undefined,
-      ),
-      ...Object.keys(eingabe.dynamicAttributes ?? {}),
-    ]);
+    const kuenftig = feldwerte({ ...kern, dynamicAttributes: pruefung.werte });
 
     const vorhaben: Feldvorhaben[] = [...benannt].map((field) => {
       const quelle = letzteQuelleFuerFeld(staende, field);
@@ -159,11 +192,11 @@ export class RequirementsService {
     }
 
     const zeile = await this.repository.update(bestand.id, {
-      projectId: eingabe.projectId ?? bestand.projectId,
-      requirementType,
-      status: eingabe.status ?? bestand.status,
-      owner: eingabe.owner ?? bestand.owner,
+      ...kern,
       dynamicAttributes: pruefung.werte,
+      // Unveraendert durchgereicht: Eine Aenderung von Werten hebt keine Festhaltung auf.
+      // Dafuer gibt es einen eigenen Vorgang (ADR-0017 B12).
+      heldFields: bestand.heldFields,
       changedBy: benutzer.userId,
       changeSource: benutzer.clientId,
     });
@@ -276,6 +309,98 @@ export class RequirementsService {
     }
   }
 
+  /**
+   * Haelt ein Feld gegen automatische Uebernahme fest (ADR-0017 B6 bis B9).
+   *
+   * Ausdruecklich und mit Begruendung: Sie entsteht nie als Nebenwirkung einer Aenderung
+   * (B7). Der Vorgang erzeugt eine neue Version wie jede andere Aenderung - die
+   * Festhaltung ist Bestandteil des versionierten Zustands.
+   */
+  async setzeFesthaltung(
+    sourceSystem: string,
+    externalId: string,
+    field: string,
+    reason: string,
+    benutzer: AuthenticatedUser,
+  ): Promise<RequirementResponse> {
+    const bestand = await this.repository.findBySource(sourceSystem, externalId);
+    if (bestand === undefined) {
+      throw new NotFoundException(new RequirementNotFoundError(sourceSystem, externalId).message);
+    }
+
+    // Ein festgehaltenes Feld, das es nicht gibt, wirkt nie - sieht aber aus, als taete
+    // es das. Derselbe Gedanke wie bei den Hoheitsregeln.
+    const definitionen = await this.attributeDefinitions.geltendeDefinitionen(
+      bestand.requirementType,
+    );
+    const bekannt =
+      (KERNFELDER as readonly string[]).includes(field) ||
+      definitionen.some((definition) => definition.key === field);
+
+    if (!bekannt) {
+      throw new BadRequestException(
+        `"${field}" ist weder ein Kernfeld noch ein fuer "${bestand.requirementType}" definiertes Attribut`,
+      );
+    }
+
+    return this.schreibeFesthaltungen(
+      bestand,
+      {
+        ...bestand.heldFields,
+        [field]: { by: benutzer.userId, at: new Date().toISOString(), reason },
+      },
+      benutzer,
+    );
+  }
+
+  /** Aufheben ist ein eigener, ebenso ausdruecklicher Vorgang (ADR-0017 B12). */
+  async hebeFesthaltungAuf(
+    sourceSystem: string,
+    externalId: string,
+    field: string,
+    benutzer: AuthenticatedUser,
+  ): Promise<RequirementResponse> {
+    const bestand = await this.repository.findBySource(sourceSystem, externalId);
+    if (bestand === undefined) {
+      throw new NotFoundException(new RequirementNotFoundError(sourceSystem, externalId).message);
+    }
+
+    if (bestand.heldFields[field] === undefined) {
+      throw new NotFoundException(`"${field}" ist an diesem Datensatz nicht festgehalten`);
+    }
+
+    const verbleibend = { ...bestand.heldFields };
+    delete verbleibend[field];
+
+    return this.schreibeFesthaltungen(bestand, verbleibend, benutzer);
+  }
+
+  /**
+   * Schreibt geaenderte Festhaltungen und laesst die Fachwerte unberuehrt.
+   *
+   * Bewusst ueber denselben versionierten Schreibpfad wie eine Wertaenderung: Die
+   * Festhaltung ist Bestandteil des Zustands (B9), und eine Stichtagsabfrage soll zeigen,
+   * was damals festgehalten war.
+   */
+  private async schreibeFesthaltungen(
+    bestand: RequirementRow,
+    heldFields: Record<string, Festhaltung>,
+    benutzer: AuthenticatedUser,
+  ): Promise<RequirementResponse> {
+    const zeile = await this.repository.update(bestand.id, {
+      projectId: bestand.projectId,
+      requirementType: bestand.requirementType,
+      status: bestand.status,
+      owner: bestand.owner,
+      dynamicAttributes: bestand.dynamicAttributes,
+      heldFields,
+      changedBy: benutzer.userId,
+      changeSource: benutzer.clientId,
+    });
+
+    return RequirementsService.toResponse(zeile);
+  }
+
   private static toResponse(row: RequirementRow): RequirementResponse {
     return {
       id: row.id,
@@ -285,6 +410,7 @@ export class RequirementsService {
       owner: row.owner,
       sourceSystem: row.sourceSystem,
       externalId: row.externalId,
+      heldFields: row.heldFields,
       dynamicAttributes: row.dynamicAttributes,
       createdAt: row.createdAt.toISOString(),
       updatedAt: row.updatedAt.toISOString(),

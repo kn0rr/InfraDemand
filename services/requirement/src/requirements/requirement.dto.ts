@@ -56,4 +56,13 @@ export class RequirementResponse {
 
   @ApiProperty({ type: "integer", example: 1 })
   version!: number;
+
+  @ApiProperty({
+    type: "object",
+    additionalProperties: true,
+    description:
+      "Felder, die gegen automatische Uebernahme festgehalten sind (§19.3). Schluessel " +
+      "ist der Feldname, Wert traegt `by`, `at` und `reason`.",
+  })
+  heldFields!: Record<string, { by: string; at: string; reason: string }>;
 }

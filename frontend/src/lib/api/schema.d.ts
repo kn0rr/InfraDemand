@@ -190,6 +190,30 @@ export interface paths {
         patch: operations["RequirementsController_patchBySource_v1"];
         trace?: never;
     };
+    "/v1/requirements/by-source/{sourceSystem}/{externalId}/holds/{field}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Feld gegen automatische Uebernahme festhalten
+         * @description Ab dann aendert kein automatischer Ladevorgang dieses Feld an diesem Datensatz (§19.3). Die uebrigen Felder bleiben unberuehrt, und ein Import scheitert nicht - er uebernimmt sie und die Abweisung wird verzeichnet.
+         */
+        put: operations["RequirementsController_setzeFesthaltung_v1"];
+        post?: never;
+        /**
+         * Festhaltung aufheben
+         * @description Eigener, ausdruecklicher Vorgang - keine Nebenwirkung einer Aenderung.
+         */
+        delete: operations["RequirementsController_hebeFesthaltungAuf_v1"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/requirements/{id}/versions": {
         parameters: {
             query?: never;
@@ -414,6 +438,10 @@ export interface components {
             };
             /** @description Bezeichner im Herkunftssystem. Leer bei eigener Erfassung. */
             externalId: string | null;
+            /** @description Felder, die gegen automatische Uebernahme festgehalten sind (§19.3). Schluessel ist der Feldname, Wert traegt `by`, `at` und `reason`. */
+            heldFields: {
+                [key: string]: unknown;
+            };
             /** Format: uuid */
             id: string;
             owner: string;
@@ -449,6 +477,10 @@ export interface components {
             };
             /** @description Bezeichner im Herkunftssystem. Leer bei eigener Erfassung. */
             externalId: string | null;
+            /** @description Felder, die gegen automatische Uebernahme festgehalten sind (§19.3). Schluessel ist der Feldname, Wert traegt `by`, `at` und `reason`. */
+            heldFields: {
+                [key: string]: unknown;
+            };
             /** Format: uuid */
             id: string;
             /** @enum {string} */
@@ -479,6 +511,10 @@ export interface components {
             validTo: string | null;
             /** @example 1 */
             version: number;
+        };
+        SetzeFesthaltungDto: {
+            /** @example Von SAP falsch gepflegt, Korrektur dort beantragt unter TICKET-4711 */
+            reason: string;
         };
         UpdateAttributeDefinitionDto: {
             /** @description false setzt die Definition ausser Kraft, ohne sie zu loeschen. */
@@ -974,6 +1010,105 @@ export interface operations {
             };
             /** @description Fuer mindestens ein Feld ist eine andere Quelle massgeblich (§19.3). Die Antwort traegt ein Feld `fields` mit je einem Eintrag aus `field`, `reason` und `message`. Es wird nichts gespeichert - auch nicht die zulaessigen Felder (ADR-0019 Punkt 1). */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    RequirementsController_setzeFesthaltung_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sourceSystem: string;
+                externalId: string;
+                field: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetzeFesthaltungDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RequirementResponse"];
+                };
+            };
+            /** @description Feld ist weder Kernfeld noch definiertes Attribut */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Kein oder ungueltiges Token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Rolle platform-admin fehlt */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Kein Datensatz unter dieser Herkunft */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    RequirementsController_hebeFesthaltungAuf_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sourceSystem: string;
+                externalId: string;
+                field: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RequirementResponse"];
+                };
+            };
+            /** @description Kein oder ungueltiges Token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Rolle platform-admin fehlt */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Datensatz oder Festhaltung existiert nicht */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

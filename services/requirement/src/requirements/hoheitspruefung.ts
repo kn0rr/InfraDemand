@@ -1,4 +1,5 @@
 import type { MastershipRuleRow } from "../database/schema";
+import { istGleich } from "./feldherkunft";
 
 export type Quellenklasse = "automatic" | "manual";
 export type Hoheitsmodus = MastershipRuleRow["mode"];
@@ -17,11 +18,6 @@ export interface Abweisung {
   reason: Exclude<MastershipRuleRow["mode"], "manual_allowed">;
   rejectedValue: unknown;
   message: string;
-}
-
-/** Siehe `feldherkunft.ts` - dieselbe Begruendung fuer denselben Vergleich. */
-function gleich(a: unknown, b: unknown): boolean {
-  return JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
 }
 
 /**
@@ -49,7 +45,7 @@ export function pruefeHoheit(
   const abweisungen: Abweisung[] = [];
 
   for (const feld of vorhaben) {
-    if (gleich(feld.neuerWert, feld.aktuellerWert)) {
+    if (istGleich(feld.neuerWert, feld.aktuellerWert)) {
       continue;
     }
 

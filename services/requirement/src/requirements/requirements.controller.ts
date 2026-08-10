@@ -1,4 +1,15 @@
-import { Body, Controller, Get, Param, ParseUUIDPipe, Patch, Post, Query } from "@nestjs/common";
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  ParseUUIDPipe,
+  Patch,
+  Post,
+  Put,
+  Query,
+} from "@nestjs/common";
 import {
   ApiBearerAuth,
   ApiOperation,
@@ -9,7 +20,9 @@ import {
 } from "@nestjs/swagger";
 import { CurrentUser } from "../auth/current-user.decorator";
 import type { AuthenticatedUser } from "../auth/jwt.strategy";
+import { Rollen } from "../auth/rollen.decorator";
 import { CreateRequirementDto } from "./create-requirement.dto";
+import { SetzeFesthaltungDto } from "./festhaltung.dto";
 import { ListRequirementsQuery } from "./list-requirements.query";
 import { PatchRequirementDto } from "./patch-requirement.dto";
 import { RequirementResponse } from "./requirement.dto";
@@ -114,5 +127,51 @@ export class RequirementsController {
     @CurrentUser() benutzer: AuthenticatedUser,
   ): Promise<RequirementResponse> {
     return this.service.patchBySource(sourceSystem, externalId, eingabe, benutzer);
+  }
+  @Put("by-source/:sourceSystem/:externalId/holds/:field")
+  @Rollen("platform-admin")
+  @ApiOperation({
+    summary: "Feld gegen automatische Uebernahme festhalten",
+    description:
+      "Ab dann aendert kein automatischer Ladevorgang dieses Feld an diesem Datensatz " +
+      "(§19.3). Die uebrigen Felder bleiben unberuehrt, und ein Import scheitert nicht - " +
+      "er uebernimmt sie und die Abweisung wird verzeichnet.",
+  })
+  @ApiParam({ name: "sourceSystem", example: "sap" })
+  @ApiParam({ name: "externalId", example: "A-4711" })
+  @ApiParam({ name: "field", example: "owner" })
+  @ApiResponse({ status: 200, type: RequirementResponse })
+  @ApiResponse({ status: 400, description: "Feld ist weder Kernfeld noch definiertes Attribut" })
+  @ApiResponse({ status: 403, description: "Rolle platform-admin fehlt" })
+  @ApiResponse({ status: 404, description: "Kein Datensatz unter dieser Herkunft" })
+  setzeFesthaltung(
+    @Param("sourceSystem") sourceSystem: string,
+    @Param("externalId") externalId: string,
+    @Param("field") field: string,
+    @Body() eingabe: SetzeFesthaltungDto,
+    @CurrentUser() benutzer: AuthenticatedUser,
+  ): Promise<RequirementResponse> {
+    return this.service.setzeFesthaltung(sourceSystem, externalId, field, eingabe.reason, benutzer);
+  }
+
+  @Delete("by-source/:sourceSystem/:externalId/holds/:field")
+  @Rollen("platform-admin")
+  @ApiOperation({
+    summary: "Festhaltung aufheben",
+    description: "Eigener, ausdruecklicher Vorgang - keine Nebenwirkung einer Aenderung.",
+  })
+  @ApiParam({ name: "sourceSystem", example: "sap" })
+  @ApiParam({ name: "externalId", example: "A-4711" })
+  @ApiParam({ name: "field", example: "owner" })
+  @ApiResponse({ status: 200, type: RequirementResponse })
+  @ApiResponse({ status: 403, description: "Rolle platform-admin fehlt" })
+  @ApiResponse({ status: 404, description: "Datensatz oder Festhaltung existiert nicht" })
+  hebeFesthaltungAuf(
+    @Param("sourceSystem") sourceSystem: string,
+    @Param("externalId") externalId: string,
+    @Param("field") field: string,
+    @CurrentUser() benutzer: AuthenticatedUser,
+  ): Promise<RequirementResponse> {
+    return this.service.hebeFesthaltungAuf(sourceSystem, externalId, field, benutzer);
   }
 }

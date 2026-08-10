@@ -3,6 +3,7 @@ import { and, asc, eq, gt, isNull, lte, ne, or, sql } from "drizzle-orm";
 import { DATABASE, type Database } from "../database/database.tokens";
 import { istEindeutigkeitsverletzung } from "../database/fehler";
 import {
+  Festhaltung,
   type NewWriteRejectionRow,
   REQUIREMENT_SOURCE_EXTERNAL_CONSTRAINT,
   type RequirementHistoryRow,
@@ -35,6 +36,8 @@ export interface RequirementUpdateInput {
   dynamicAttributes: Record<string, unknown>;
   changedBy: string;
   changeSource: string;
+  /** Festhaltungen (ADR-0017 B6). Wird durchgereicht, nicht abgeleitet. */
+  heldFields: Record<string, Festhaltung>;
 }
 
 @Injectable()
@@ -109,6 +112,7 @@ export class RequirementsRepository {
           sourceSystem: zeile.sourceSystem,
           externalId: zeile.externalId,
           dynamicAttributes: zeile.dynamicAttributes,
+          heldFields: zeile.heldFields,
           createdAt: zeile.createdAt,
           updatedAt: zeile.updatedAt,
           version: zeile.version,
@@ -181,6 +185,7 @@ export class RequirementsRepository {
           dynamicAttributes: eingabe.dynamicAttributes,
           updatedAt: new Date(),
           version: sql`${requirements.version} + 1`,
+          heldFields: eingabe.heldFields,
         })
         .where(eq(requirements.id, id))
         .returning();
@@ -201,6 +206,7 @@ export class RequirementsRepository {
         status: zeile.status,
         owner: zeile.owner,
         sourceSystem: zeile.sourceSystem,
+        heldFields: zeile.heldFields,
         externalId: zeile.externalId,
         dynamicAttributes: zeile.dynamicAttributes,
         createdAt: zeile.createdAt,

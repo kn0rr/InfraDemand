@@ -99,6 +99,7 @@ describe("Anforderungen lesen", () => {
       "createdAt",
       "dynamicAttributes",
       "externalId",
+      "heldFields",
       "id",
       "owner",
       "projectId",
