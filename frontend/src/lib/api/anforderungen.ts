@@ -8,6 +8,17 @@ export type Anforderung = components["schemas"]["RequirementResponse"];
 export type NeueAnforderung = components["schemas"]["CreateRequirementDto"];
 
 /**
+ * Der Service beanstandet einzelne Attribute (§6). Die Meldungen sind feldbezogen, damit
+ * das Formular alle auf einmal anzeigen kann statt eines nach dem anderen.
+ */
+export class AttributFehler extends Error {
+  constructor(readonly attribute: { key: string; message: string }[]) {
+    super("Dynamische Attribute genuegen den geltenden Definitionen nicht");
+    this.name = "AttributFehler";
+  }
+}
+
+/**
  * Ein Schluessel, an genau einer Stelle. Weicht der Schluessel der Neuvalidierung vom
  * Schluessel der Abfrage ab, bleibt die Liste nach dem Anlegen stehen - ohne Fehler,
  * nur mit veralteten Daten.
@@ -39,14 +50,22 @@ export function useAnforderungAnlegen() {
 
   return useMutation({
     mutationFn: async (eingabe: NeueAnforderung): Promise<Anforderung> => {
-      const { data, response } = await api.POST("/v1/requirements", { body: eingabe });
+      const { data, error, response } = await api.POST("/v1/requirements", { body: eingabe });
+
       if (data === undefined) {
+        const rumpf = error as { attributes?: { key: string; message: string }[] } | undefined;
+
+        if (rumpf?.attributes !== undefined) {
+          throw new AttributFehler(rumpf.attributes);
+        }
+
         throw new Error(
           response.status === 409
             ? "Eine Anforderung mit dieser Herkunft besteht bereits (§19.1)"
             : `Anlegen fehlgeschlagen (${response.status})`,
         );
       }
+
       return data;
     },
     onSuccess: async () => {

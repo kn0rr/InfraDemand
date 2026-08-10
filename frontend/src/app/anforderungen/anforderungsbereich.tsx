@@ -2,6 +2,7 @@
 
 import {
   Alert,
+  Autocomplete,
   Button,
   Container,
   Group,
@@ -14,7 +15,14 @@ import {
   Title,
 } from "@mantine/core";
 import { useForm } from "@mantine/form";
-import { useAnforderungAnlegen, useAnforderungen } from "@/lib/api/anforderungen";
+import { useEffect } from "react";
+import { AttributFehler, useAnforderungAnlegen, useAnforderungen } from "@/lib/api/anforderungen";
+import {
+  useAttributdefinitionen,
+  useBekannteAnforderungstypen,
+  useHoheitsregeln,
+} from "@/lib/api/attributdefinitionen";
+import { Attributfeld, type Formularwerte } from "./attributfeld";
 
 const UUID_MUSTER = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -25,19 +33,22 @@ function pflichtfeld(wert: string): string | null {
 export function Anforderungsbereich({ benutzer }: { benutzer: string }) {
   const anforderungen = useAnforderungen();
   const anlegen = useAnforderungAnlegen();
+  const typen = useBekannteAnforderungstypen();
+  const regeln = useHoheitsregeln();
 
-  const formular = useForm({
+  const formular = useForm<Formularwerte>({
     mode: "uncontrolled",
     initialValues: {
       projectId: "",
       requirementType: "feature",
       status: "neu",
       owner: benutzer,
+      dynamicAttributes: {},
     },
-    // Diese Pruefung ist Bequemlichkeit, nicht Absicherung. Massgeblich ist die
-    // Pruefung im Service - sie gilt fuer alle drei Eingangswege aus §19.2
-    // gleichermassen. Ab M3 entstehen diese Regeln aus den Attributdefinitionen (§6)
-    // und werden nicht mehr von Hand geschrieben.
+    // Diese Pruefung ist Bequemlichkeit, nicht Absicherung. Massgeblich ist der Service -
+    // fuer alle drei Eingangswege aus §19.2 gleichermassen. Die dynamischen Attribute
+    // werden hier bewusst **nicht** geprueft: Ihre Regeln stehen in den Definitionen, und
+    // sie zweimal auszuformulieren hiesse, zwei Fassungen davon zu pflegen.
     validate: {
       projectId: (wert) => (UUID_MUSTER.test(wert) ? null : "Keine gueltige UUID"),
       requirementType: pflichtfeld,
@@ -45,6 +56,39 @@ export function Anforderungsbereich({ benutzer }: { benutzer: string }) {
       owner: pflichtfeld,
     },
   });
+
+  const anforderungstyp = formular.getValues().requirementType;
+  const definitionen = useAttributdefinitionen(anforderungstyp);
+
+  // Felder unter `manual_locked` werden gar nicht erst angeboten - der Service wiese sie
+  // ab, und ein Eingabefeld, dessen Inhalt nie ankommt, ist eine Zumutung.
+  const gesperrt = new Set(
+    (regeln.data ?? [])
+      .filter((regel) => regel.mode === "manual_locked")
+      .map((regel) => regel.field),
+  );
+
+  const bedienbar = (definitionen.data ?? []).filter(
+    (definition) => definition.active && !gesperrt.has(definition.key),
+  );
+
+  // Wechselt der Anforderungstyp, wechselt die Feldmenge. Die bisherigen Werte gehoeren
+  // zu Feldern, die es nun nicht mehr gibt - sie werden durch die Vorgabewerte der neuen
+  // Definitionen ersetzt.
+  useEffect(() => {
+    if (definitionen.data === undefined) {
+      return;
+    }
+
+    const vorgaben: Record<string, unknown> = {};
+    for (const definition of definitionen.data) {
+      if (definition.defaultValue !== null && definition.defaultValue !== undefined) {
+        vorgaben[definition.key] = definition.defaultValue;
+      }
+    }
+
+    formular.setFieldValue("dynamicAttributes", vorgaben);
+  }, [definitionen.data, formular]);
 
   return (
     <Container size="lg" py="xl">
@@ -61,7 +105,19 @@ export function Anforderungsbereich({ benutzer }: { benutzer: string }) {
         <Paper withBorder p="md" radius="md">
           <form
             onSubmit={formular.onSubmit((werte) => {
-              anlegen.mutate(werte, { onSuccess: () => formular.reset() });
+              anlegen.mutate(werte, {
+                onSuccess: () => formular.reset(),
+                onError: (fehler) => {
+                  // Der Service beanstandet feldbezogen (§6). Ohne diese Zuordnung
+                  // stuende die Meldung als Text ueber dem Formular, und der Anwender
+                  // muesste raten, welches Feld gemeint ist.
+                  if (fehler instanceof AttributFehler) {
+                    for (const eintrag of fehler.attribute) {
+                      formular.setFieldError(`dynamicAttributes.${eintrag.key}`, eintrag.message);
+                    }
+                  }
+                },
+              });
             })}
           >
             <Stack gap="sm">
@@ -76,8 +132,10 @@ export function Anforderungsbereich({ benutzer }: { benutzer: string }) {
                   key={formular.key("projectId")}
                   {...formular.getInputProps("projectId")}
                 />
-                <TextInput
+                <Autocomplete
                   label="Art"
+                  description="Bestimmt, welche Attribute gelten"
+                  data={typen.data ?? []}
                   key={formular.key("requirementType")}
                   {...formular.getInputProps("requirementType")}
                 />
@@ -95,6 +153,19 @@ export function Anforderungsbereich({ benutzer }: { benutzer: string }) {
                   {...formular.getInputProps("owner")}
                 />
               </Group>
+
+              {definitionen.isFetching ? <Loader size="sm" /> : null}
+
+              {bedienbar.length > 0 ? (
+                <Stack gap="sm">
+                  <Text size="sm" c="dimmed">
+                    Attribute fuer „{anforderungstyp}"
+                  </Text>
+                  {bedienbar.map((definition) => (
+                    <Attributfeld key={definition.id} definition={definition} formular={formular} />
+                  ))}
+                </Stack>
+              ) : null}
 
               {anlegen.isError ? (
                 <Alert color="red" title="Anlegen fehlgeschlagen">
@@ -130,9 +201,8 @@ export function Anforderungsbereich({ benutzer }: { benutzer: string }) {
                     <Table.Th>Art</Table.Th>
                     <Table.Th>Status</Table.Th>
                     <Table.Th>Verantwortlich</Table.Th>
-                    <Table.Th>Herkunft</Table.Th>
+                    <Table.Th>Attribute</Table.Th>
                     <Table.Th>Fassung</Table.Th>
-                    <Table.Th>Geaendert</Table.Th>
                   </Table.Tr>
                 </Table.Thead>
                 <Table.Tbody>
@@ -141,9 +211,12 @@ export function Anforderungsbereich({ benutzer }: { benutzer: string }) {
                       <Table.Td>{eintrag.requirementType}</Table.Td>
                       <Table.Td>{eintrag.status}</Table.Td>
                       <Table.Td>{eintrag.owner}</Table.Td>
-                      <Table.Td>{eintrag.sourceSystem}</Table.Td>
+                      <Table.Td>
+                        {Object.entries(eintrag.dynamicAttributes)
+                          .map(([schluessel, wert]) => `${schluessel}: ${String(wert)}`)
+                          .join(", ") || "–"}
+                      </Table.Td>
                       <Table.Td>{eintrag.version}</Table.Td>
-                      <Table.Td>{new Date(eintrag.updatedAt).toLocaleString("de-DE")}</Table.Td>
                     </Table.Tr>
                   ))}
                 </Table.Tbody>

@@ -198,11 +198,20 @@ Umgebung.
 #### PROD-011 — Testbenutzer mit Passwort im Realm hinterlegt
 **Schwere:** Kritisch · **Status:** Offen · **Fundstelle:** `infra/keycloak/realms/infrademand.json`, `users`
 
-Der Benutzer `test.author` mit dem Passwort `test` ist Bestandteil der Realm-Definition
-und würde bei unveränderter Anwendung in jede Umgebung mitwandern.
+Die Benutzer `test.author` und `test.admin`, beide mit dem Passwort `test`, sind
+Bestandteil der Realm-Definition und würden bei unveränderter Anwendung in jede Umgebung
+mitwandern.
+
+**`test.admin` trägt `platform-admin`** – also das Recht, Attributdefinitionen und
+Hoheitsregeln zu ändern. Ein solcher Zugang mit trivialem Passwort in einer produktiven
+Umgebung wäre die Übernahme des Datenmodells, nicht nur ein Lesezugriff. Der Eintrag wiegt
+damit schwerer als bei seiner Aufnahme, als es nur einen Autor gab.
 
 **Zielzustand:** Testbenutzer in eine getrennte, ausschließlich lokal angewandte
 Ergänzungsdatei auslagern. Die Basis-Realm-Definition enthält keine Benutzer.
+
+> Zwei Benutzer statt einem ist Absicht: Mit nur einem Zugang, der alles darf, ließe sich
+> nicht mehr prüfen, ob ein Autor die Verwaltung tatsächlich nicht bedienen kann.
 
 #### PROD-012 — Client-Geheimnisse noch nicht externalisiert
 **Schwere:** Hoch · **Status:** ~~Offen~~ **Erledigt (2026-08-06)** · **Betrifft:** §4, §13
@@ -300,6 +309,20 @@ M5 vertagt. Ein Produktivgang vor M5 ist damit ausgeschlossen.
 > ausschließlich, ob das Token eine Realm-Rolle trägt. Objektbezug, Feldebene,
 > Mandantenzuschnitt und Attributsichtbarkeit fehlen unverändert. Wer die vorhandene
 > Prüfung für ausreichend hält, hält diesen Eintrag für erledigt – er ist es nicht.
+
+> **Ergänzt am 2026-08-08.** `requirement-author` wird **nirgends geprüft**. Die Rolle
+> steht im Realm, wandert ins Token und ist Gegenstand einer CI-Prüfung – aber der
+> `RollenGuard` greift nur dort, wo `@Rollen` steht, und am Anlegen und Ändern von
+> Anforderungen steht es nicht. **Jeder Angemeldete kann Anforderungen erfassen und
+> ändern.**
+>
+> Das ist heute vertretbar, weil es nur einen Realm mit zwei Testbenutzern gibt. Gefährlich
+> ist die Erscheinungsform: Die Rolle existiert sichtbar an drei Stellen und sieht deshalb
+> nach einer Zusicherung aus, die es nicht gibt. Wer sie vergibt oder entzieht, ändert
+> nichts.
+>
+> **Zielzustand:** Entweder wird die Rolle durchgesetzt, oder sie wird entfernt. Ein
+> Zwischenzustand aus beidem ist die schlechteste Variante.
 
 #### PROD-051 — Die Herkunftsregistratur ist ein Berechtigungsobjekt ohne Berechtigungsschutz
 **Schwere:** Hoch · **Status:** Offen · **Betrifft:** §8, §19.3 · **Verweis:** [ADR-0017](../adr/0017-regelvokabular-der-datenhoheit-und-mandantenbegriff.md) A4

@@ -88,6 +88,22 @@
       "email": "test.author@example.local",
       "credentials": [{ "type": "password", "value": "test", "temporary": false }],
       "realmRoles": ["requirement-author"]
+    },
+    {
+      "username": "test.admin",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Test",
+      "lastName": "Admin",
+      "email": "test.admin@example.local",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "test",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["platform-admin"]
     }
   ]
 }
