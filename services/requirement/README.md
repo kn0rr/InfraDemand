@@ -329,6 +329,42 @@ bräuchte die zweite Regel für dasselbe Feld genau die Schemaänderung, die A6 
 PostgreSQL normalisiert dabei die Schlüsselreihenfolge in `jsonb`: `{"a":1,"b":2}` und
 `{"b":2,"a":1}` sind derselbe Geltungsbereich – genau das ist gewollt.
 
+#### Festhaltung von Feldern (`requirement.held_fields`)
+
+Ein Feld kann an einem einzelnen Datensatz gegen automatische Übernahme festgehalten
+werden (ADR-0017 B6). **Als JSONB-Spalte und nicht als eigene Entität**, weil B9 verlangt,
+dass die Festhaltung Bestandteil des versionierten Zustands ist: Als Spalte wandert sie
+ohne Zusatzaufwand in die Historie, und eine Stichtagsabfrage zeigt, was damals
+festgehalten war.
+
+**Die Richtung ist die umgekehrte von `manual_locked`.** Die Hoheitsregel sperrt
+**Menschen** aus und gilt für alle Datensätze; die Festhaltung sperrt die **Automatik**
+aus und gilt für einen. Wer beides verwechselt, baut das Gegenteil.
+
+**Ein Import scheitert nicht daran.** Er übernimmt die übrigen Felder, das festgehaltene
+bleibt, und die abgewiesene Lieferung wird in `write_rejection` verzeichnet
+([ADR-0019](../../docs/adr/0019-verhalten-bei-abgewiesener-schreiboperation.md) Punkt 2).
+Ein nächtlicher Lauf hat niemanden, dem er eine Ablehnung sagen könnte – ihn scheitern zu
+lassen hieße, wegen eines Feldes alle übrigen Änderungen zu verlieren.
+
+**Verzeichnet wird nur, was sich tatsächlich geändert hätte.** Liefert der Import
+denselben Wert, entsteht kein Eintrag – sonst wüchse der Speicher bei jedem Lauf um eine
+Zeile ohne Aussage.
+
+#### Warum die Historienkopie ausgeschrieben ist und nicht gestreut
+
+`requirements.repository.ts` listet beim Schreiben der Historie **jede Spalte einzeln
+auf**; `attribute_definitions` und `mastership` verwenden `...zeile`.
+
+Das ist kein Versehen. Als `held_fields` hinzukam, hat der Typecheck genau die beiden
+ausgeschriebenen Stellen gemeldet und damit die Frage erzwungen, ob die neue Spalte in die
+Historie gehört. Bei den gestreuten Stellen wäre sie stillschweigend mitgewandert.
+
+Für eine **Historientabelle** ist Streuen vertretbar – sie soll den vollständigen
+Zeilenzustand kopieren, „alles Neue gehört dazu" ist dort die richtige Voreinstellung. Für
+eine **Fachtabelle** wäre es das nicht: Dort entscheidet jede Spalte einzeln, und ein
+`...eingabe` würde früher oder später etwas schreiben, das niemand schreiben wollte.
+
 #### Warum der versionierte Schreibpfad nicht extrahiert ist
 
 Drei Entitäten schreiben inzwischen Versionen, und der Ablauf ist jedes Mal derselbe. Er

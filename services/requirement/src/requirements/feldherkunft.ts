@@ -84,3 +84,43 @@ export function feldwerte(stand: Datensatzstand): Record<string, unknown> {
     ...stand.dynamicAttributes,
   };
 }
+
+/** Kernfelder des Datensatzes. Alles Uebrige im flachen Feldraum ist dynamisch. */
+export const KERNFELDER = ["projectId", "requirementType", "status", "owner"] as const;
+
+/**
+ * Vergleich zweier Feldwerte. Siehe `gleich` weiter oben - dieselbe Begruendung, und
+ * bewusst nur einmal vorhanden: Drei Stellen brauchen ihn, und drei Fassungen davon
+ * waeren drei Gelegenheiten, ihn verschieden zu meinen.
+ */
+export function istGleich(a: unknown, b: unknown): boolean {
+  return JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
+}
+
+/** Zerlegt einen flachen Feldraum zurueck in die Kernfelder. */
+export function alsKern(werte: Record<string, unknown>): {
+  projectId: string;
+  requirementType: string;
+  status: string;
+  owner: string;
+} {
+  return {
+    projectId: String(werte["projectId"]),
+    requirementType: String(werte["requirementType"]),
+    status: String(werte["status"]),
+    owner: String(werte["owner"]),
+  };
+}
+
+/** Zerlegt einen flachen Feldraum zurueck in die dynamischen Attribute. */
+export function alsDynamisch(werte: Record<string, unknown>): Record<string, unknown> {
+  const ergebnis: Record<string, unknown> = {};
+
+  for (const [schluessel, wert] of Object.entries(werte)) {
+    if (!(KERNFELDER as readonly string[]).includes(schluessel)) {
+      ergebnis[schluessel] = wert;
+    }
+  }
+
+  return ergebnis;
+}
