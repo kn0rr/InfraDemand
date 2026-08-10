@@ -67,6 +67,7 @@ Zeitpunkt als eigenes ADR nachgezogen.
 | Audit-Ereignisschema und Schreibpfad | Meilenstein M1.4 | [ADR-0009](0009-orm-und-migrationswerkzeug.md) |
 | Wahl des wirksamen Mandanten bei Mehrfachzugehörigkeit | Meilenstein M5 | [ADR-0017](0017-regelvokabular-der-datenhoheit-und-mandantenbegriff.md) |
 | Rückmeldung abgewiesener Felder an einen Import | Mit dem Dateiimport | [ADR-0019](0019-verhalten-bei-abgewiesener-schreiboperation.md) |
+| Ab wann die Kompatibilitätsgarantie aus §12 gilt – und wie eine begründete Ausnahme davor aussieht | **Vor dem ersten Produktivgang** | CLAUDE.md §12, `PROD-049` |
 | Befristung von Festhaltungen – verfällt eine Festhaltung von selbst? | Wenn Erfahrung aus dem Betrieb vorliegt | [ADR-0017](0017-regelvokabular-der-datenhoheit-und-mandantenbegriff.md) Teil B |
 | Ablage der Sitzung: Cookie oder serverseitiger Speicher – und welcher, ohne ADR-0002 zu verletzen | Vor Meilenstein M3 | [ADR-0014](0014-frontend-authentifizierung-ueber-bff.md), `PROD-045` |
 | Policy-Engine für Feldebene (OPA vs. OpenFGA) | Meilenstein M5 | [ADR-0004](0004-authentifizierung-und-autorisierung.md) |

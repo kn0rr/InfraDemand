@@ -74,20 +74,6 @@ jobs:
             -v "$PWD/docs/api:/rev:ro" \
             tufin/oasdiff:v1.27.0@sha256:279f71b494c578f8c7038ce4f9bf5e876f6a4661c4793537a773a00184c79454 breaking /base/vorher.yaml /rev/requirement.openapi.yaml --fail-on ERR
 
-      - name: Inkompatible Contract-Aenderungen pruefen
-        if: github.event_name == 'pull_request'
-        run: |
-          mkdir -p /tmp/oasdiff
-          git fetch --no-tags --depth=1 origin "${{ github.base_ref }}"
-          if ! git show "FETCH_HEAD:docs/api/requirement.openapi.yaml" > /tmp/oasdiff/vorher.yaml 2>/dev/null; then
-            echo "Kein Vorgaengerstand im Zielbranch - Pruefung entfaellt."
-            exit 0
-          fi
-          docker run --rm \
-            -v /tmp/oasdiff:/base:ro \
-            -v "$PWD/docs/api:/rev:ro" \
-            tufin/oasdiff:v1.27.0@sha256:279f71b494c578f8c7038ce4f9bf5e876f6a4661c4793537a773a00184c79454 breaking /base/vorher.yaml /rev/requirement.openapi.yaml --fail-on ERR
-
   realm:
     name: Keycloak-Realm validieren
     runs-on: ubuntu-latest
