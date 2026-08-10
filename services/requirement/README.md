@@ -399,6 +399,56 @@ bevor das Feld Vertragsbestandteil einer öffentlichen API wird (§12).
 
 ## Bekannte Stolpersteine
 
+### `@ApiPropertyOptional()` ohne Typangabe schweigt nicht
+
+Eine Angabe ohne `type` erzeugt **`type: object`** im Contract – nicht etwa „beliebig".
+Daraus wird im erzeugten Client `Record<string, never>`, also ein leeres Objekt.
+
+Aufgefallen bei `defaultValue`: Der Wert ist je nach Datentyp eine Zeichenkette, Zahl, ein
+Wahrheitswert oder eine Liste. Der Contract behauptete ein Objekt, die Laufzeit akzeptierte
+alles. Über den erzeugten Client ließ sich kein gültiger Vorgabewert setzen.
+
+**Bemerkt wurde es nur, weil das Frontend denselben Contract verwendet.** Ein Fremdsystem
+hätte es beim ersten Aufruf gemerkt – und wir es nie erfahren.
+
+Für Felder ohne einen einzelnen Typ gehört die Angabe ausgeschrieben:
+
+```ts
+export const VORGABEWERT_SCHEMA = {
+  oneOf: [
+    { type: "string" },
+    { type: "number" },
+    { type: "boolean" },
+    { type: "array", items: { type: "string" } },
+    { type: "null" },
+  ],
+} satisfies ApiPropertyOptions;
+```
+
+**Kein `as const`** – das erzeugt ein schreibgeschütztes Tupel, und `SchemaObject[]` ist
+veränderbar. `satisfies` hält die Zeichenketten eng genug und die Liste veränderbar.
+
+**Kein `nullable: true`** – das gibt es in OpenAPI 3.1 nicht. „Auch leer" ist der Zweig
+`{ type: "null" }`. Die Nachbehandlung `nullableNach31()` in `openapi.export.ts` wandelt
+nur die Form `{ type: X, nullable: true }` um; steht kein `type` daneben, reicht sie
+`nullable` durch, und erst `redocly lint` schlägt an.
+
+### `toISOString is not a function` bei rohem SQL über `db.execute`
+
+Zeitstempel aus `db.execute(sql\`…\`)` sind **Zeichenketten, keine `Date`-Objekte** – anders
+als bei jeder Abfrage über den Drizzle-Baukasten.
+
+Der Grund liegt in Drizzle selbst: Es überschreibt die Typumwandlung von `pg` und gibt für
+`TIMESTAMPTZ`, `TIMESTAMP`, `DATE` und `INTERVAL` den Rohwert zurück
+(`node-postgres/session.js`), weil es die Umwandlung in seinen eigenen Spaltenabbildungen
+vornimmt. Bei rohem SQL gibt es keine Spaltenabbildung – also bleibt die Zeichenkette.
+
+`pg` allein verhält sich anders: Dort liefert `max(occurred_at)` ein `Date`. Wer das prüft,
+ohne Drizzle dazwischen, kommt zum falschen Schluss.
+
+**Regel:** Der Ergebnistyp von `db.execute` ist eine Behauptung, keine Prüfung. Zeitstempel
+dort als `string` deklarieren und ausdrücklich umwandeln.
+
 ### Sporadisches `No test suite found` in den Integrationstests
 
 Trat mit dem vierten Integrationstest auf: Ein Testfile meldete null Suiten, einzeln

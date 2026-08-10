@@ -214,6 +214,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/requirements/holds": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Alle festgehaltenen Felder
+         * @description Plattformweite Uebersicht nach §19.3. Zeigt je Feld den festgehaltenen Wert, die Begruendung und die zuletzt abgewiesene Lieferung samt Anzahl - die Abweichung wird damit beziffert und nicht nur benannt.
+         */
+        get: operations["RequirementsController_findFesthaltungen_v1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/requirements/{id}/versions": {
         parameters: {
             query?: never;
@@ -238,6 +258,19 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        AbgewieseneLieferung: {
+            /**
+             * @description Wie oft eine Uebernahme dieses Feldes bisher abgewiesen wurde.
+             * @example 47
+             */
+            count: number;
+            /** Format: date-time */
+            occurredAt: string;
+            /** @example sap */
+            sourceSystem: string;
+            /** @description Der zuletzt abgewiesene Wert. */
+            value: Record<string, never>;
+        };
         AttributeDefinitionResponse: {
             /** @description Ausser Kraft gesetzte Definitionen bleiben bestehen - bestehende Anforderungen tragen Werte, die nur mit ihnen deutbar sind. */
             active: boolean;
@@ -251,7 +284,7 @@ export interface components {
              */
             dataType: "text" | "number" | "boolean" | "date" | "enum" | "multi_enum";
             /** @description Vorgabewert, dem Datentyp entsprechend. */
-            defaultValue: Record<string, never> | null;
+            defaultValue: string | number | boolean | string[] | null;
             /** Format: uuid */
             id: string;
             /** @example kostenstelle */
@@ -281,7 +314,7 @@ export interface components {
              */
             dataType: "text" | "number" | "boolean" | "date" | "enum" | "multi_enum";
             /** @description Vorgabewert, dem Datentyp entsprechend. */
-            defaultValue: Record<string, never> | null;
+            defaultValue: string | number | boolean | string[] | null;
             /** Format: uuid */
             id: string;
             /** @example kostenstelle */
@@ -311,7 +344,7 @@ export interface components {
              */
             dataType: "text" | "number" | "boolean" | "date" | "enum" | "multi_enum";
             /** @description Vorgabewert, dem Datentyp entsprechend. */
-            defaultValue?: Record<string, never>;
+            defaultValue?: string | number | boolean | string[] | null;
             /**
              * @description Schluessel im Feld dynamicAttributes. Kleinbuchstaben, Ziffern und Unterstrich - der Wert wird zum JSON-Schluessel und zum Formularfeldnamen.
              * @example kostenstelle
@@ -357,6 +390,24 @@ export interface components {
              * @example neu
              */
             status: string;
+        };
+        FesthaltungUebersicht: {
+            /** @example A-4711 */
+            externalId: string | null;
+            /** @example owner */
+            field: string;
+            heldBy: string;
+            /** Format: date-time */
+            heldSince: string;
+            /** @description Der festgehaltene Wert. */
+            heldValue: Record<string, never>;
+            /** @description Leer, solange kein automatischer Lauf dieses Feld aendern wollte. */
+            lastRejection: (components["schemas"]["AbgewieseneLieferung"] | null) & components["schemas"]["AbgewieseneLieferung"];
+            reason: string;
+            /** Format: uuid */
+            requirementId: string;
+            /** @example sap */
+            sourceSystem: string;
         };
         MastershipRuleResponse: {
             /** @description Geltungsbereich nach ADR-0017 A6. Vorerst immer leer - eine Regel gilt fuer alle Anforderungen. */
@@ -522,7 +573,8 @@ export interface components {
             allowedValues?: string[];
             /** @enum {string} */
             dataType: "text" | "number" | "boolean" | "date" | "enum" | "multi_enum";
-            defaultValue?: Record<string, never>;
+            /** @description Vorgabewert, dem Datentyp entsprechend. */
+            defaultValue?: string | number | boolean | string[] | null;
             label: string;
             required: boolean;
         };
@@ -1109,6 +1161,39 @@ export interface operations {
             };
             /** @description Datensatz oder Festhaltung existiert nicht */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    RequirementsController_findFesthaltungen_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FesthaltungUebersicht"][];
+                };
+            };
+            /** @description Kein oder ungueltiges Token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Rolle platform-admin fehlt */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };

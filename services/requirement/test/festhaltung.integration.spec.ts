@@ -222,4 +222,68 @@ describe("Festhaltung von Feldern", () => {
       expect(versionen.body[1].heldFields.owner).toMatchObject({ reason: GRUND });
     });
   });
+  describe("Uebersicht (ADR-0017 B14)", () => {
+    it("weist die Uebersicht ohne platform-admin ab", async () => {
+      await mit(alsMensch)("get", "/v1/requirements/holds").expect(403);
+    });
+
+    it("liefert nichts, solange nichts festgehalten ist", async () => {
+      await importiere("D-0");
+
+      const antwort = await mit(alsAdmin)("get", "/v1/requirements/holds").expect(200);
+
+      expect(antwort.body).toEqual([]);
+    });
+
+    it("nennt Feld, Wert, Begruendung und Herkunft", async () => {
+      const angelegt = await importiere("D-1");
+      await halteFest("D-1", "owner");
+
+      const antwort = await mit(alsAdmin)("get", "/v1/requirements/holds").expect(200);
+
+      expect(antwort.body).toHaveLength(1);
+      expect(antwort.body[0]).toMatchObject({
+        requirementId: angelegt.body.id,
+        sourceSystem: "sap",
+        externalId: "D-1",
+        field: "owner",
+        heldValue: "M. Weber",
+        heldBy: "admin-1",
+        reason: GRUND,
+        // Noch hat kein Lauf versucht, das Feld zu aendern.
+        lastRejection: null,
+      });
+    });
+
+    it("beziffert die Abweichung, sobald ein Lauf abgewiesen wurde", async () => {
+      await importiere("D-2");
+      await halteFest("D-2", "owner");
+
+      // Zwei Laeufe mit demselben abweichenden Wert.
+      await mit(alsVorsystem)("patch", pfad("D-2")).send({ owner: "L. Braun" }).expect(200);
+      await mit(alsVorsystem)("patch", pfad("D-2")).send({ owner: "L. Braun" }).expect(200);
+
+      const antwort = await mit(alsAdmin)("get", "/v1/requirements/holds").expect(200);
+
+      // Das ist der eigentliche Ertrag: "wir halten M. Weber, das Vorsystem liefert seit
+      // zwei Laeufen L. Braun". Ohne diese Angabe zeigt die Durchsicht nur einen Zustand.
+      expect(antwort.body[0]).toMatchObject({
+        heldValue: "M. Weber",
+        lastRejection: { value: "L. Braun", sourceSystem: "sap", count: 2 },
+      });
+    });
+
+    it("fuehrt mehrere festgehaltene Felder eines Datensatzes einzeln auf", async () => {
+      await importiere("D-3");
+      await halteFest("D-3", "owner");
+      await halteFest("D-3", "status");
+
+      const antwort = await mit(alsAdmin)("get", "/v1/requirements/holds").expect(200);
+
+      expect((antwort.body as { field: string }[]).map((e) => e.field).sort()).toEqual([
+        "owner",
+        "status",
+      ]);
+    });
+  });
 });

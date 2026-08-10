@@ -32,6 +32,9 @@ export default async function Startseite() {
           Rollen: {(sitzung.rollen ?? []).join(", ") || "keine"}
         </Text>
         <Anchor href="/anforderungen">Zu den Anforderungen</Anchor>
+        {(sitzung.rollen ?? []).includes("platform-admin") ? (
+          <Anchor href="/verwaltung">Zur Verwaltung</Anchor>
+        ) : null}
       </Stack>
     </Container>
   );

@@ -40,6 +40,15 @@ export interface RequirementUpdateInput {
   heldFields: Record<string, Festhaltung>;
 }
 
+export interface AbweisungsZusammenfassung {
+  requirementId: string;
+  field: string;
+  anzahl: number;
+  letzterWert: unknown;
+  letzteQuelle: string;
+  zuletzt: Date;
+}
+
 @Injectable()
 export class RequirementsRepository {
   constructor(@Inject(DATABASE) private readonly db: Database) {}
@@ -76,6 +85,55 @@ export class RequirementsRepository {
       .from(requirementHistory)
       .where(eq(requirementHistory.id, id))
       .orderBy(asc(requirementHistory.version));
+  }
+  /** Datensaetze mit mindestens einer Festhaltung (ADR-0017 B14). */
+  findMitFesthaltungen(): Promise<RequirementRow[]> {
+    return this.db
+      .select()
+      .from(requirements)
+      .where(sql`${requirements.heldFields} <> '{}'::jsonb`)
+      .orderBy(asc(requirements.createdAt));
+  }
+
+  /**
+   * Zu jedem festgehaltenen Feld die zuletzt abgewiesene Lieferung und ihre Anzahl.
+   *
+   * Eine Abfrage statt einer je Feld: Die Uebersicht zeigt alle Festhaltungen der
+   * Plattform, und bei einer Abfrage je Zeile waere sie bei dreistelliger Zahl unbenutzbar.
+   */
+  async findAbweisungsZusammenfassung(): Promise<AbweisungsZusammenfassung[]> {
+    const ergebnis = await this.db.execute<{
+      requirement_id: string;
+      field: string;
+      anzahl: number;
+      letzter_wert: unknown;
+      letzte_quelle: string;
+      /**
+       * Zeichenkette, nicht Date: Drizzle schaltet die Datumsumwandlung von `pg` ab und
+       * nimmt sie selbst in seinen Spaltenabbildungen vor. Bei rohem SQL gibt es keine
+       * Abbildung - der Wert kommt so an, wie PostgreSQL ihn schreibt.
+       */
+      zuletzt: string;
+    }>(sql`
+      SELECT requirement_id,
+             field,
+             count(*)::int AS anzahl,
+             (array_agg(rejected_value ORDER BY occurred_at DESC))[1] AS letzter_wert,
+             (array_agg(source_system ORDER BY occurred_at DESC))[1] AS letzte_quelle,
+             max(occurred_at) AS zuletzt
+      FROM write_rejection
+      WHERE reason = 'field_held'
+      GROUP BY requirement_id, field
+    `);
+
+    return ergebnis.rows.map((zeile) => ({
+      requirementId: zeile.requirement_id,
+      field: zeile.field,
+      anzahl: zeile.anzahl,
+      letzterWert: zeile.letzter_wert,
+      letzteQuelle: zeile.letzte_quelle,
+      zuletzt: new Date(zeile.zuletzt),
+    }));
   }
 
   /**

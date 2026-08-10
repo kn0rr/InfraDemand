@@ -190,7 +190,7 @@ nacheinander. Die Begründung steht in
 | **M0** | Fundament: Monorepo, lokale Infrastruktur, CI, Entscheidungen als ADRs | abgeschlossen |
 | **M1** | Walking Skeleton Requirement Service: Kernentität, Authentifizierung, Persistenz, Versionshistorie, OpenAPI-Contract | abgeschlossen |
 | **M2** | Frontend-Durchstich: Anmeldung, Liste, Anlegen, generierter API-Client | abgeschlossen |
-| **M3** | Dynamisches Attributmodell (§6) und Datenhoheit (§19.3) | offen, zugeschnitten |
+| **M3** | Dynamisches Attributmodell (§6) und Datenhoheit (§19.3) | abgeschlossen |
 | **M4** | Workflow-Engine (§7) | offen |
 | **M5** | Feingranulares Berechtigungsmodell (§8), Identity & Access Service | offen |
 | **M6** | Infrastructure Service, Bereitstellungskategorien und Service-Katalog (§17, §18) | offen |
@@ -244,7 +244,7 @@ M3 setzt §6 um – das dynamische Attributmodell – und damit zugleich die Dat
 | **M3.4c** | Durchsetzung im Schreibpfad, Aufzeichnung abgewiesener Schreiboperationen (ADR-0017 A2, B10) | Die Regel wirkt, und eine Abweisung ist belegbar | abgeschlossen |
 | **M3.4d** | Festhaltung je Datensatz und Feld, Aufhebung (ADR-0017 B6–B13) | Der Einzelfall ist regelbar, ohne den Regelfall zu ändern | abgeschlossen |
 | **M3.5** | Formulare zur Laufzeit aus dem Schema | Eine neue Pflichtangabe erscheint im Formular, ohne dass jemand eine Komponente anfasst | abgeschlossen |
-| **M3.6** | Administrationsoberfläche: Definitionen, Regeln, Übersicht festgehaltener Felder | Die Konfigurationsfläche ist ohne Kenntnis des Datenmodells bedienbar (ADR-0017 B14) | offen |
+| **M3.6** | Administrationsoberfläche: Definitionen, Regeln, Übersicht festgehaltener Felder | Die Konfigurationsfläche ist ohne Kenntnis des Datenmodells bedienbar (ADR-0017 B14) | abgeschlossen |
 
 **Zur Reihenfolge.** M3.1 ist der kleinste Schritt des Meilensteins und blockiert alle
 übrigen: Ohne die Registratur lässt sich nicht entscheiden, ob eine Schreiboperation

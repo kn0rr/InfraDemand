@@ -1,5 +1,26 @@
 components:
   schemas:
+    AbgewieseneLieferung:
+      properties:
+        count:
+          description: Wie oft eine Uebernahme dieses Feldes bisher abgewiesen wurde.
+          example: 47
+          type: integer
+        occurredAt:
+          format: date-time
+          type: string
+        sourceSystem:
+          example: sap
+          type: string
+        value:
+          description: Der zuletzt abgewiesene Wert.
+          type: object
+      required:
+        - value
+        - sourceSystem
+        - occurredAt
+        - count
+      type: object
     AttributeDefinitionResponse:
       properties:
         active:
@@ -29,9 +50,14 @@ components:
           type: string
         defaultValue:
           description: Vorgabewert, dem Datentyp entsprechend.
-          type:
-            - object
-            - 'null'
+          oneOf:
+            - type: string
+            - type: number
+            - type: boolean
+            - items:
+                type: string
+              type: array
+            - type: 'null'
         id:
           format: uuid
           type: string
@@ -101,9 +127,14 @@ components:
           type: string
         defaultValue:
           description: Vorgabewert, dem Datentyp entsprechend.
-          type:
-            - object
-            - 'null'
+          oneOf:
+            - type: string
+            - type: number
+            - type: boolean
+            - items:
+                type: string
+              type: array
+            - type: 'null'
         id:
           format: uuid
           type: string
@@ -178,7 +209,14 @@ components:
           type: string
         defaultValue:
           description: Vorgabewert, dem Datentyp entsprechend.
-          type: object
+          oneOf:
+            - type: string
+            - type: number
+            - type: boolean
+            - items:
+                type: string
+              type: array
+            - type: 'null'
         key:
           description: >-
             Schluessel im Feld dynamicAttributes. Kleinbuchstaben, Ziffern und Unterstrich - der
@@ -258,6 +296,50 @@ components:
         - requirementType
         - status
         - owner
+      type: object
+    FesthaltungUebersicht:
+      properties:
+        externalId:
+          example: A-4711
+          type:
+            - string
+            - 'null'
+        field:
+          example: owner
+          type: string
+        heldBy:
+          type: string
+        heldSince:
+          format: date-time
+          type: string
+        heldValue:
+          description: Der festgehaltene Wert.
+          type: object
+        lastRejection:
+          allOf:
+            - $ref: '#/components/schemas/AbgewieseneLieferung'
+          description: Leer, solange kein automatischer Lauf dieses Feld aendern wollte.
+          type:
+            - object
+            - 'null'
+        reason:
+          type: string
+        requirementId:
+          format: uuid
+          type: string
+        sourceSystem:
+          example: sap
+          type: string
+      required:
+        - requirementId
+        - sourceSystem
+        - externalId
+        - field
+        - heldValue
+        - heldSince
+        - heldBy
+        - reason
+        - lastRejection
       type: object
     MastershipRuleResponse:
       properties:
@@ -576,7 +658,15 @@ components:
             - multi_enum
           type: string
         defaultValue:
-          type: object
+          description: Vorgabewert, dem Datentyp entsprechend.
+          oneOf:
+            - type: string
+            - type: number
+            - type: boolean
+            - items:
+                type: string
+              type: array
+            - type: 'null'
         label:
           maxLength: 200
           type: string
@@ -1085,6 +1175,32 @@ paths:
       security:
         - bearer: []
       summary: Feld gegen automatische Uebernahme festhalten
+      tags:
+        - Anforderungen
+  /v1/requirements/holds:
+    get:
+      description: >-
+        Plattformweite Uebersicht nach §19.3. Zeigt je Feld den festgehaltenen Wert, die Begruendung
+        und die zuletzt abgewiesene Lieferung samt Anzahl - die Abweichung wird damit beziffert und
+        nicht nur benannt.
+      operationId: RequirementsController_findFesthaltungen_v1
+      parameters: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/FesthaltungUebersicht'
+                type: array
+          description: ''
+        '401':
+          description: Kein oder ungueltiges Token
+        '403':
+          description: Rolle platform-admin fehlt
+      security:
+        - bearer: []
+      summary: Alle festgehaltenen Felder
       tags:
         - Anforderungen
   /v1/requirements/{id}/versions:
