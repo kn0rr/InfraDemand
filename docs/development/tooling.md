@@ -71,6 +71,13 @@ index [0]` und weist damit auf die falsche Stelle. Siehe
 erst gebraucht, wenn eigenes CSS Mantines Mixins verwendet – bis dahin wäre es eine
 Werkzeugkette ohne Gegenwert.
 
+**Kein `@mantine/dates`.** Attribute vom Typ `date` werden mit einem nativen Datumsfeld
+erfasst (`<TextInput type="date">`). Es liefert `JJJJ-MM-TT` als Zeichenkette – genau das
+Format, das der Service prüft. Eine Datumsauswahl gäbe ein `Date`-Objekt, eine Umrechnung
+und damit eine Fehlerquelle an einer Stelle, an der es keine geben muss. Zu ersetzen,
+sobald eine gestaltete Datumsauswahl gefordert ist; der Austausch betrifft genau einen
+Zweig in `attributfeld.tsx`.
+
 **Der Abfrage-Client wird nie auf Modulebene erzeugt.** Ein Modul wird im Node-Prozess
 einmal ausgewertet und von allen Anfragen geteilt; ein dort angelegter Zwischenspeicher
 würde die Daten eines Anwenders an den nächsten weiterreichen. Er entsteht deshalb in
