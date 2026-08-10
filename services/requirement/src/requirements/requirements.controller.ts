@@ -23,6 +23,7 @@ import type { AuthenticatedUser } from "../auth/jwt.strategy";
 import { Rollen } from "../auth/rollen.decorator";
 import { CreateRequirementDto } from "./create-requirement.dto";
 import { SetzeFesthaltungDto } from "./festhaltung.dto";
+import { FesthaltungUebersicht } from "./hold-uebersicht.dto";
 import { ListRequirementsQuery } from "./list-requirements.query";
 import { PatchRequirementDto } from "./patch-requirement.dto";
 import { RequirementResponse } from "./requirement.dto";
@@ -54,6 +55,21 @@ export class RequirementsController {
   @ApiResponse({ status: 400, description: "Unlesbarer Stichtag" })
   findAll(@Query() abfrage: ListRequirementsQuery): Promise<RequirementResponse[]> {
     return this.service.findAll(abfrage.asOf);
+  }
+
+  @Get("holds")
+  @Rollen("platform-admin")
+  @ApiOperation({
+    summary: "Alle festgehaltenen Felder",
+    description:
+      "Plattformweite Uebersicht nach §19.3. Zeigt je Feld den festgehaltenen Wert, die " +
+      "Begruendung und die zuletzt abgewiesene Lieferung samt Anzahl - die Abweichung " +
+      "wird damit beziffert und nicht nur benannt.",
+  })
+  @ApiResponse({ status: 200, type: [FesthaltungUebersicht] })
+  @ApiResponse({ status: 403, description: "Rolle platform-admin fehlt" })
+  findFesthaltungen(): Promise<FesthaltungUebersicht[]> {
+    return this.service.findFesthaltungen();
   }
 
   @Get(":id/versions")

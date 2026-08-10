@@ -9,7 +9,7 @@ import {
   MaxLength,
   MinLength,
 } from "class-validator";
-import { ATTRIBUT_DATENTYPEN } from "./attribute-definition.dto";
+import { ATTRIBUT_DATENTYPEN, VORGABEWERT_SCHEMA } from "./attribute-definition.dto";
 
 /**
  * `key` und `requirementType` fehlen bewusst - sie bezeichnen die Definition. Ein
@@ -31,10 +31,6 @@ export class UpdateAttributeDefinitionDto {
   @IsBoolean()
   required!: boolean;
 
-  @ApiPropertyOptional()
-  @IsOptional()
-  defaultValue?: unknown;
-
   @ApiPropertyOptional({ type: [String] })
   @IsOptional()
   @IsArray()
@@ -45,4 +41,11 @@ export class UpdateAttributeDefinitionDto {
   @ApiProperty({ description: "false setzt die Definition ausser Kraft, ohne sie zu loeschen." })
   @IsBoolean()
   active!: boolean;
+
+  @ApiPropertyOptional({
+    ...VORGABEWERT_SCHEMA,
+    description: "Vorgabewert, dem Datentyp entsprechend.",
+  })
+  @IsOptional()
+  defaultValue?: unknown;
 }

@@ -27,6 +27,7 @@ import {
   pruefeHoheit,
   type Quellenklasse,
 } from "./hoheitspruefung";
+import { FesthaltungUebersicht } from "./hold-uebersicht.dto";
 import type { PatchRequirementDto } from "./patch-requirement.dto";
 import type { RequirementResponse } from "./requirement.dto";
 import type { RequirementVersionResponse } from "./requirement-version.dto";
@@ -307,6 +308,53 @@ export class RequirementsService {
       }
       throw fehler;
     }
+  }
+
+  /**
+   * Alle festgehaltenen Felder der Plattform (ADR-0017 B14).
+   *
+   * Festhaltungen wachsen und schrumpfen nie von selbst. Ohne einen Ort, an dem sie
+   * vollstaendig sichtbar sind, entsteht genau der schleichende Auseinanderlauf, den die
+   * Sichtbarkeit am einzelnen Datensatz verhindern soll - nur eben verteilt und dadurch
+   * unbemerkt.
+   */
+  async findFesthaltungen(): Promise<FesthaltungUebersicht[]> {
+    const [datensaetze, zusammenfassung] = await Promise.all([
+      this.repository.findMitFesthaltungen(),
+      this.repository.findAbweisungsZusammenfassung(),
+    ]);
+
+    const abweisungen = new Map(
+      zusammenfassung.map((eintrag) => [`${eintrag.requirementId}\u0000${eintrag.field}`, eintrag]),
+    );
+
+    return datensaetze.flatMap((zeile) => {
+      const werte = feldwerte(zeile);
+
+      return Object.entries(zeile.heldFields).map(([field, festhaltung]) => {
+        const abweisung = abweisungen.get(`${zeile.id}\u0000${field}`);
+
+        return {
+          requirementId: zeile.id,
+          sourceSystem: zeile.sourceSystem,
+          externalId: zeile.externalId,
+          field,
+          heldValue: werte[field] ?? null,
+          heldSince: festhaltung.at,
+          heldBy: festhaltung.by,
+          reason: festhaltung.reason,
+          lastRejection:
+            abweisung === undefined
+              ? null
+              : {
+                  value: abweisung.letzterWert,
+                  sourceSystem: abweisung.letzteQuelle,
+                  occurredAt: abweisung.zuletzt.toISOString(),
+                  count: abweisung.anzahl,
+                },
+        };
+      });
+    });
   }
 
   /**

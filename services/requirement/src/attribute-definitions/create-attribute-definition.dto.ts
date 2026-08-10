@@ -10,7 +10,7 @@ import {
   MaxLength,
   MinLength,
 } from "class-validator";
-import { ATTRIBUT_DATENTYPEN } from "./attribute-definition.dto";
+import { ATTRIBUT_DATENTYPEN, VORGABEWERT_SCHEMA } from "./attribute-definition.dto";
 
 export class CreateAttributeDefinitionDto {
   @ApiProperty({
@@ -53,7 +53,10 @@ export class CreateAttributeDefinitionDto {
   @IsBoolean()
   required?: boolean;
 
-  @ApiPropertyOptional({ description: "Vorgabewert, dem Datentyp entsprechend." })
+  @ApiPropertyOptional({
+    ...VORGABEWERT_SCHEMA,
+    description: "Vorgabewert, dem Datentyp entsprechend.",
+  })
   @IsOptional()
   defaultValue?: unknown;
 
