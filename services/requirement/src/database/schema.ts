@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import {
   boolean,
   index,
@@ -91,6 +92,22 @@ export const sourceSystemHistory = pgTable(
 );
 
 /**
+ * Festhaltung eines Feldes gegen automatische Uebernahme (ADR-0017 B6 bis B9).
+ *
+ * Die Begruendung ist Pflicht (B8): Sie erzeugt eine dauerhafte, gewollte Abweichung vom
+ * Herkunftssystem, und wer sie Monate spaeter vorfindet, muss erkennen koennen, warum sie
+ * besteht - sonst bleibt nur, sie aufzuheben und abzuwarten, was kaputtgeht.
+ */
+export interface Festhaltung {
+  /** Wer sie gesetzt hat. */
+  by: string;
+  /** Wann, als ISO-8601-Zeitpunkt. */
+  at: string;
+  /** Warum. */
+  reason: string;
+}
+
+/**
  * Kernentitaet nach CLAUDE.md §6 und §19.
  *
  * Fuehrt ausschliesslich den **aktuellen** Zustand. Jede Version - einschliesslich der
@@ -124,6 +141,17 @@ export const requirements = pgTable(
       .$type<Record<string, unknown>>()
       .notNull()
       .default({}),
+
+    /**
+     * Felder, die gegen automatische Uebernahme festgehalten sind (ADR-0017 B6).
+     * Schluessel ist der Feldname, Wert die Festhaltung.
+     *
+     * Bewusst eine Spalte und keine eigene Entitaet: B9 verlangt, dass die Festhaltung
+     * Bestandteil des versionierten Zustands ist - als Spalte wandert sie ohne
+     * Zusatzaufwand in die Historie, und eine Stichtagsabfrage zeigt, was damals
+     * festgehalten war.
+     */
+    heldFields: jsonb("held_fields").$type<Record<string, Festhaltung>>().notNull().default({}),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
     version: integer("version").notNull().default(1),
@@ -132,6 +160,12 @@ export const requirements = pgTable(
     index("requirement_project_idx").on(table.projectId),
     index("requirement_status_idx").on(table.status),
     index("requirement_dynamic_attributes_idx").using("gin", table.dynamicAttributes),
+    // Zugriffspfad der Uebersicht aus ADR-0017 B14. Teilindex, weil der ueberwiegende
+    // Teil der Datensaetze nichts festhaelt - ein voller Index waere fast leer und
+    // trotzdem bei jedem Schreibvorgang zu pflegen.
+    index("requirement_held_fields_idx")
+      .on(table.id)
+      .where(sql`${table.heldFields} <> '{}'::jsonb`),
     // Idempotenz nach §19.1: derselbe Datensatz aus derselben Quelle nur einmal
     unique(REQUIREMENT_SOURCE_EXTERNAL_CONSTRAINT).on(table.sourceSystem, table.externalId),
   ],
@@ -159,6 +193,7 @@ export const requirementHistory = pgTable(
     sourceSystem: text("source_system").notNull(),
     externalId: text("external_id"),
     dynamicAttributes: jsonb("dynamic_attributes").$type<Record<string, unknown>>().notNull(),
+    heldFields: jsonb("held_fields").$type<Record<string, Festhaltung>>().notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull(),
 

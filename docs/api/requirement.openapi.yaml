@@ -411,6 +411,12 @@ components:
           type:
             - string
             - 'null'
+        heldFields:
+          additionalProperties: true
+          description: >-
+            Felder, die gegen automatische Uebernahme festgehalten sind (§19.3). Schluessel ist der
+            Feldname, Wert traegt `by`, `at` und `reason`.
+          type: object
         id:
           format: uuid
           type: string
@@ -450,6 +456,7 @@ components:
         - createdAt
         - updatedAt
         - version
+        - heldFields
       type: object
     RequirementVersionResponse:
       properties:
@@ -473,6 +480,12 @@ components:
           type:
             - string
             - 'null'
+        heldFields:
+          additionalProperties: true
+          description: >-
+            Felder, die gegen automatische Uebernahme festgehalten sind (§19.3). Schluessel ist der
+            Feldname, Wert traegt `by`, `at` und `reason`.
+          type: object
         id:
           format: uuid
           type: string
@@ -527,11 +540,22 @@ components:
         - createdAt
         - updatedAt
         - version
+        - heldFields
         - validFrom
         - validTo
         - operation
         - changedBy
         - changeSource
+      type: object
+    SetzeFesthaltungDto:
+      properties:
+        reason:
+          example: Von SAP falsch gepflegt, Korrektur dort beantragt unter TICKET-4711
+          maxLength: 500
+          minLength: 10
+          type: string
+      required:
+        - reason
       type: object
     UpdateAttributeDefinitionDto:
       properties:
@@ -969,6 +993,98 @@ paths:
       security:
         - bearer: []
       summary: Anforderung ueber den fremden Bezeichner aendern
+      tags:
+        - Anforderungen
+  /v1/requirements/by-source/{sourceSystem}/{externalId}/holds/{field}:
+    delete:
+      description: Eigener, ausdruecklicher Vorgang - keine Nebenwirkung einer Aenderung.
+      operationId: RequirementsController_hebeFesthaltungAuf_v1
+      parameters:
+        - in: path
+          name: sourceSystem
+          required: true
+          schema:
+            example: sap
+            type: string
+        - in: path
+          name: externalId
+          required: true
+          schema:
+            example: A-4711
+            type: string
+        - in: path
+          name: field
+          required: true
+          schema:
+            example: owner
+            type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RequirementResponse'
+          description: ''
+        '401':
+          description: Kein oder ungueltiges Token
+        '403':
+          description: Rolle platform-admin fehlt
+        '404':
+          description: Datensatz oder Festhaltung existiert nicht
+      security:
+        - bearer: []
+      summary: Festhaltung aufheben
+      tags:
+        - Anforderungen
+    put:
+      description: >-
+        Ab dann aendert kein automatischer Ladevorgang dieses Feld an diesem Datensatz (§19.3). Die
+        uebrigen Felder bleiben unberuehrt, und ein Import scheitert nicht - er uebernimmt sie und
+        die Abweisung wird verzeichnet.
+      operationId: RequirementsController_setzeFesthaltung_v1
+      parameters:
+        - in: path
+          name: sourceSystem
+          required: true
+          schema:
+            example: sap
+            type: string
+        - in: path
+          name: externalId
+          required: true
+          schema:
+            example: A-4711
+            type: string
+        - in: path
+          name: field
+          required: true
+          schema:
+            example: owner
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SetzeFesthaltungDto'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RequirementResponse'
+          description: ''
+        '400':
+          description: Feld ist weder Kernfeld noch definiertes Attribut
+        '401':
+          description: Kein oder ungueltiges Token
+        '403':
+          description: Rolle platform-admin fehlt
+        '404':
+          description: Kein Datensatz unter dieser Herkunft
+      security:
+        - bearer: []
+      summary: Feld gegen automatische Uebernahme festhalten
       tags:
         - Anforderungen
   /v1/requirements/{id}/versions:

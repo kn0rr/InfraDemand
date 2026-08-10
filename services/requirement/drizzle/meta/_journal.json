@@ -50,6 +50,13 @@
       "when": 1786107730268,
       "tag": "0006_clients_als_quellen",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1786342559457,
+      "tag": "0007_white_sphinx",
+      "breakpoints": true
     }
   ]
 }
