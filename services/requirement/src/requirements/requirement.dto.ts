@@ -1,5 +1,19 @@
 import { ApiProperty } from "@nestjs/swagger";
 
+export class RequirementWorkflowResponse {
+  @ApiProperty({ format: "uuid" })
+  id!: string;
+
+  @ApiProperty({
+    type: "integer",
+    example: 1,
+    description:
+      "Fassung, unter der diese Anforderung laeuft - nicht zwingend die aktuelle. " +
+      "Eine Aenderung der Definition wirkt nicht rueckwirkend (§7).",
+  })
+  version!: number;
+}
+
 /**
  * API-Darstellung. Bewusst getrennt von der Datenbankzeile: Persistenzdetails duerfen
  * nicht in den Vertrag lecken (§2). Als Klasse statt Interface, weil der
@@ -14,6 +28,12 @@ export class RequirementResponse {
 
   @ApiProperty({ example: "feature" })
   requirementType!: string;
+
+  @ApiProperty({
+    type: RequirementWorkflowResponse,
+    description: "Workflow und Fassung, gegen die Zustandswechsel geprueft werden.",
+  })
+  workflow!: RequirementWorkflowResponse;
 
   @ApiProperty({
     example: "neu",

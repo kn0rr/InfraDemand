@@ -58,3 +58,21 @@ export class OrdneZustandZuDto {
   @MaxLength(500)
   reason!: string;
 }
+
+/**
+ * Heben auf die aktuelle Fassung (ADR-0025 Punkt 4).
+ *
+ * Die Begruendung ist Pflicht: Der Vorgang aendert die Regeln unter einem laufenden
+ * Vorgang, und wer ihn spaeter vorfindet, muss erkennen koennen, warum.
+ */
+export class HebeFassungDto {
+  @ApiProperty({
+    example: "Freigaberolle in Fassung 2 war falsch gesetzt, mit Fassung 3 berichtigt",
+    minLength: 10,
+    maxLength: 500,
+  })
+  @IsString()
+  @MinLength(10)
+  @MaxLength(500)
+  reason!: string;
+}

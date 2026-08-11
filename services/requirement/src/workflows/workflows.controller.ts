@@ -8,6 +8,7 @@ import { UpdateWorkflowDefinitionDto } from "./update-workflow-definition.dto";
 import {
   WorkflowDefinitionResponse,
   WorkflowDefinitionVersionResponse,
+  WorkflowVersionUsageResponse,
 } from "./workflow-definition.dto";
 import { WorkflowsService } from "./workflows.service";
 
@@ -83,5 +84,21 @@ export class WorkflowsController {
     @CurrentUser() benutzer: AuthenticatedUser,
   ): Promise<WorkflowDefinitionResponse> {
     return this.service.update(id, eingabe, benutzer);
+  }
+  @Get(":id/usage")
+  @Rollen("platform-admin")
+  @ApiOperation({
+    summary: "Welche Fassungen in Gebrauch sind",
+    description:
+      "Anforderungen je Fassung. Laufende bleiben auf ihrer Ursprungsfassung (§7) - hier " +
+      "wird sichtbar, wie viele davon eine Berichtigung nicht erreicht und wo ein Heben " +
+      "zu erwaegen ist (ADR-0025). Leere Liste, wenn keine Anforderung darauf laeuft.",
+  })
+  @ApiParam({ name: "id", format: "uuid" })
+  @ApiResponse({ status: 200, type: [WorkflowVersionUsageResponse] })
+  @ApiResponse({ status: 403, description: "Rolle platform-admin fehlt" })
+  @ApiResponse({ status: 404, description: "Definition existiert nicht" })
+  fassungsnutzung(@Param("id", ParseUUIDPipe) id: string): Promise<WorkflowVersionUsageResponse[]> {
+    return this.service.fassungsnutzung(id);
   }
 }

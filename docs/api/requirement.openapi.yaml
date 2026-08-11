@@ -368,6 +368,16 @@ components:
         - reason
         - lastRejection
       type: object
+    HebeFassungDto:
+      properties:
+        reason:
+          example: Freigaberolle in Fassung 2 war falsch gesetzt, mit Fassung 3 berichtigt
+          maxLength: 500
+          minLength: 10
+          type: string
+      required:
+        - reason
+      type: object
     MastershipRuleResponse:
       properties:
         bindings:
@@ -564,10 +574,15 @@ components:
         version:
           example: 1
           type: integer
+        workflow:
+          allOf:
+            - $ref: '#/components/schemas/RequirementWorkflowResponse'
+          description: Workflow und Fassung, gegen die Zustandswechsel geprueft werden.
       required:
         - id
         - projectId
         - requirementType
+        - workflow
         - status
         - owner
         - sourceSystem
@@ -648,10 +663,15 @@ components:
         version:
           example: 1
           type: integer
+        workflow:
+          allOf:
+            - $ref: '#/components/schemas/RequirementWorkflowResponse'
+          description: Workflow und Fassung, gegen die Zustandswechsel geprueft werden.
       required:
         - id
         - projectId
         - requirementType
+        - workflow
         - status
         - owner
         - sourceSystem
@@ -666,6 +686,21 @@ components:
         - operation
         - changedBy
         - changeSource
+      type: object
+    RequirementWorkflowResponse:
+      properties:
+        id:
+          format: uuid
+          type: string
+        version:
+          description: >-
+            Fassung, unter der diese Anforderung laeuft - nicht zwingend die aktuelle. Eine
+            Aenderung der Definition wirkt nicht rueckwirkend (§7).
+          example: 1
+          type: integer
+      required:
+        - id
+        - version
       type: object
     SetzeFesthaltungDto:
       properties:
@@ -1088,6 +1123,25 @@ components:
         - from
         - to
         - label
+      type: object
+    WorkflowVersionUsageResponse:
+      properties:
+        current:
+          description: >-
+            Ob dies die aktuelle Fassung ist. Alles andere laeuft auf einer aelteren - gewollt nach
+            §7, aber der Ort, an dem ein Heben zu erwaegen ist (ADR-0025).
+          type: boolean
+        requirements:
+          description: Anforderungen auf dieser Fassung.
+          example: 17
+          type: integer
+        version:
+          example: 2
+          type: integer
+      required:
+        - version
+        - requirements
+        - current
       type: object
   securitySchemes:
     bearer:
@@ -1678,6 +1732,53 @@ paths:
       summary: Zustand zuordnen
       tags:
         - Anforderungen
+  /v1/requirements/by-source/{sourceSystem}/{externalId}/workflow-version:
+    put:
+      description: >-
+        Laufende Anforderungen bleiben auf ihrer Ursprungsfassung (§7). Ist eine Definition fachlich
+        falsch, erreicht die Berichtigung sie sonst nie - dafuer dieser Vorgang (ADR-0025). Ziel ist
+        immer die aktuelle Fassung; der Zustand bleibt unveraendert. Steht die Anforderung bereits
+        auf der aktuellen Fassung, geschieht nichts.
+      operationId: RequirementsController_hebeFassung_v1
+      parameters:
+        - in: path
+          name: sourceSystem
+          required: true
+          schema:
+            example: sap
+            type: string
+        - in: path
+          name: externalId
+          required: true
+          schema:
+            example: A-4711
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HebeFassungDto'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RequirementResponse'
+          description: ''
+        '401':
+          description: Kein oder ungueltiges Token
+        '403':
+          description: Rolle platform-admin fehlt
+        '404':
+          description: Kein Datensatz unter dieser Herkunft
+        '409':
+          description: Der aktuelle Zustand kommt in der Zielfassung nicht vor - erst zuordnen
+      security:
+        - bearer: []
+      summary: Auf die aktuelle Workflow-Fassung heben
+      tags:
+        - Anforderungen
   /v1/requirements/holds:
     get:
       description: >-
@@ -1826,6 +1927,40 @@ paths:
       security:
         - bearer: []
       summary: Workflow-Definition aendern
+      tags:
+        - Workflow-Definitionen
+  /v1/workflow-definitions/{id}/usage:
+    get:
+      description: >-
+        Anforderungen je Fassung. Laufende bleiben auf ihrer Ursprungsfassung (§7) - hier wird
+        sichtbar, wie viele davon eine Berichtigung nicht erreicht und wo ein Heben zu erwaegen ist
+        (ADR-0025). Leere Liste, wenn keine Anforderung darauf laeuft.
+      operationId: WorkflowsController_fassungsnutzung_v1
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: uuid
+            type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/WorkflowVersionUsageResponse'
+                type: array
+          description: ''
+        '401':
+          description: Kein oder ungueltiges Token
+        '403':
+          description: Rolle platform-admin fehlt
+        '404':
+          description: Definition existiert nicht
+      security:
+        - bearer: []
+      summary: Welche Fassungen in Gebrauch sind
       tags:
         - Workflow-Definitionen
   /v1/workflow-definitions/{id}/versions:

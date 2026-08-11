@@ -114,6 +114,7 @@ describe("Anforderungen lesen", () => {
       "status",
       "updatedAt",
       "version",
+      "workflow",
     ]);
   });
 });

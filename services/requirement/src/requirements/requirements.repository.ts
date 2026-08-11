@@ -43,8 +43,8 @@ export interface RequirementUpdateInput {
   changedBy: string;
   changeSource: string;
   /** Festhaltungen (ADR-0017 B6). Wird durchgereicht, nicht abgeleitet. */
-  /** Art der Aenderung, soweit sie ueber `operation` hinausgeht (ADR-0022). */
-  changeKind?: "transition" | "state_assignment";
+  /** Art der Aenderung, soweit sie ueber `operation` hinausgeht (ADR-0022, ADR-0025). */
+  changeKind?: "transition" | "state_assignment" | "version_upgrade";
   /** Pflicht bei `state_assignment` - erzwungen im Service. */
   changeReason?: string;
   heldFields: Record<string, Festhaltung>;

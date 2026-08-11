@@ -61,6 +61,7 @@ Zulässige Status: `Vorgeschlagen`, `Angenommen`, `Abgelehnt`, `Ersetzt durch AD
 | [0022](0022-statuswechsel-als-eigener-vorgang.md) | Statuswechsel als eigener Vorgang und Pflicht zum Workflow | Angenommen | 2026-08-11 |
 | [0023](0023-workflow-bindung-beim-typwechsel.md) | Workflow-Bindung beim Wechsel der Anforderungsart | Angenommen | 2026-08-11 |
 | [0024](0024-bedingungen-an-workflow-uebergaengen.md) | Bedingungen an Workflow-Übergängen: benanntes Vokabular statt Regel-Engine | Angenommen | 2026-08-11 |
+| [0025](0025-umgang-mit-der-gebundenen-workflow-fassung.md) | Umgang mit der gebundenen Workflow-Fassung | Angenommen | 2026-08-11 |
 
 ## Offene, bewusst vertagte Entscheidungen
 

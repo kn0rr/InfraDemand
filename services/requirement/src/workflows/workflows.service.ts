@@ -15,6 +15,7 @@ import type { UpdateWorkflowDefinitionDto } from "./update-workflow-definition.d
 import type {
   WorkflowDefinitionResponse,
   WorkflowDefinitionVersionResponse,
+  WorkflowVersionUsageResponse,
 } from "./workflow-definition.dto";
 import {
   DuplicateWorkflowRequirementTypeError,
@@ -126,6 +127,31 @@ export class WorkflowsService {
    */
   async gebundenerWorkflow(id: string, version: number): Promise<GeltenderWorkflow | undefined> {
     const zeile = await this.repository.findVersion(id, version);
+
+    if (zeile === undefined) {
+      return undefined;
+    }
+
+    return {
+      id: zeile.id,
+      version: zeile.version,
+      mode: zeile.mode,
+      initialState: zeile.initialState,
+      states: zeile.states,
+      transitions: zeile.transitions,
+    };
+  }
+
+  /**
+   * Die **aktuelle** Fassung einer Workflow-Definition - das Ziel eines Hebens
+   * (ADR-0025 Punkt 4).
+   *
+   * Ohne Ruecksicht auf `active`: Eine ausser Kraft gesetzte Definition nimmt keine neuen
+   * Anforderungen mehr auf (ADR-0025 Punkt 1), aber ihre laufenden auf den heutigen Stand
+   * zu bringen bleibt sinnvoll - womoeglich ist gerade das die Behebung.
+   */
+  async aktuelleFassung(id: string): Promise<GeltenderWorkflow | undefined> {
+    const zeile = await this.repository.findById(id);
 
     if (zeile === undefined) {
       return undefined;
@@ -291,5 +317,27 @@ export class WorkflowsService {
       changedBy: row.changedBy,
       changeSource: row.changeSource,
     };
+  }
+
+  /**
+   * Welche Fassungen in Gebrauch sind (ADR-0025 Punkt 3).
+   *
+   * Die Voraussetzung dafuer, eine Aenderung zu beurteilen: Ohne diese Auskunft ist nicht
+   * zu sehen, wie viele Anforderungen eine berichtigte Fassung nicht erreicht.
+   */
+  async fassungsnutzung(id: string): Promise<WorkflowVersionUsageResponse[]> {
+    const definition = await this.repository.findById(id);
+
+    if (definition === undefined) {
+      throw new NotFoundException(new WorkflowDefinitionNotFoundError(id).message);
+    }
+
+    const nutzung = await this.repository.fassungsnutzung(id);
+
+    return nutzung.map((eintrag) => ({
+      version: eintrag.version,
+      requirements: eintrag.anzahl,
+      current: eintrag.version === definition.version,
+    }));
   }
 }

@@ -476,6 +476,69 @@ export class RequirementsService {
   }
 
   /**
+   * Hebt eine laufende Anforderung auf die aktuelle Fassung ihres Workflows
+   * (ADR-0025 Punkt 4).
+   *
+   * **Der Ausweg, wenn eine Workflow-Definition fachlich falsch ist.** Seit M4.3 kann sie
+   * formal einwandfrei und trotzdem unbrauchbar sein - eine Rolle, die niemand hat, ein
+   * Vier-Augen-Bezug, der in der Praxis nicht erfuellbar ist. Ohne diesen Vorgang erreichte
+   * die berichtigte Fassung die laufenden Anforderungen nie.
+   *
+   * Ausdruecklich und begruendungspflichtig, nie als Nebenwirkung: Wer hebt, aendert die
+   * Regeln unter einem laufenden Vorgang, und das soll man ihm ansehen.
+   */
+  async hebeFassung(
+    sourceSystem: string,
+    externalId: string,
+    reason: string,
+    benutzer: AuthenticatedUser,
+  ): Promise<RequirementResponse> {
+    const bestand = await this.repository.findBySource(sourceSystem, externalId);
+    if (bestand === undefined) {
+      throw new NotFoundException(new RequirementNotFoundError(sourceSystem, externalId).message);
+    }
+
+    const ziel = await this.workflows.aktuelleFassung(bestand.workflowDefinitionId);
+
+    if (ziel === undefined) {
+      throw new Error(`Workflow ${bestand.workflowDefinitionId} fehlt`);
+    }
+
+    if (ziel.version === bestand.workflowVersion) {
+      // Schon auf dem heutigen Stand. Eine Version dafuer zu schreiben hiesse, eine
+      // Aenderung zu verzeichnen, die keine war (§19.1) - dieselbe Ueberlegung wie beim
+      // Wechsel auf denselben Zustand.
+      return RequirementsService.toResponse(bestand);
+    }
+
+    if (!ziel.states.some((zustand) => zustand.key === bestand.status)) {
+      // Sonst behebt dieser Vorgang ein Problem und erzeugt dabei das aus ADR-0022
+      // Punkt 5: eine Anforderung in einem Zustand, den ihr Graph nicht kennt.
+      throw new ConflictException(
+        `Der aktuelle Zustand "${bestand.status}" kommt in Fassung ${ziel.version} nicht vor. ` +
+          "Erst zuordnen, dann heben",
+      );
+    }
+
+    const zeile = await this.repository.update(bestand.id, {
+      projectId: bestand.projectId,
+      requirementType: bestand.requirementType,
+      // Unveraendert: Gehoben wird die Fassung, nicht der Zustand (ADR-0025 Punkt 5).
+      status: bestand.status,
+      owner: bestand.owner,
+      dynamicAttributes: bestand.dynamicAttributes,
+      heldFields: bestand.heldFields,
+      workflowBindung: { definitionId: ziel.id, version: ziel.version },
+      changeKind: "version_upgrade",
+      changeReason: reason,
+      changedBy: benutzer.userId,
+      changeSource: benutzer.clientId,
+    });
+
+    return RequirementsService.toResponse(zeile);
+  }
+
+  /**
    * Der Graph, gegen den diese Anforderung laeuft - ihre Ursprungsfassung, nicht die
    * aktuelle (§7).
    */
@@ -741,6 +804,7 @@ export class RequirementsService {
       requirementType: row.requirementType,
       status: row.status,
       owner: row.owner,
+      workflow: { id: row.workflowDefinitionId, version: row.workflowVersion },
       sourceSystem: row.sourceSystem,
       externalId: row.externalId,
       heldFields: row.heldFields,

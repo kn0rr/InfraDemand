@@ -3,6 +3,7 @@ import { and, asc, eq, isNull, or, sql } from "drizzle-orm";
 import { DATABASE, type Database } from "../database/database.tokens";
 import { istEindeutigkeitsverletzung } from "../database/fehler";
 import {
+  requirements,
   WORKFLOW_REQUIREMENT_TYPE_CONSTRAINT,
   type WorkflowDefinitionHistoryRow,
   type WorkflowDefinitionRow,
@@ -14,6 +15,11 @@ import {
   DuplicateWorkflowRequirementTypeError,
   WorkflowDefinitionNotFoundError,
 } from "./workflows.errors";
+
+export interface Fassungsnutzung {
+  version: number;
+  anzahl: number;
+}
 
 export interface WorkflowDefinitionCreateInput {
   label: string;
@@ -126,6 +132,30 @@ export class WorkflowsRepository {
       .limit(1);
 
     return zeile;
+  }
+  /**
+   * Wie viele Anforderungen auf welcher Fassung laufen (ADR-0025 Punkt 3).
+   *
+   * **Liest `requirement`, obwohl das Modul Workflows heisst.** Die Frage gilt einem
+   * Workflow, die Antwort steht bei den Anforderungen; der umgekehrte Weg - der
+   * Workflow-Service fragt das Requirements-Repository - erzeugte einen Modulkreis. Beide
+   * Tabellen gehoeren demselben Dienst, und die Eigentumsregel aus `services.md` bezieht
+   * sich auf Dienste, nicht auf Module.
+   *
+   * Nutzt `requirement_workflow_idx` aus M4.2 - den ersten Leser, den dieser Index hat.
+   */
+  fassungsnutzung(id: string): Promise<Fassungsnutzung[]> {
+    return this.db
+      .select({
+        version: requirements.workflowVersion,
+        // `::int`, weil `count()` in PostgreSQL bigint liefert und der Treiber daraus
+        // eine Zeichenkette macht.
+        anzahl: sql<number>`count(*)::int`,
+      })
+      .from(requirements)
+      .where(eq(requirements.workflowDefinitionId, id))
+      .groupBy(requirements.workflowVersion)
+      .orderBy(asc(requirements.workflowVersion));
   }
 
   async create(eingabe: WorkflowDefinitionCreateInput): Promise<WorkflowDefinitionRow> {

@@ -292,7 +292,7 @@ Fachtabelle führt den aktuellen Stand, `workflow_definition_history` alle Fassu
 
 Eine Fassung trägt den **vollständigen Graphen**, nicht die Änderung gegenüber der
 nächsten. Nur deshalb kann eine laufende Anforderung an ihre Ursprungsfassung gebunden
-werden (M4.4).
+werden.
 
 **Das ist der beabsichtigte Gegensatz zu den Attributdefinitionen.** Die werden gegen die
 *aktuell gültige* Fassung geprüft; Workflow-Definitionen gelten für eine laufende
@@ -301,6 +301,57 @@ würde sonst Anforderungen in Zustände versetzen, die es zu ihrer Zeit nicht ga
 
 Ein Workflow wird **nie gelöscht**, nur über `active` außer Kraft gesetzt. Laufende
 Anforderungen verweisen auf ihn.
+
+### Die Bindung einer Anforderung
+
+> [ADR-0025](../adr/0025-umgang-mit-der-gebundenen-workflow-fassung.md), umgesetzt mit
+> **M4.4**.
+
+Jede Anforderung trägt Kennung **und Fassungsnummer** ihres Workflows. Beide zusammen
+zeigen auf genau eine Zeile in `workflow_definition_history`. Die Antwort weist sie als
+`workflow: { id, version }` aus – ohne Bezeichnung, weil die bei einer Liste je Zeile
+nachzuschlagen wäre; die Oberfläche löst die Kennung gegen die Definitionen auf, die sie
+ohnehin lädt.
+
+**Außer Kraft setzen hält laufende Anforderungen nicht an.** `active = false` verhindert,
+dass neue Anforderungen unter diesem Workflow entstehen. Was läuft, läuft unter seiner
+gebundenen Fassung zu Ende. Die Gegenrichtung – alles anhalten – ließe begonnene Arbeit
+liegen und verlangte sofort einen Ausweg dafür.
+
+### Auf die aktuelle Fassung heben
+
+`PUT /v1/requirements/by-source/{sourceSystem}/{externalId}/workflow-version`
+
+**Der Ausweg, wenn eine Workflow-Definition fachlich falsch ist.** Vor M4.3 war das
+verschmerzbar: Ein falscher Zustandsname fiel beim Speichern auf. Seit Bedingungen an
+Übergängen hängen, kann eine Definition formal einwandfrei und trotzdem unbrauchbar sein –
+eine Rolle, die niemand hat, ein Vier-Augen-Bezug, der in der Praxis nicht erfüllbar ist.
+Dann steht die Arbeit, und die berichtigte Fassung erreicht sie nicht, denn die laufenden
+Anforderungen sind an die alte gebunden.
+
+| | |
+|---|---|
+| Ziel | **immer** die aktuelle Fassung, nie eine beliebige |
+| Zustand | bleibt unverändert |
+| Voraussetzung | der aktuelle Zustand kommt in der Zielfassung vor, sonst `409` |
+| Begründung | Pflicht |
+| Berechtigung | `platform-admin` |
+| Schon aktuell | keine neue Version (§19.1) |
+| In der Historie | `change_kind = version_upgrade` |
+
+**Automatisch geschieht das nie.** Automatisches Heben änderte die Regeln unter einer
+laufenden Anforderung, ohne dass jemand es angeordnet hat – besonders heikel, seit die
+Regeln Genehmigungszuständigkeiten enthalten: Eine Anforderung, die unter einer
+Vier-Augen-Regel begonnen hat, könnte ohne sie enden.
+
+### Welche Fassungen in Gebrauch sind
+
+`GET /v1/workflow-definitions/{id}/usage` liefert je Fassung die Zahl der Anforderungen und
+die Kennzeichnung der aktuellen. Ohne diese Auskunft ist nicht zu beurteilen, wie viele
+Anforderungen eine Berichtigung nicht erreicht.
+
+Sie ist zugleich die Gegenmaßnahme gegen das Heben: Wer alle laufenden Anforderungen hebt,
+hat der Sache nach rückwirkend geändert – hier wird es sichtbar.
 
 ---
 
@@ -365,7 +416,7 @@ festgehalten statt zurückgemeldet
 | Statuswechsel läuft gegen den Graphen | **umgesetzt** (M4.2) |
 | Anforderung ist an eine Workflow-Fassung gebunden | **umgesetzt** (M4.2) |
 | Bedingungen an Übergängen: Pflichtfelder, Berechtigung, Vier-Augen | **umgesetzt** (M4.3) |
-| Was gilt, wenn die gebundene Fassung den Zustand nicht mehr führt | offen (M4.4) |
+| Bindung sichtbar, Heben auf die aktuelle Fassung, Auskunft über Fassungen | **umgesetzt** (M4.4) |
 | Übergänge als Schaltflächen in der Oberfläche | offen (M4.5) |
 | Verwaltungsoberfläche für Workflows | offen (M4.6) |
 

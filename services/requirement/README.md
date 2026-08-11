@@ -155,6 +155,7 @@ diese Tabelle ist die Übersicht dazu.
 | `PATCH /v1/requirements/by-source/{sourceSystem}/{externalId}` | ja | Schreiben über Herkunft statt über interne Kennung (ADR-0010) |
 | `PUT /v1/requirements/by-source/…/state` | ja | Zustandswechsel gegen den Zustandsgraphen (§7, ADR-0022) |
 | `PUT /v1/requirements/by-source/…/state/assignment` | **platform-admin** | Zustand zuordnen, wenn der aktuelle im Graphen fehlt |
+| `PUT /v1/requirements/by-source/…/workflow-version` | **platform-admin** | Auf die aktuelle Workflow-Fassung heben (ADR-0025) |
 | `GET /v1/requirements/{id}/versions` | ja | Vollständige Versionshistorie (§19.4) |
 | `PUT`/`DELETE /v1/requirements/by-source/…/holds/{field}` | ja | Feld festhalten und wieder freigeben (ADR-0017 Teil B) |
 | `GET /v1/requirements/holds` | ja | Übersicht aller festgehaltenen Felder |
@@ -164,6 +165,7 @@ diese Tabelle ist die Übersicht dazu.
 | `POST`/`PUT /v1/mastership-rules` | **platform-admin** | Regeln pflegen |
 | `GET /v1/workflow-definitions` | ja | Zustandsgraphen; die Oberfläche baut daraus die Übergänge (§7) |
 | `POST`/`PUT /v1/workflow-definitions` | **platform-admin** | Workflows pflegen |
+| `GET /v1/workflow-definitions/{id}/usage` | **platform-admin** | Welche Fassungen mit wie vielen Anforderungen in Gebrauch sind |
 
 Zu jeder gepflegten Ressource gehört `GET …/{id}/versions` – die Historie ist zugleich der
 Auditpfad ([ADR-0012](../../docs/adr/0012-vollstaendige-versionierung-mit-zeitbezug.md)).
