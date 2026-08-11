@@ -8,6 +8,7 @@ import { configureApp } from "../src/app.setup";
 import { requirements } from "../src/database/schema";
 import { type JwksTestServer, startJwksTestServer } from "./support/jwks-test-server";
 import { startTestDatabase, type TestDatabase } from "./support/test-database";
+import { registriereWorkflow, type TestWorkflow } from "./support/workflows";
 
 describe("Anforderungen lesen", () => {
   let app: NestFastifyApplication;
@@ -15,6 +16,7 @@ describe("Anforderungen lesen", () => {
   let database: TestDatabase;
   let pool: Pool;
   let token: string;
+  let workflow: TestWorkflow;
 
   beforeAll(async () => {
     jwks = await startJwksTestServer();
@@ -26,7 +28,7 @@ describe("Anforderungen lesen", () => {
 
     token = jwks.sign({ sub: "u1", preferred_username: "test.author" });
     pool = new Pool({ connectionString: database.connectionString });
-
+    workflow = await registriereWorkflow(pool);
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
     }).compile();
@@ -63,6 +65,8 @@ describe("Anforderungen lesen", () => {
     await drizzle(pool)
       .insert(requirements)
       .values({
+        workflowDefinitionId: workflow.id,
+        workflowVersion: workflow.version,
         projectId: projektId,
         requirementType: "feature",
         status: "neu",
@@ -87,6 +91,8 @@ describe("Anforderungen lesen", () => {
 
   it("gibt keine Datenbankspalten preis, die nicht zum Vertrag gehoeren", async () => {
     await drizzle(pool).insert(requirements).values({
+      workflowDefinitionId: workflow.id,
+      workflowVersion: workflow.version,
       projectId: "22222222-2222-4222-8222-222222222222",
       requirementType: "bug",
       status: "neu",

@@ -270,7 +270,11 @@ components:
           maxLength: 200
           type: string
         owner:
-          maxLength: 200
+          description: >-
+            Kein Vorgabewert: Ein fest verdrahteter Anfangszustand waere eine Workflow-Annahme, und
+            §7 macht Zustaende konfigurierbar. Ab M4 liefert ihn die Workflow-Definition.
+          example: neu
+          maxLength: 100
           type: string
         projectId:
           format: uuid
@@ -284,17 +288,9 @@ components:
           example: sap
           maxLength: 100
           type: string
-        status:
-          description: >-
-            Kein Vorgabewert: Ein fest verdrahteter Anfangszustand waere eine Workflow-Annahme, und
-            §7 macht Zustaende konfigurierbar. Ab M4 liefert ihn die Workflow-Definition.
-          example: neu
-          maxLength: 100
-          type: string
       required:
         - projectId
         - requirementType
-        - status
         - owner
       type: object
     CreateWorkflowDefinitionDto:
@@ -489,6 +485,21 @@ components:
         - changedBy
         - changeSource
       type: object
+    OrdneZustandZuDto:
+      properties:
+        reason:
+          example: Bestand aus der Altablage, Zustand 'Freigegeben' entspricht 'in_pruefung'
+          maxLength: 500
+          minLength: 10
+          type: string
+        state:
+          example: in_pruefung
+          maxLength: 100
+          type: string
+      required:
+        - state
+        - reason
+      type: object
     PatchRequirementDto:
       properties:
         dynamicAttributes:
@@ -505,10 +516,6 @@ components:
           type: string
         requirementType:
           example: feature
-          maxLength: 100
-          type: string
-        status:
-          example: in_arbeit
           maxLength: 100
           type: string
       type: object
@@ -755,6 +762,16 @@ components:
         - states
         - transitions
         - active
+      type: object
+    WechsleZustandDto:
+      properties:
+        toState:
+          description: Schluessel des Zielzustands aus dem geltenden Workflow.
+          example: in_pruefung
+          maxLength: 100
+          type: string
+      required:
+        - toState
       type: object
     WorkflowDefinitionResponse:
       properties:
@@ -1462,6 +1479,106 @@ paths:
       security:
         - bearer: []
       summary: Feld gegen automatische Uebernahme festhalten
+      tags:
+        - Anforderungen
+  /v1/requirements/by-source/{sourceSystem}/{externalId}/state:
+    put:
+      description: >-
+        Eigener Vorgang statt eines Feldes im Rumpf (§7, ADR-0022). Genannt wird der Zielzustand;
+        den passenden Uebergang ermittelt der Dienst. Bei fremdgefuehrten Workflows wird der Zustand
+        entgegengenommen, ohne einen Uebergang zu verlangen - dort fuehrt das Fremdsystem
+        (ADR-0021). Derselbe Zustand erneut zu senden aendert nichts und erzeugt keine Version
+        (§19.1).
+      operationId: RequirementsController_wechsleZustand_v1
+      parameters:
+        - in: path
+          name: sourceSystem
+          required: true
+          schema:
+            example: sap
+            type: string
+        - in: path
+          name: externalId
+          required: true
+          schema:
+            example: A-4711
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WechsleZustandDto'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RequirementResponse'
+          description: ''
+        '400':
+          description: Der Zielzustand kommt im geltenden Workflow nicht vor
+        '401':
+          description: Kein oder ungueltiges Token
+        '404':
+          description: Kein Datensatz unter dieser Herkunft
+        '409':
+          description: >-
+            Drei Ursachen. Es gibt keinen Uebergang vom aktuellen in den gewuenschten Zustand; der
+            aktuelle Zustand kommt im geltenden Workflow gar nicht vor und muss zuerst zugeordnet
+            werden; oder fuer `status` ist eine andere Quelle massgeblich (§19.3), dann traegt die
+            Antwort ein Feld `fields`.
+      security:
+        - bearer: []
+      summary: Zustand wechseln
+      tags:
+        - Anforderungen
+  /v1/requirements/by-source/{sourceSystem}/{externalId}/state/assignment:
+    put:
+      description: >-
+        Fuer Anforderungen, deren aktueller Zustand im geltenden Workflow nicht vorkommt - weil sie
+        aelter sind als er, weil ein Import einen fremden Status geliefert hat oder weil ein Zustand
+        entfernt wurde (ADR-0022 Punkt 5). **Kein Uebergang**: Es wird nicht geprueft, ob einer
+        hinfuehrt, und die Historie weist den Vorgang als Zuordnung aus. Die Begruendung ist
+        Pflicht.
+      operationId: RequirementsController_ordneZustandZu_v1
+      parameters:
+        - in: path
+          name: sourceSystem
+          required: true
+          schema:
+            example: sap
+            type: string
+        - in: path
+          name: externalId
+          required: true
+          schema:
+            example: A-4711
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrdneZustandZuDto'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RequirementResponse'
+          description: ''
+        '400':
+          description: Der Zustand kommt im geltenden Workflow nicht vor
+        '401':
+          description: Kein oder ungueltiges Token
+        '403':
+          description: Rolle platform-admin fehlt
+        '404':
+          description: Kein Datensatz unter dieser Herkunft
+      security:
+        - bearer: []
+      summary: Zustand zuordnen
       tags:
         - Anforderungen
   /v1/requirements/holds:

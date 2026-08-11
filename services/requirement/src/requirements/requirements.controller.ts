@@ -29,6 +29,7 @@ import { PatchRequirementDto } from "./patch-requirement.dto";
 import { RequirementResponse } from "./requirement.dto";
 import { RequirementVersionResponse } from "./requirement-version.dto";
 import { RequirementsService } from "./requirements.service";
+import { OrdneZustandZuDto, WechsleZustandDto } from "./zustandswechsel.dto";
 
 @ApiTags("Anforderungen")
 @ApiBearerAuth()
@@ -144,6 +145,74 @@ export class RequirementsController {
   ): Promise<RequirementResponse> {
     return this.service.patchBySource(sourceSystem, externalId, eingabe, benutzer);
   }
+
+  @Put("by-source/:sourceSystem/:externalId/state")
+  @ApiOperation({
+    summary: "Zustand wechseln",
+    description:
+      "Eigener Vorgang statt eines Feldes im Rumpf (§7, ADR-0022). Genannt wird der " +
+      "Zielzustand; den passenden Uebergang ermittelt der Dienst. Bei fremdgefuehrten " +
+      "Workflows wird der Zustand entgegengenommen, ohne einen Uebergang zu verlangen - " +
+      "dort fuehrt das Fremdsystem (ADR-0021). Derselbe Zustand erneut zu senden aendert " +
+      "nichts und erzeugt keine Version (§19.1).",
+  })
+  @ApiParam({ name: "sourceSystem", example: "sap" })
+  @ApiParam({ name: "externalId", example: "A-4711" })
+  @ApiResponse({ status: 200, type: RequirementResponse })
+  @ApiResponse({
+    status: 400,
+    description: "Der Zielzustand kommt im geltenden Workflow nicht vor",
+  })
+  @ApiResponse({ status: 404, description: "Kein Datensatz unter dieser Herkunft" })
+  @ApiResponse({
+    status: 409,
+    description:
+      "Drei Ursachen. Es gibt keinen Uebergang vom aktuellen in den gewuenschten " +
+      "Zustand; der aktuelle Zustand kommt im geltenden Workflow gar nicht vor und muss " +
+      "zuerst zugeordnet werden; oder fuer `status` ist eine andere Quelle massgeblich " +
+      "(§19.3), dann traegt die Antwort ein Feld `fields`.",
+  })
+  wechsleZustand(
+    @Param("sourceSystem") sourceSystem: string,
+    @Param("externalId") externalId: string,
+    @Body() eingabe: WechsleZustandDto,
+    @CurrentUser() benutzer: AuthenticatedUser,
+  ): Promise<RequirementResponse> {
+    return this.service.wechsleZustand(sourceSystem, externalId, eingabe.toState, benutzer);
+  }
+
+  @Put("by-source/:sourceSystem/:externalId/state/assignment")
+  @Rollen("platform-admin")
+  @ApiOperation({
+    summary: "Zustand zuordnen",
+    description:
+      "Fuer Anforderungen, deren aktueller Zustand im geltenden Workflow nicht vorkommt - " +
+      "weil sie aelter sind als er, weil ein Import einen fremden Status geliefert hat " +
+      "oder weil ein Zustand entfernt wurde (ADR-0022 Punkt 5). **Kein Uebergang**: Es " +
+      "wird nicht geprueft, ob einer hinfuehrt, und die Historie weist den Vorgang als " +
+      "Zuordnung aus. Die Begruendung ist Pflicht.",
+  })
+  @ApiParam({ name: "sourceSystem", example: "sap" })
+  @ApiParam({ name: "externalId", example: "A-4711" })
+  @ApiResponse({ status: 200, type: RequirementResponse })
+  @ApiResponse({ status: 400, description: "Der Zustand kommt im geltenden Workflow nicht vor" })
+  @ApiResponse({ status: 403, description: "Rolle platform-admin fehlt" })
+  @ApiResponse({ status: 404, description: "Kein Datensatz unter dieser Herkunft" })
+  ordneZustandZu(
+    @Param("sourceSystem") sourceSystem: string,
+    @Param("externalId") externalId: string,
+    @Body() eingabe: OrdneZustandZuDto,
+    @CurrentUser() benutzer: AuthenticatedUser,
+  ): Promise<RequirementResponse> {
+    return this.service.ordneZustandZu(
+      sourceSystem,
+      externalId,
+      eingabe.state,
+      eingabe.reason,
+      benutzer,
+    );
+  }
+
   @Put("by-source/:sourceSystem/:externalId/holds/:field")
   @Rollen("platform-admin")
   @ApiOperation({

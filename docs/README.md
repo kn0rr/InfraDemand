@@ -45,12 +45,16 @@ Nachbereitung. Konkret:
 
 ## Stand
 
-**M0 (Fundament)** und **M1 (Walking Skeleton Requirement Service)** sind abgeschlossen.
+**M0** bis **M3** sind abgeschlossen: Fundament, Requirement Service mit vollständigem
+vertikalem Durchstich, Frontend-Durchstich, dynamisches Attributmodell (§6) und Datenhoheit
+je Feld (§19.3).
 
-Der Requirement Service hat einen vollständigen vertikalen Durchstich: geschützte
-Endpunkte gegen Keycloak, Persistenz mit Drizzle, vollständige Versionshistorie mit
-Stichtagsabfrage nach §19.4, und einen versionierten OpenAPI-Contract mit drei Toren in
-der CI.
+Laufend ist **M4 (Workflow-Engine, §7)**. Definition und Durchsetzung des Zustandsgraphen
+stehen (M4.1, M4.2); die Bedingungen an den Übergängen – Berechtigung, Pflichtfelder,
+Vier-Augen-Prinzip – folgen mit M4.3. Bis dahin gilt die Einschränkung aus `PROD-052`.
 
-Laufend ist **M2 (Frontend-Durchstich)**. Der Stand je Meilenstein steht in
+Wie Workflows aufgebaut sind und was heute davon greift:
+[`architecture/workflows.md`](architecture/workflows.md).
+
+Der Stand je Meilenstein steht in
 [`architecture/README.md`](architecture/README.md#umsetzungsstrategie).

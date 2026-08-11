@@ -74,7 +74,7 @@ describe("Workflow-Definitionen", () => {
   });
 
   beforeEach(async () => {
-    await pool.query("TRUNCATE TABLE workflow_definition, workflow_definition_history");
+    await pool.query("TRUNCATE TABLE workflow_definition, workflow_definition_history CASCADE");
   });
 
   const alsAdmin = () =>

@@ -7,6 +7,7 @@ import { configureApp } from "../src/app.setup";
 import { type JwksTestServer, startJwksTestServer } from "./support/jwks-test-server";
 import { registriereQuelle } from "./support/source-systems";
 import { startTestDatabase, type TestDatabase } from "./support/test-database";
+import { registriereWorkflow } from "./support/workflows";
 
 describe("Festhaltung von Feldern", () => {
   let app: NestFastifyApplication;
@@ -20,7 +21,6 @@ describe("Festhaltung von Feldern", () => {
   const basis = {
     projectId: "11111111-1111-4111-8111-111111111111",
     requirementType: "feature",
-    status: "neu",
     owner: "M. Weber",
   };
 
@@ -44,6 +44,7 @@ describe("Festhaltung von Feldern", () => {
 
     pool = new Pool({ connectionString: database.connectionString });
     await registriereQuelle(pool, "sap", "automatic");
+    await registriereWorkflow(pool);
 
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
@@ -148,11 +149,11 @@ describe("Festhaltung von Feldern", () => {
       // ADR-0019 Punkt 2: verzeichnen und fortfahren - ein naechtlicher Lauf hat
       // niemanden, dem er eine Ablehnung sagen koennte.
       const antwort = await mit(alsVorsystem)("patch", pfad("B-1"))
-        .send({ owner: "L. Braun", status: "in_arbeit" })
+        .send({ owner: "L. Braun", requirementType: "bug" })
         .expect(200);
 
       expect(antwort.body.owner).toBe("M. Weber");
-      expect(antwort.body.status).toBe("in_arbeit");
+      expect(antwort.body.requirementType).toBe("bug");
     });
 
     it("verzeichnet die abgewiesene Lieferung", async () => {

@@ -41,7 +41,6 @@ export function Anforderungsbereich({ benutzer }: { benutzer: string }) {
     initialValues: {
       projectId: "",
       requirementType: "feature",
-      status: "neu",
       owner: benutzer,
       dynamicAttributes: {},
     },
@@ -52,7 +51,6 @@ export function Anforderungsbereich({ benutzer }: { benutzer: string }) {
     validate: {
       projectId: (wert) => (UUID_MUSTER.test(wert) ? null : "Keine gueltige UUID"),
       requirementType: pflichtfeld,
-      status: pflichtfeld,
       owner: pflichtfeld,
     },
   });
@@ -142,11 +140,6 @@ export function Anforderungsbereich({ benutzer }: { benutzer: string }) {
               </Group>
 
               <Group grow align="flex-start">
-                <TextInput
-                  label="Status"
-                  key={formular.key("status")}
-                  {...formular.getInputProps("status")}
-                />
                 <TextInput
                   label="Verantwortlich"
                   key={formular.key("owner")}

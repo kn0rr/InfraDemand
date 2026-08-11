@@ -11,6 +11,7 @@ import { registriereAttribut } from "./support/attribute-definitions";
 import { type JwksTestServer, startJwksTestServer } from "./support/jwks-test-server";
 import { registriereQuelle } from "./support/source-systems";
 import { startTestDatabase, type TestDatabase } from "./support/test-database";
+import { registriereWorkflow } from "./support/workflows";
 
 describe("Anforderungen anlegen", () => {
   let app: NestFastifyApplication;
@@ -22,7 +23,7 @@ describe("Anforderungen anlegen", () => {
   const gueltig = {
     projectId: "11111111-1111-4111-8111-111111111111",
     requirementType: "feature",
-    status: "neu",
+
     owner: "test.author",
   };
 
@@ -38,7 +39,7 @@ describe("Anforderungen anlegen", () => {
     pool = new Pool({ connectionString: database.connectionString });
 
     await registriereQuelle(pool, "sap");
-
+    await registriereWorkflow(pool);
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
     }).compile();
@@ -240,7 +241,7 @@ describe("Anforderungen anlegen", () => {
 
       expect(antwort.body).toMatchObject({
         owner: "L. Braun",
-        status: gueltig.status,
+
         requirementType: gueltig.requirementType,
         version: 2,
       });

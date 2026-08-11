@@ -22,7 +22,16 @@ export class CreateRequirementDto {
   @IsString()
   @MinLength(1)
   @MaxLength(100)
-  status!: string;
+  /**
+   * Anlage einer Anforderung.
+   *
+   * `status` fehlt seit [ADR-0022](../../../../docs/adr/0022-statuswechsel-als-eigener-vorgang.md):
+   * Der Anfangszustand kommt aus der Workflow-Definition des Anforderungstyps. Ihn hier
+   * setzen zu koennen hiesse, einen Zustand ohne Bezug zum Graphen zu erzeugen - und genau
+   * das schliesst §7 aus.
+   *
+   * Gibt es fuer den Typ keinen gueltigen Workflow, entsteht die Anforderung nicht.
+   */
 
   @ApiProperty({ maxLength: 200 })
   @IsString()

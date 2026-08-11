@@ -214,6 +214,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/requirements/by-source/{sourceSystem}/{externalId}/state": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Zustand wechseln
+         * @description Eigener Vorgang statt eines Feldes im Rumpf (§7, ADR-0022). Genannt wird der Zielzustand; den passenden Uebergang ermittelt der Dienst. Bei fremdgefuehrten Workflows wird der Zustand entgegengenommen, ohne einen Uebergang zu verlangen - dort fuehrt das Fremdsystem (ADR-0021). Derselbe Zustand erneut zu senden aendert nichts und erzeugt keine Version (§19.1).
+         */
+        put: operations["RequirementsController_wechsleZustand_v1"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/requirements/by-source/{sourceSystem}/{externalId}/state/assignment": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Zustand zuordnen
+         * @description Fuer Anforderungen, deren aktueller Zustand im geltenden Workflow nicht vorkommt - weil sie aelter sind als er, weil ein Import einen fremden Status geliefert hat oder weil ein Zustand entfernt wurde (ADR-0022 Punkt 5). **Kein Uebergang**: Es wird nicht geprueft, ob einer hinfuehrt, und die Historie weist den Vorgang als Zuordnung aus. Die Begruendung ist Pflicht.
+         */
+        put: operations["RequirementsController_ordneZustandZu_v1"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/requirements/holds": {
         parameters: {
             query?: never;
@@ -439,6 +479,10 @@ export interface components {
              * @example A-4711
              */
             externalId?: string;
+            /**
+             * @description Kein Vorgabewert: Ein fest verdrahteter Anfangszustand waere eine Workflow-Annahme, und §7 macht Zustaende konfigurierbar. Ab M4 liefert ihn die Workflow-Definition.
+             * @example neu
+             */
             owner: string;
             /** Format: uuid */
             projectId: string;
@@ -449,11 +493,6 @@ export interface components {
              * @example sap
              */
             sourceSystem?: string;
-            /**
-             * @description Kein Vorgabewert: Ein fest verdrahteter Anfangszustand waere eine Workflow-Annahme, und §7 macht Zustaende konfigurierbar. Ab M4 liefert ihn die Workflow-Definition.
-             * @example neu
-             */
-            status: string;
         };
         CreateWorkflowDefinitionDto: {
             /** @example neu */
@@ -549,6 +588,12 @@ export interface components {
             /** @example 1 */
             version: number;
         };
+        OrdneZustandZuDto: {
+            /** @example Bestand aus der Altablage, Zustand 'Freigegeben' entspricht 'in_pruefung' */
+            reason: string;
+            /** @example in_pruefung */
+            state: string;
+        };
         PatchRequirementDto: {
             /** @description Wird schluesselweise mit dem Bestand zusammengefuehrt. Ein nicht genannter Schluessel bleibt unveraendert; `null` loescht ihn. */
             dynamicAttributes?: {
@@ -559,8 +604,6 @@ export interface components {
             projectId?: string;
             /** @example feature */
             requirementType?: string;
-            /** @example in_arbeit */
-            status?: string;
         };
         RequirementResponse: {
             /** Format: date-time */
@@ -673,6 +716,13 @@ export interface components {
             mode: "internal" | "external";
             states: components["schemas"]["WorkflowStateDto"][];
             transitions: components["schemas"]["WorkflowTransitionDto"][];
+        };
+        WechsleZustandDto: {
+            /**
+             * @description Schluessel des Zielzustands aus dem geltenden Workflow.
+             * @example in_pruefung
+             */
+            toState: string;
         };
         WorkflowDefinitionResponse: {
             /** @description false setzt den Workflow ausser Kraft, ohne ihn zu loeschen. */
@@ -1345,6 +1395,114 @@ export interface operations {
                 content?: never;
             };
             /** @description Datensatz oder Festhaltung existiert nicht */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    RequirementsController_wechsleZustand_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sourceSystem: string;
+                externalId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WechsleZustandDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RequirementResponse"];
+                };
+            };
+            /** @description Der Zielzustand kommt im geltenden Workflow nicht vor */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Kein oder ungueltiges Token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Kein Datensatz unter dieser Herkunft */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Drei Ursachen. Es gibt keinen Uebergang vom aktuellen in den gewuenschten Zustand; der aktuelle Zustand kommt im geltenden Workflow gar nicht vor und muss zuerst zugeordnet werden; oder fuer `status` ist eine andere Quelle massgeblich (§19.3), dann traegt die Antwort ein Feld `fields`. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    RequirementsController_ordneZustandZu_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sourceSystem: string;
+                externalId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OrdneZustandZuDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RequirementResponse"];
+                };
+            };
+            /** @description Der Zustand kommt im geltenden Workflow nicht vor */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Kein oder ungueltiges Token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Rolle platform-admin fehlt */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Kein Datensatz unter dieser Herkunft */
             404: {
                 headers: {
                     [name: string]: unknown;

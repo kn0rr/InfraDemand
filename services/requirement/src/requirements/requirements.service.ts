@@ -12,6 +12,8 @@ import type { Festhaltung, RequirementHistoryRow, RequirementRow } from "../data
 import { MastershipService } from "../mastership/mastership.service";
 import { UnknownSourceSystemError } from "../source-systems/source-systems.errors";
 import { SourceSystemsService } from "../source-systems/source-systems.service";
+import type { GeltenderWorkflow } from "../workflows/typen";
+import { WorkflowsService } from "../workflows/workflows.service";
 import type { CreateRequirementDto } from "./create-requirement.dto";
 import {
   alsDynamisch,
@@ -20,6 +22,7 @@ import {
   istGleich,
   KERNFELDER,
   letzteQuelleFuerFeld,
+  PATCHBARE_KERNFELDER,
 } from "./feldherkunft";
 import {
   type Abweisung,
@@ -41,6 +44,7 @@ export class RequirementsService {
     private readonly sourceSystems: SourceSystemsService,
     private readonly attributeDefinitions: AttributeDefinitionsService,
     private readonly mastership: MastershipService,
+    private readonly workflows: WorkflowsService,
   ) {}
   /**
    * Teilweise Aenderung ueber den fremden Bezeichner (ADR-0010, ADR-0018 Punkt 6).
@@ -107,7 +111,6 @@ export class RequirementsService {
       ...(eingabe.requirementType === undefined
         ? {}
         : { requirementType: eingabe.requirementType }),
-      ...(eingabe.status === undefined ? {} : { status: eingabe.status }),
       ...(eingabe.owner === undefined ? {} : { owner: eingabe.owner }),
       ...(eingabe.dynamicAttributes ?? {}),
     };
@@ -115,7 +118,9 @@ export class RequirementsService {
     // Nur die benannten Felder. Ein Vorgabewert aus der Attributdefinition ist keine
     // Aeusserung des Aufrufers und faellt nicht unter die Regeln.
     const benannt = new Set<string>([
-      ...KERNFELDER.filter((feld) => eingabe[feld] !== undefined),
+      // `status` ist nicht dabei: Der Zustandswechsel laeuft ueber `wechsleZustand`
+      // gegen den Graphen (ADR-0022 Punkt 1). `kern.status` traegt damit den Bestandswert.
+      ...PATCHBARE_KERNFELDER.filter((feld) => eingabe[feld] !== undefined),
       ...Object.keys(eingabe.dynamicAttributes ?? {}),
     ]);
 
@@ -191,6 +196,17 @@ export class RequirementsService {
       await this.abweisungenVerzeichnen(bestand.id, abweisungen, benutzer);
       throw RequirementsService.hoheitsfehler(abweisungen);
     }
+    // ADR-0023: Der Workflow gehoert zur Art der Anforderung. Bliebe die alte Bindung
+    // bestehen, liefe sie dauerhaft unter dem Graphen einer Art, die sie nicht mehr hat -
+    // und das faellt niemandem auf, weil die Uebergaenge weiter funktionieren. Es sind nur
+    // die falschen.
+    //
+    // Erst hier und nicht frueher: Ein Wechsel, den die Hoheitspruefung ohnehin abweist,
+    // braucht keinen Lesezugriff auf die Workflow-Definitionen.
+    const workflowBindung =
+      kern.requirementType === bestand.requirementType
+        ? undefined
+        : await this.bindungFuer(kern.requirementType);
 
     const zeile = await this.repository.update(bestand.id, {
       ...kern,
@@ -200,6 +216,7 @@ export class RequirementsService {
       heldFields: bestand.heldFields,
       changedBy: benutzer.userId,
       changeSource: benutzer.clientId,
+      workflowBindung,
     });
 
     return RequirementsService.toResponse(zeile);
@@ -234,6 +251,18 @@ export class RequirementsService {
       // ADR-0017 A4: Wessen Klasse unbekannt ist, darf nicht schreiben.
       await this.sourceSystems.pruefeSchreibquelle(herkunft);
 
+      // ADR-0022 Punkt 2: Ohne gueltigen Workflow entsteht keine Anforderung. Sonst
+      // hiesse "nicht konfiguriert" zugleich "nicht gesteuert" - und ein ungesteuerter
+      // Typ saehe in der Oberflaeche aus wie ein gesteuerter.
+      const workflow = await this.workflows.geltenderWorkflow(eingabe.requirementType);
+
+      if (workflow === undefined) {
+        throw new BadRequestException(
+          `Fuer "${eingabe.requirementType}" ist kein gueltiger Workflow hinterlegt - ` +
+            "ohne ihn kann keine Anforderung entstehen",
+        );
+      }
+
       // §6: gegen die **aktuell** gueltigen Definitionen, nicht gegen die bei Anlage
       // des Datensatzes geltenden. §19.2: derselbe Pruefpfad fuer jeden Eingangsweg.
       const definitionen = await this.attributeDefinitions.geltendeDefinitionen(
@@ -255,16 +284,22 @@ export class RequirementsService {
         feldwerte({
           projectId: eingabe.projectId,
           requirementType: eingabe.requirementType,
-          status: eingabe.status,
+          status: workflow.initialState,
           owner: eingabe.owner,
           dynamicAttributes: pruefung.werte,
         }),
-      ).map(([field, neuerWert]) => ({
-        field,
-        neuerWert,
-        aktuellerWert: null,
-        aktuelleQuellenklasse: undefined,
-      }));
+      )
+        // `status` ausgenommen: Der Anfangszustand kommt aus der Workflow-Definition und
+        // ist keine Aeusserung des Aufrufers - dieselbe Ueberlegung wie beim Vorgabewert
+        // einer Attributdefinition. Eine Regel `manual_locked` auf `status` wuerde sonst
+        // das Anlegen von Hand verhindern, obwohl niemand einen Zustand gesetzt hat.
+        .filter(([field]) => field !== "status")
+        .map(([field, neuerWert]) => ({
+          field,
+          neuerWert,
+          aktuellerWert: null,
+          aktuelleQuellenklasse: undefined,
+        }));
 
       const abweisungen = pruefeHoheit(vorhaben, klasse, regeln);
       if (abweisungen.length > 0) {
@@ -277,16 +312,20 @@ export class RequirementsService {
       const zeile = await this.repository.create({
         projectId: eingabe.projectId,
         requirementType: eingabe.requirementType,
-        status: eingabe.status,
+        status: workflow.initialState,
         owner: eingabe.owner,
         sourceSystem: herkunft,
         externalId: eingabe.externalId ?? null,
         // Die geprueften Werte, nicht die eingereichten: Vorgabewerte sind ergaenzt,
         // leere optionale Attribute entfernt.
         dynamicAttributes: pruefung.werte,
+        workflowDefinitionId: workflow.id,
+        workflowVersion: workflow.version,
         changedBy: benutzer.userId,
         changeSource: benutzer.clientId,
       });
+
+      return RequirementsService.toResponse(zeile);
 
       return RequirementsService.toResponse(zeile);
     } catch (fehler) {
@@ -310,6 +349,220 @@ export class RequirementsService {
     }
   }
 
+  /**
+   * Wechselt den Zustand einer Anforderung (§7, ADR-0022 Punkt 1).
+   *
+   * Der Aufrufer nennt den **Zielzustand**, nicht den Uebergang. Ein Fremdsystem kennt
+   * unseren Graphen nicht, und ein Formular soll nicht zwei Dinge schicken muessen, von
+   * denen eines aus dem anderen folgt. Der passende Uebergang ist eindeutig: Zwei
+   * Uebergaenge zwischen demselben Zustandspaar weist die Graphpruefung seit M4.1 ab.
+   */
+  async wechsleZustand(
+    sourceSystem: string,
+    externalId: string,
+    zielzustand: string,
+    benutzer: AuthenticatedUser,
+  ): Promise<RequirementResponse> {
+    const bestand = await this.repository.findBySource(sourceSystem, externalId);
+    if (bestand === undefined) {
+      throw new NotFoundException(new RequirementNotFoundError(sourceSystem, externalId).message);
+    }
+
+    const workflow = await this.gebundeneFassung(bestand);
+
+    if (!workflow.states.some((zustand) => zustand.key === zielzustand)) {
+      throw new BadRequestException(`"${zielzustand}" ist kein Zustand des geltenden Workflows`);
+    }
+
+    if (bestand.status === zielzustand) {
+      // §19.1: Wiederholte Uebermittlung desselben Datensatzes erzeugt keine Dubletten.
+      // Ein Import liefert den Zustand bei jedem Lauf mit; jedes Mal eine Version zu
+      // schreiben hiesse, Aenderungen zu verzeichnen, die keine waren.
+      return RequirementsService.toResponse(bestand);
+    }
+
+    // Bei fremdgefuehrten Workflows entscheidet das Fremdsystem (ADR-0021 Punkt 4). Ein
+    // Zielzustand von dort ist eine Mitteilung, keine Bitte - wiesen wir ihn ab, entstuende
+    // ein dauerhafter Widerspruch, bei dem unsere Seite die falsche waere.
+    if (workflow.mode === "internal") {
+      RequirementsService.pruefeUebergang(workflow, bestand.status, zielzustand);
+    }
+
+    await this.pruefeStatushoheit(bestand, zielzustand, benutzer);
+
+    const zeile = await this.repository.update(bestand.id, {
+      projectId: bestand.projectId,
+      requirementType: bestand.requirementType,
+      status: zielzustand,
+      owner: bestand.owner,
+      dynamicAttributes: bestand.dynamicAttributes,
+      heldFields: bestand.heldFields,
+      changeKind: "transition",
+      changedBy: benutzer.userId,
+      changeSource: benutzer.clientId,
+    });
+
+    return RequirementsService.toResponse(zeile);
+  }
+
+  /**
+   * Ordnet einer Anforderung einen Zustand des Graphen zu (ADR-0022 Punkt 5).
+   *
+   * Fuer den Fall, dass ihr aktueller Zustand im geltenden Workflow nicht vorkommt - weil
+   * sie aelter ist als er, weil ein Import einen fremden Status geliefert hat oder weil
+   * ein Zustand aus der Definition entfernt wurde.
+   *
+   * **Kein Uebergang**, und deshalb auch nicht als solcher verzeichnet. Die Begruendung
+   * ist Pflicht: Die Zuordnung setzt einen Zustand, den kein Uebergang hergibt, und wer
+   * sie spaeter vorfindet, muss erkennen koennen, worauf sie beruhte.
+   */
+  async ordneZustandZu(
+    sourceSystem: string,
+    externalId: string,
+    zustand: string,
+    reason: string,
+    benutzer: AuthenticatedUser,
+  ): Promise<RequirementResponse> {
+    const bestand = await this.repository.findBySource(sourceSystem, externalId);
+    if (bestand === undefined) {
+      throw new NotFoundException(new RequirementNotFoundError(sourceSystem, externalId).message);
+    }
+
+    const workflow = await this.gebundeneFassung(bestand);
+
+    if (!workflow.states.some((eintrag) => eintrag.key === zustand)) {
+      throw new BadRequestException(`"${zustand}" ist kein Zustand des geltenden Workflows`);
+    }
+
+    const zeile = await this.repository.update(bestand.id, {
+      projectId: bestand.projectId,
+      requirementType: bestand.requirementType,
+      status: zustand,
+      owner: bestand.owner,
+      dynamicAttributes: bestand.dynamicAttributes,
+      heldFields: bestand.heldFields,
+      changeKind: "state_assignment",
+      changeReason: reason,
+      changedBy: benutzer.userId,
+      changeSource: benutzer.clientId,
+    });
+
+    return RequirementsService.toResponse(zeile);
+  }
+
+  /**
+   * Der Graph, gegen den diese Anforderung laeuft - ihre Ursprungsfassung, nicht die
+   * aktuelle (§7).
+   */
+  private async gebundeneFassung(bestand: RequirementRow): Promise<GeltenderWorkflow> {
+    const workflow = await this.workflows.gebundenerWorkflow(
+      bestand.workflowDefinitionId,
+      bestand.workflowVersion,
+    );
+
+    if (workflow === undefined) {
+      // Historienzeilen werden nie geloescht. Trifft das hier zu, ist etwas an der
+      // Versionierung kaputt, und weiterzumachen hiesse, gegen einen erfundenen Graphen
+      // zu pruefen.
+      throw new Error(
+        `Workflow-Fassung ${bestand.workflowDefinitionId}/${bestand.workflowVersion} fehlt`,
+      );
+    }
+
+    return workflow;
+  }
+
+  /**
+   * Die Bindung, die fuer diese Anforderungsart gilt (ADR-0022 Punkt 2, ADR-0023).
+   *
+   * Ohne gueltigen Workflow gibt es keine Bindung - und damit keine Anforderung dieser
+   * Art. Das gilt beim Anlegen wie beim Wechsel der Art.
+   */
+  private async bindungFuer(
+    requirementType: string,
+  ): Promise<{ definitionId: string; version: number }> {
+    const workflow = await this.workflows.geltenderWorkflow(requirementType);
+
+    if (workflow === undefined) {
+      throw new BadRequestException(
+        `Fuer "${requirementType}" ist kein gueltiger Workflow hinterlegt`,
+      );
+    }
+
+    return { definitionId: workflow.id, version: workflow.version };
+  }
+
+  /**
+   * Gibt es einen Uebergang vom aktuellen in den gewuenschten Zustand?
+   *
+   * Der unbekannte Ausgangszustand bekommt eine eigene Meldung. „Uebergang unzulaessig"
+   * schickte die Suche in die falsche Richtung - man prueft den Graphen auf einen
+   * Uebergang, den es nie geben konnte, weil schon der Ausgangspunkt nicht darin vorkommt.
+   */
+  private static pruefeUebergang(workflow: GeltenderWorkflow, aktuell: string, ziel: string): void {
+    if (!workflow.states.some((zustand) => zustand.key === aktuell)) {
+      throw new ConflictException(
+        `Der aktuelle Zustand "${aktuell}" kommt im geltenden Workflow nicht vor. ` +
+          "Ein Administrator muss ihn zuordnen, bevor Uebergaenge moeglich sind",
+      );
+    }
+
+    const uebergang = workflow.transitions.find(
+      (eintrag) => eintrag.from === aktuell && eintrag.to === ziel,
+    );
+
+    if (uebergang === undefined) {
+      throw new ConflictException(`Von "${aktuell}" fuehrt kein Uebergang nach "${ziel}"`);
+    }
+  }
+
+  /**
+   * Hoheitspruefung fuer den Zustandswechsel (ADR-0022 Punkt 8).
+   *
+   * Der Graph regelt, **wohin** gewechselt werden darf; die Hoheitsregeln regeln, **wer**
+   * wechseln darf. Die beiden Pruefungen ersetzen einander nicht.
+   */
+  private async pruefeStatushoheit(
+    bestand: RequirementRow,
+    zielzustand: string,
+    benutzer: AuthenticatedUser,
+  ): Promise<void> {
+    const klasse = await this.schreibendeKlasse(benutzer);
+    const regeln = await this.mastership.regeln();
+    const quellen = await this.sourceSystems.klassenkarte();
+    const versionen = await this.repository.findVersions(bestand.id);
+    const quelle = letzteQuelleFuerFeld(
+      versionen.map((version) => ({
+        werte: feldwerte(version),
+        changeSource: version.changeSource,
+      })),
+      "status",
+    );
+
+    const abweisungen = pruefeHoheit(
+      [
+        {
+          field: "status",
+          neuerWert: zielzustand,
+          aktuellerWert: bestand.status,
+          aktuelleQuellenklasse: quelle === undefined ? undefined : quellen.get(quelle),
+        },
+      ],
+      klasse,
+      regeln,
+    );
+
+    if (abweisungen.length === 0) {
+      return;
+    }
+
+    // Verzeichnet **und** abgewiesen. ADR-0019 laesst den Rest einer Lieferung stehen,
+    // wenn ein Feld abgelehnt wird - hier gibt es keinen Rest, der Zustandswechsel ist
+    // die ganze Operation. Der Eintrag bleibt trotzdem, weil ein naechtlicher Lauf die
+    // Antwort womoeglich nicht liest.
+    await this.abweisungenVerzeichnen(bestand.id, abweisungen, benutzer);
+    throw RequirementsService.hoheitsfehler(abweisungen);
+  }
   /**
    * Alle festgehaltenen Felder der Plattform (ADR-0017 B14).
    *

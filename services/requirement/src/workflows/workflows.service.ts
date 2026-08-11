@@ -67,6 +67,33 @@ export class WorkflowsService {
       transitions: zeile.transitions,
     };
   }
+  /**
+   * Die Fassung, an die eine laufende Anforderung gebunden ist (§7, ADR-0022).
+   *
+   * Nicht der aktuelle Workflow: §7 verlangt, dass eine laufende Anforderung auf ihrer
+   * Ursprungsfassung bleibt. Der Graph steht vollstaendig in der Historienzeile - deshalb
+   * genuegt ein Lesezugriff und kein Zusammensetzen.
+   *
+   * Liefert `undefined` nur, wenn die Fassung nicht existiert. Das kann nicht auftreten,
+   * solange Historienzeilen nie geloescht werden - der Aufrufer muss den Fall trotzdem
+   * behandeln, weil ein stiller `null`-Zugriff hier einen falschen Graphen bedeutete.
+   */
+  async gebundenerWorkflow(id: string, version: number): Promise<GeltenderWorkflow | undefined> {
+    const zeile = await this.repository.findVersion(id, version);
+
+    if (zeile === undefined) {
+      return undefined;
+    }
+
+    return {
+      id: zeile.id,
+      version: zeile.version,
+      mode: zeile.mode,
+      initialState: zeile.initialState,
+      states: zeile.states,
+      transitions: zeile.transitions,
+    };
+  }
 
   async create(
     eingabe: CreateWorkflowDefinitionDto,

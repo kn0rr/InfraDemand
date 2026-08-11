@@ -51,11 +51,11 @@ Das gilt für alle Beteiligten, einschließlich der KI in ihrer Beraterrolle
 | *davon Voraussetzung für ADR-0013:* | `PROD-006`, `PROD-007`, `PROD-032` | | |
 | B – Geheimnisse und Zugangsdaten | 5 | 4 | – |
 | C – Identität und Zugriff | 11 | 2 | – |
-| D – Daten | 5 | 3 | – |
+| D – Daten | 6 | 3 | – |
 | E – Container und Lieferkette | 9 | 1 | **2** |
 | F – Betrieb und Verfügbarkeit | 6 | 1 | – |
 | G – Anwendungssicherheit | 8 | 1 | – |
-| **Gesamt** | **51** | **17** | **2** |
+| **Gesamt** | **52** | **17** | **2** |
 
 > **Nummern werden nicht neu vergeben.** `PROD-026` ist unbesetzt. Eine Lücke ist kein
 > Fehler – eine wiederverwendete Nummer wäre einer, weil Verweise aus ADRs, Commits und
@@ -493,6 +493,34 @@ eigenes ADR und ist im Index der vertagten Entscheidungen geführt.
 ---
 
 ## D – Daten
+
+#### PROD-053 — Abgewiesene automatische Schreiboperationen sieht niemand
+**Schwere:** Hoch · **Status:** Offen · **Betrifft:** §16, §19.2 · **Verweis:** [ADR-0019](../adr/0019-verhalten-bei-abgewiesener-schreiboperation.md), [ADR-0022](../adr/0022-statuswechsel-als-eigener-vorgang.md)
+
+Wird eine Schreiboperation automatischer Herkunft abgewiesen – durch eine Hoheitsregel,
+eine Festhaltung oder ab M4.2 durch den Zustandsgraphen –, wird sie nach ADR-0019
+**festgehalten statt zurückgemeldet**: Der Rest der Lieferung wird übernommen, die
+Abweisung landet in `write_rejection`.
+
+Das ist richtig entschieden. *Abweisen, wo jemand reagieren kann; festhalten, wo niemand
+da ist* – ein Nachtlauf hat keinen Adressaten, und die ganze Lieferung scheitern zu lassen,
+weil ein Feld gesperrt ist, wäre schlimmer.
+
+**Es fehlt die Gegenseite.** Es gibt keine Ansicht, keine Kennzahl und keine Benachrichtigung
+über den Inhalt dieser Tabelle. Wer nicht von sich aus hineinsieht, erfährt nie, dass das
+Vorsystem und die Plattform auseinanderlaufen – und der Zweck des Festhaltens war, dass es
+jemand bemerkt.
+
+**Mit ADR-0022 wächst der Schaden.** Bisher konnten einzelne Feldwerte still verlorengehen.
+Ab M4.2 kann es ein **Statuswechsel** sein: Liefert ein Vorsystem einen Zielzustand, für den
+es im Graphen keinen Übergang gibt, bleibt die Anforderung stehen, während das Vorsystem sie
+als fortgeschritten führt. Die Kapazitätsplanung rechnet dann mit einem Bestand, den es so
+nicht gibt.
+
+**Zielzustand:** Eine Übersicht der Abweisungen mit Filter nach Quelle und Zeitraum, eine
+Kennzahl für die Beobachtbarkeit (§14) und eine Schwelle, ab der jemand aktiv benachrichtigt
+wird. Die Frage, ob ein Dateiimport seine Abweisungen zusätzlich unmittelbar zurückmeldet,
+ist als eigene Entscheidung geführt und fällt mit dem Dateiimport.
 
 #### PROD-050 — Datentypwechsel einer Attributdefinition lässt vorhandene Werte ungeprüft zurück
 **Schwere:** Hoch · **Status:** Offen · **Betrifft:** §6 · **Fundstelle:** `services/requirement/src/attribute-definitions/`
@@ -973,6 +1001,23 @@ kein Pilotbetrieb, weil gerade dort die Annahme entstünde, die Genehmigung sei 
 Offen bleibt dabei, was ein Anforderungstyp **ohne** gültigen Workflow bedeutet: jeden
 Wechsel zulassen oder jeden verweigern. Beides ist vertretbar, aber es muss entschieden
 und nicht nebenbei implementiert werden.
+
+> **Teilweise geschlossen am 2026-08-11 mit M4.2.**
+>
+> Umgesetzt: `status` ist aus `POST` und `PATCH` entfernt, der Wechsel läuft über einen
+> eigenen Vorgang gegen den Zustandsgraphen, der Anfangszustand kommt aus der Definition,
+> und ohne gültigen Workflow entsteht keine Anforderung
+> ([ADR-0022](../adr/0022-statuswechsel-als-eigener-vorgang.md)). Die oben offene Frage ist
+> damit entschieden: Kein Workflow heißt keine Anforderung – nicht „jeder Wechsel erlaubt".
+>
+> **Offen bleibt der Kern des Eintrags.** Der Graph erzwingt die **Reihenfolge**, nicht die
+> **Zuständigkeit**: Jeder angemeldete Benutzer kann jeden Übergang auslösen, den der Graph
+> hergibt. §7 verlangt an Übergängen benötigte Berechtigungen, Pflichtfelder und das
+> Vier-Augen-Prinzip; das kommt mit M4.3.
+>
+> Die Schwere bleibt **Hoch**. Ein Ablauf, der die Reihenfolge erzwingt und die
+> Zuständigkeit nicht, sieht einer Genehmigungsstrecke ähnlicher als vorher – und ist
+> weiterhin keine. Die Verwechslungsgefahr ist damit eher gestiegen als gesunken.
 
 #### PROD-049 — Das Tor für inkompatible Änderungen sieht nur das Schema
 **Schwere:** Mittel · **Status:** Offen · **Betrifft:** §12 · **Fundstelle:** `.github/workflows/ci.yml`, Job `lint`, Schritt „Inkompatible Contract-Aenderungen pruefen"

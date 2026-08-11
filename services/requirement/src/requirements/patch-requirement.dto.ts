@@ -10,6 +10,9 @@ import { IsObject, IsOptional, IsString, IsUUID, MaxLength, MinLength } from "cl
  *
  * `sourceSystem` und `externalId` fehlen bewusst - sie sind die Adresse und stehen im
  * Pfad. Ein Wechsel der Herkunft ist ein anderer Datensatz.
+ *
+ * `status` fehlt seit ADR-0022 - der Zustandswechsel ist ein eigener Vorgang und laeuft
+ * gegen den Zustandsgraphen. Er hier zuzulassen hiesse, ihn am Graphen vorbei zu setzen.
  */
 export class PatchRequirementDto {
   @ApiPropertyOptional({ format: "uuid" })
@@ -23,13 +26,6 @@ export class PatchRequirementDto {
   @MinLength(1)
   @MaxLength(100)
   requirementType?: string;
-
-  @ApiPropertyOptional({ example: "in_arbeit", maxLength: 100 })
-  @IsOptional()
-  @IsString()
-  @MinLength(1)
-  @MaxLength(100)
-  status?: string;
 
   @ApiPropertyOptional({ maxLength: 200 })
   @IsOptional()

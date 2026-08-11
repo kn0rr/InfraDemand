@@ -109,6 +109,23 @@ export interface Festhaltung {
 }
 
 /**
+ * Art einer Aenderung, soweit sie sich nicht aus `operation` ergibt (ADR-0022).
+ *
+ * Leer bei einer gewoehnlichen Aenderung. `transition`: Der Zustand wurde ueber einen
+ * Uebergang des Graphen gewechselt. `state_assignment`: Ein Administrator hat ihn
+ * zugeordnet, weil der bisherige im Graphen nicht vorkam (ADR-0022 Punkt 5).
+ *
+ * Getrennt von `operation` und nicht als weiterer Wert darin: `operation` beantwortet, ob
+ * angelegt, geaendert oder geloescht wurde, und das gilt fuer jede versionierte Entitaet.
+ * Diese Unterscheidung gibt es nur bei Anforderungen. Ein zusaetzlicher Wert im geteilten
+ * Enum haette in vier anderen Historientabellen keine Bedeutung.
+ */
+export const requirementChangeKind = pgEnum("requirement_change_kind", [
+  "transition",
+  "state_assignment",
+]);
+
+/**
  * Kernentitaet nach CLAUDE.md §6 und §19.
  *
  * Fuehrt ausschliesslich den **aktuellen** Zustand. Jede Version - einschliesslich der
@@ -122,6 +139,22 @@ export const requirements = pgTable(
     requirementType: text("requirement_type").notNull(),
     status: text("status").notNull(),
     owner: text("owner").notNull(),
+
+    /**
+     * Der Workflow, unter dem diese Anforderung laeuft, und seine Fassung (§7, ADR-0022).
+     *
+     * **Gespeichert und nicht abgeleitet.** Ableiten hiesse, den heute fuer
+     * `requirementType` geltenden Workflow zu nehmen - und das ist ein anderer, sobald ihn
+     * jemand aendert. Die Anforderung liefe dann rueckwirkend durch einen Graphen, den es
+     * bei ihrer Anlage nicht gab. Genau das schliesst §7 aus.
+     *
+     * Zusammen zeigen beide Spalten auf genau eine Zeile in `workflow_definition_history`
+     * - die Eindeutigkeit auf `(id, version)` besteht dort bereits.
+     */
+    workflowDefinitionId: uuid("workflow_definition_id")
+      .notNull()
+      .references(() => workflowDefinitions.id),
+    workflowVersion: integer("workflow_version").notNull(),
 
     /** Herkunftssystem des Datensatzes (§19.1). Eigene Erfassung: "infrademand".
      *  Fremdschluessel auf die Registratur: Eine Quelle, deren Klasse unbekannt ist,
@@ -167,6 +200,9 @@ export const requirements = pgTable(
     index("requirement_held_fields_idx")
       .on(table.id)
       .where(sql`${table.heldFields} <> '{}'::jsonb`),
+    // "Laufen auf diesem Workflow noch Anforderungen?" - die Frage vor jedem
+    // Ausserkraftsetzen. PostgreSQL legt fuer Fremdschluessel keinen Index an.
+    index("requirement_workflow_idx").on(table.workflowDefinitionId, table.workflowVersion),
     // Idempotenz nach §19.1: derselbe Datensatz aus derselben Quelle nur einmal
     unique(REQUIREMENT_SOURCE_EXTERNAL_CONSTRAINT).on(table.sourceSystem, table.externalId),
   ],
@@ -191,6 +227,8 @@ export const requirementHistory = pgTable(
     requirementType: text("requirement_type").notNull(),
     status: text("status").notNull(),
     owner: text("owner").notNull(),
+    workflowDefinitionId: uuid("workflow_definition_id").notNull(),
+    workflowVersion: integer("workflow_version").notNull(),
     sourceSystem: text("source_system").notNull(),
     externalId: text("external_id"),
     dynamicAttributes: jsonb("dynamic_attributes").$type<Record<string, unknown>>().notNull(),
@@ -200,6 +238,18 @@ export const requirementHistory = pgTable(
 
     // --- Versionierung ---
     ...versionierungsSpalten(),
+
+    /** Art der Aenderung, soweit sie ueber `operation` hinausgeht (ADR-0022). */
+    changeKind: requirementChangeKind("change_kind"),
+    /**
+     * Warum. Pflicht bei `state_assignment` (ADR-0022 Punkt 5): Die Zuordnung setzt einen
+     * Zustand, den kein Uebergang hergibt, und wer sie Monate spaeter vorfindet, muss
+     * erkennen koennen, worauf sie beruhte - dieselbe Ueberlegung wie bei der Festhaltung
+     * (ADR-0017 B8).
+     *
+     * Erzwungen im Service, nicht in der Spalte: Bei jeder anderen Aenderung ist sie leer.
+     */
+    changeReason: text("change_reason"),
   },
   (table) => [
     // Zugriffspfad jeder Stichtagsabfrage fuer einen einzelnen Datensatz

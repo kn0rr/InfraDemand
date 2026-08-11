@@ -89,6 +89,17 @@ export function feldwerte(stand: Datensatzstand): Record<string, unknown> {
 export const KERNFELDER = ["projectId", "requirementType", "status", "owner"] as const;
 
 /**
+ * Kernfelder, die ueber den allgemeinen Schreibpfad aenderbar sind.
+ *
+ * `status` fehlt seit [ADR-0022](../../../../docs/adr/0022-statuswechsel-als-eigener-vorgang.md):
+ * Der Zustandswechsel ist ein eigener Vorgang und laeuft gegen den Zustandsgraphen.
+ *
+ * `KERNFELDER` bleibt vollstaendig - fuer Hoheitsregeln und Festhaltungen zaehlt `status`
+ * weiterhin. Das Duerfen und das Wohin sind zwei Fragen (ADR-0022 Punkt 8).
+ */
+export const PATCHBARE_KERNFELDER = ["projectId", "requirementType", "owner"] as const;
+
+/**
  * Vergleich zweier Feldwerte. Siehe `gleich` weiter oben - dieselbe Begruendung, und
  * bewusst nur einmal vorhanden: Drei Stellen brauchen ihn, und drei Fassungen davon
  * waeren drei Gelegenheiten, ihn verschieden zu meinen.
