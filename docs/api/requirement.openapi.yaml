@@ -759,8 +759,45 @@ components:
         - transitions
         - active
       type: object
+    VergleichDto:
+      properties:
+        feld:
+          example: kostenschaetzung
+          maxLength: 100
+          type: string
+        operator:
+          enum:
+            - istGleich
+            - istUngleich
+            - mindestens
+            - hoechstens
+            - istEinesVon
+            - istGefuellt
+          example: mindestens
+          type: string
+        wert:
+          description: istEinesVon erwartet eine Liste, istGefuellt einen Wahrheitswert.
+          oneOf:
+            - type: string
+            - type: number
+            - type: boolean
+            - items: {}
+              type: array
+            - type: 'null'
+      required:
+        - feld
+        - operator
+        - wert
+      type: object
     WechsleZustandDto:
       properties:
+        reason:
+          description: >-
+            Pflicht, wenn der Uebergang eine Begruendung verlangt (ADR-0024). Sie wird als
+            Bestandteil der Version festgehalten, nicht als Kommentar daneben.
+          example: Budget durch die Bereichsleitung bestaetigt
+          maxLength: 500
+          type: string
         toState:
           description: Schluessel des Zielzustands aus dem geltenden Workflow.
           example: in_pruefung
@@ -768,6 +805,64 @@ components:
           type: string
       required:
         - toState
+      type: object
+    WorkflowBedingungDto:
+      properties:
+        andersAlsBeiEintritt:
+          description: 'Bei art=vier_augen: Schluessel des Zustands.'
+          type: string
+        art:
+          enum:
+            - rolle
+            - vier_augen
+            - identitaet
+            - pflichtfelder
+            - feldwert
+            - begruendung
+          type: string
+        eineVon:
+          description: 'Bei art=rolle: eine davon genuegt.'
+          items:
+            type: string
+          type: array
+        feld:
+          description: Bei art=identitaet und art=feldwert.
+          type: string
+        felder:
+          description: Bei art=pflichtfelder.
+          items:
+            type: string
+          type: array
+        mindestlaenge:
+          description: Bei art=begruendung.
+          minimum: 1
+          type: integer
+        nurWenn:
+          description: Vorbehalt - alle Vergleiche muessen gelten, damit die Bedingung greift.
+          items:
+            $ref: '#/components/schemas/VergleichDto'
+          type: array
+        operator:
+          description: Bei art=feldwert.
+          enum:
+            - istGleich
+            - istUngleich
+            - mindestens
+            - hoechstens
+            - istEinesVon
+            - istGefuellt
+          type: string
+        wert:
+          description: Bei art=feldwert der Vergleichswert.
+          oneOf:
+            - type: string
+            - type: number
+            - type: boolean
+            - items: {}
+              type: array
+            - type: 'null'
+      required:
+        - art
       type: object
     WorkflowDefinitionResponse:
       properties:
@@ -959,6 +1054,11 @@ components:
       type: object
     WorkflowTransitionDto:
       properties:
+        bedingungen:
+          description: Alle muessen erfuellt sein. Ohne Angabe gibt es keine (ADR-0024).
+          items:
+            $ref: '#/components/schemas/WorkflowBedingungDto'
+          type: array
         from:
           example: neu
           maxLength: 100
@@ -1520,10 +1620,11 @@ paths:
           description: Kein Datensatz unter dieser Herkunft
         '409':
           description: >-
-            Drei Ursachen. Es gibt keinen Uebergang vom aktuellen in den gewuenschten Zustand; der
+            Vier Ursachen. Es gibt keinen Uebergang vom aktuellen in den gewuenschten Zustand; der
             aktuelle Zustand kommt im geltenden Workflow gar nicht vor und muss zuerst zugeordnet
-            werden; oder fuer `status` ist eine andere Quelle massgeblich (§19.3), dann traegt die
-            Antwort ein Feld `fields`.
+            werden; die Bedingungen des Uebergangs sind nicht erfuellt, dann traegt die Antwort ein
+            Feld `conditions`; oder fuer `status` ist eine andere Quelle massgeblich (§19.3), dann
+            traegt sie ein Feld `fields`.
       security:
         - bearer: []
       summary: Zustand wechseln

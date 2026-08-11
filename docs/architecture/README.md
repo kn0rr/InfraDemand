@@ -277,9 +277,10 @@ M4 setzt §7 um – konfigurierbare Workflows als Zustandsgraph.
 |---|---|---|---|
 | **M4.1** | Workflow-Definition als versionierte Fachdaten: Zustände und Übergänge | Ein Zustand entsteht ohne Redeploy | abgeschlossen |
 | **M4.2** | Statuswechsel über einen eigenen Vorgang statt über das Feld `status` | Jeder Wechsel wird gegen den Zustandsgraphen geprüft | abgeschlossen |
-| **M4.3** | Bedingungen an Übergängen: Pflichtfelder, benötigte Berechtigung | Ein Übergang kann verlangen, was §7 nennt | offen |
+| **M4.3** | Bedingungen an Übergängen: Pflichtfelder, benötigte Berechtigung | Ein Übergang kann verlangen, was §7 nennt | abgeschlossen |
 | **M4.4** | Umgang mit der gebundenen Fassung: veraltete Graphen, Sichtbarkeit, Hebung | Eine Änderung der Definition wirkt nicht rückwirkend (§7) | offen, verkleinert |
-| **M4.5** | Oberfläche: zulässige Übergänge als Schaltflächen statt eines freien Statusfeldes | Die Zustände kommen aus den Daten, nicht aus dem Code | offen |
+| **M4.5** | Oberfläche für den Erfasser: zulässige Übergänge als Schaltflächen statt eines freien Statusfeldes | Die Zustände kommen aus den Daten, nicht aus dem Code | offen |
+| **M4.6** | Oberfläche für den Administrator: Workflows und Bedingungen pflegen | §7 verlangt Konfiguration statt Redeploy – ohne sie bleibt „konfigurierbar" eine Behauptung | offen |
 
 **M4.2 war der unbequeme Schritt** und die erste **inkompatible Änderung mit echter
 Verhaltensänderung**: Anders als bei den Contract-Korrekturen aus M3 verhält sich der
@@ -301,6 +302,13 @@ laufende Anforderung auf eine neuere Fassung gehoben werden kann.
 nicht die Zuständigkeit – wer einen Übergang nehmen darf, wird nicht geprüft. Ein Ablauf,
 der das eine tut und das andere nicht, sieht aus wie eine Genehmigungsstrecke und ist
 keine.
+
+**M4.6 kam beim Zuschnitt von M4.3 dazu.** Der Plan hatte für Workflows keine
+Verwaltungsoberfläche – M4.5 ist die Sicht des Erfassers. Konfiguriert wird bis dahin durch
+Zusammenstellen von JSON gegen die API, und damit ist §7 nicht erfüllt: „ohne Redeploy
+änderbar" heißt nicht „von Hand im Editor". Die Reihenfolge ist trotzdem M4.3 vor M4.6 –
+dieselbe wie in M3, wo die Oberfläche (M3.6) erst entstand, als das Datenmodell vollständig
+war. Andernfalls wird sie zweimal gebaut.
 
 **M4.4 ist der Gegensatz zu §6 und muss es sein.** Attributdefinitionen werden gegen die
 *aktuell gültige* Fassung geprüft (M3.3); Workflow-Definitionen gelten für eine laufende

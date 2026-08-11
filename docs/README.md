@@ -49,9 +49,10 @@ Nachbereitung. Konkret:
 vertikalem Durchstich, Frontend-Durchstich, dynamisches Attributmodell (§6) und Datenhoheit
 je Feld (§19.3).
 
-Laufend ist **M4 (Workflow-Engine, §7)**. Definition und Durchsetzung des Zustandsgraphen
-stehen (M4.1, M4.2); die Bedingungen an den Übergängen – Berechtigung, Pflichtfelder,
-Vier-Augen-Prinzip – folgen mit M4.3. Bis dahin gilt die Einschränkung aus `PROD-052`.
+Laufend ist **M4 (Workflow-Engine, §7)**. Zustandsgraph, Durchsetzung und Bedingungen an
+den Übergängen stehen (M4.1 bis M4.3) – ein Ablauf erzwingt damit Reihenfolge **und**
+Zuständigkeit. Offen sind die Oberflächen (M4.5, M4.6) und der Objektbezug der
+Berechtigungen, der mit M5 kommt.
 
 Wie Workflows aufgebaut sind und was heute davon greift:
 [`architecture/workflows.md`](architecture/workflows.md).

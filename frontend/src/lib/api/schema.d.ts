@@ -713,12 +713,51 @@ export interface components {
             states: components["schemas"]["WorkflowStateDto"][];
             transitions: components["schemas"]["WorkflowTransitionDto"][];
         };
+        VergleichDto: {
+            /** @example kostenschaetzung */
+            feld: string;
+            /**
+             * @example mindestens
+             * @enum {string}
+             */
+            operator: "istGleich" | "istUngleich" | "mindestens" | "hoechstens" | "istEinesVon" | "istGefuellt";
+            /** @description istEinesVon erwartet eine Liste, istGefuellt einen Wahrheitswert. */
+            wert: string | number | boolean | unknown[] | null;
+        };
         WechsleZustandDto: {
+            /**
+             * @description Pflicht, wenn der Uebergang eine Begruendung verlangt (ADR-0024). Sie wird als Bestandteil der Version festgehalten, nicht als Kommentar daneben.
+             * @example Budget durch die Bereichsleitung bestaetigt
+             */
+            reason?: string;
             /**
              * @description Schluessel des Zielzustands aus dem geltenden Workflow.
              * @example in_pruefung
              */
             toState: string;
+        };
+        WorkflowBedingungDto: {
+            /** @description Bei art=vier_augen: Schluessel des Zustands. */
+            andersAlsBeiEintritt?: string;
+            /** @enum {string} */
+            art: "rolle" | "vier_augen" | "identitaet" | "pflichtfelder" | "feldwert" | "begruendung";
+            /** @description Bei art=rolle: eine davon genuegt. */
+            eineVon?: string[];
+            /** @description Bei art=identitaet und art=feldwert. */
+            feld?: string;
+            /** @description Bei art=pflichtfelder. */
+            felder?: string[];
+            /** @description Bei art=begruendung. */
+            mindestlaenge?: number;
+            /** @description Vorbehalt - alle Vergleiche muessen gelten, damit die Bedingung greift. */
+            nurWenn?: components["schemas"]["VergleichDto"][];
+            /**
+             * @description Bei art=feldwert.
+             * @enum {string}
+             */
+            operator?: "istGleich" | "istUngleich" | "mindestens" | "hoechstens" | "istEinesVon" | "istGefuellt";
+            /** @description Bei art=feldwert der Vergleichswert. */
+            wert?: string | number | boolean | unknown[] | null;
         };
         WorkflowDefinitionResponse: {
             /** @description false setzt den Workflow ausser Kraft, ohne ihn zu loeschen. */
@@ -801,6 +840,8 @@ export interface components {
             label: string;
         };
         WorkflowTransitionDto: {
+            /** @description Alle muessen erfuellt sein. Ohne Angabe gibt es keine (ADR-0024). */
+            bedingungen?: components["schemas"]["WorkflowBedingungDto"][];
             /** @example neu */
             from: string;
             /** @example Einreichen */
@@ -1444,7 +1485,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Drei Ursachen. Es gibt keinen Uebergang vom aktuellen in den gewuenschten Zustand; der aktuelle Zustand kommt im geltenden Workflow gar nicht vor und muss zuerst zugeordnet werden; oder fuer `status` ist eine andere Quelle massgeblich (§19.3), dann traegt die Antwort ein Feld `fields`. */
+            /** @description Vier Ursachen. Es gibt keinen Uebergang vom aktuellen in den gewuenschten Zustand; der aktuelle Zustand kommt im geltenden Workflow gar nicht vor und muss zuerst zugeordnet werden; die Bedingungen des Uebergangs sind nicht erfuellt, dann traegt die Antwort ein Feld `conditions`; oder fuer `status` ist eine andere Quelle massgeblich (§19.3), dann traegt sie ein Feld `fields`. */
             409: {
                 headers: {
                     [name: string]: unknown;

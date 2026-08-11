@@ -103,6 +103,9 @@ export const PATCHBARE_KERNFELDER = ["projectId", "requirementType", "owner"] as
  * Vergleich zweier Feldwerte. Siehe `gleich` weiter oben - dieselbe Begruendung, und
  * bewusst nur einmal vorhanden: Drei Stellen brauchen ihn, und drei Fassungen davon
  * waeren drei Gelegenheiten, ihn verschieden zu meinen.
+ *  * `workflows/bedingungspruefung.ts` fuehrt bewusst eine eigene Fassung - dort darf keine
+ * Abhaengigkeit in dieses Verzeichnis zeigen (ADR-0020 Punkt 9). Wer zusammenfuehren will,
+ * schafft zuerst einen gemeinsamen Ort.
  */
 export function istGleich(a: unknown, b: unknown): boolean {
   return JSON.stringify(a ?? null) === JSON.stringify(b ?? null);

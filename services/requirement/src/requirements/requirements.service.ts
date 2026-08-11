@@ -12,7 +12,8 @@ import type { Festhaltung, RequirementHistoryRow, RequirementRow } from "../data
 import { MastershipService } from "../mastership/mastership.service";
 import { UnknownSourceSystemError } from "../source-systems/source-systems.errors";
 import { SourceSystemsService } from "../source-systems/source-systems.service";
-import type { GeltenderWorkflow } from "../workflows/typen";
+import { eintritte, pruefeUebergangsbedingungen } from "../workflows/bedingungspruefung";
+import type { GeltenderWorkflow, WorkflowTransition } from "../workflows/typen";
 import { WorkflowsService } from "../workflows/workflows.service";
 import type { CreateRequirementDto } from "./create-requirement.dto";
 import {
@@ -361,6 +362,7 @@ export class RequirementsService {
     sourceSystem: string,
     externalId: string,
     zielzustand: string,
+    begruendung: string | undefined,
     benutzer: AuthenticatedUser,
   ): Promise<RequirementResponse> {
     const bestand = await this.repository.findBySource(sourceSystem, externalId);
@@ -381,14 +383,36 @@ export class RequirementsService {
       return RequirementsService.toResponse(bestand);
     }
 
+    // Einmal gelesen, zweimal gebraucht: fuer die Eintritte des Vier-Augen-Prinzips und
+    // fuer die feldgenaue Herkunft der Hoheitspruefung.
+    const versionen = await this.repository.findVersions(bestand.id);
+
     // Bei fremdgefuehrten Workflows entscheidet das Fremdsystem (ADR-0021 Punkt 4). Ein
-    // Zielzustand von dort ist eine Mitteilung, keine Bitte - wiesen wir ihn ab, entstuende
-    // ein dauerhafter Widerspruch, bei dem unsere Seite die falsche waere.
+    // Zielzustand von dort ist eine Mitteilung, keine Bitte - und Bedingungen kann ein
+    // solcher Workflow nicht tragen, das weist bereits die Graphpruefung ab.
     if (workflow.mode === "internal") {
-      RequirementsService.pruefeUebergang(workflow, bestand.status, zielzustand);
+      const uebergang = RequirementsService.findeUebergang(workflow, bestand.status, zielzustand);
+
+      const verstoesse = pruefeUebergangsbedingungen(uebergang.bedingungen ?? [], {
+        feldwerte: feldwerte(bestand),
+        ausloeser: { userId: benutzer.userId, roles: benutzer.roles },
+        eintritte: eintritte(versionen),
+        begruendung,
+      });
+
+      if (verstoesse.length > 0) {
+        // Feldbezogen wie die Hoheitsabweisung, damit ein Formular alle Gruende auf
+        // einmal anzeigen kann statt eines nach dem anderen.
+        throw new ConflictException({
+          statusCode: 409,
+          error: "Conflict",
+          message: "Die Bedingungen dieses Uebergangs sind nicht erfuellt",
+          conditions: verstoesse,
+        });
+      }
     }
 
-    await this.pruefeStatushoheit(bestand, zielzustand, benutzer);
+    await this.pruefeStatushoheit(bestand, zielzustand, versionen, benutzer);
 
     const zeile = await this.repository.update(bestand.id, {
       projectId: bestand.projectId,
@@ -398,6 +422,7 @@ export class RequirementsService {
       dynamicAttributes: bestand.dynamicAttributes,
       heldFields: bestand.heldFields,
       changeKind: "transition",
+      changeReason: begruendung,
       changedBy: benutzer.userId,
       changeSource: benutzer.clientId,
     });
@@ -499,7 +524,11 @@ export class RequirementsService {
    * schickte die Suche in die falsche Richtung - man prueft den Graphen auf einen
    * Uebergang, den es nie geben konnte, weil schon der Ausgangspunkt nicht darin vorkommt.
    */
-  private static pruefeUebergang(workflow: GeltenderWorkflow, aktuell: string, ziel: string): void {
+  private static findeUebergang(
+    workflow: GeltenderWorkflow,
+    aktuell: string,
+    ziel: string,
+  ): WorkflowTransition {
     if (!workflow.states.some((zustand) => zustand.key === aktuell)) {
       throw new ConflictException(
         `Der aktuelle Zustand "${aktuell}" kommt im geltenden Workflow nicht vor. ` +
@@ -514,6 +543,8 @@ export class RequirementsService {
     if (uebergang === undefined) {
       throw new ConflictException(`Von "${aktuell}" fuehrt kein Uebergang nach "${ziel}"`);
     }
+
+    return uebergang;
   }
 
   /**
@@ -525,12 +556,13 @@ export class RequirementsService {
   private async pruefeStatushoheit(
     bestand: RequirementRow,
     zielzustand: string,
+    versionen: readonly RequirementHistoryRow[],
     benutzer: AuthenticatedUser,
   ): Promise<void> {
     const klasse = await this.schreibendeKlasse(benutzer);
     const regeln = await this.mastership.regeln();
     const quellen = await this.sourceSystems.klassenkarte();
-    const versionen = await this.repository.findVersions(bestand.id);
+
     const quelle = letzteQuelleFuerFeld(
       versionen.map((version) => ({
         werte: feldwerte(version),

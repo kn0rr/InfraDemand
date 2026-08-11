@@ -4,6 +4,7 @@ import { Pool } from "pg";
 import request from "supertest";
 import { AppModule } from "../src/app.module";
 import { configureApp } from "../src/app.setup";
+import { registriereAttribut } from "./support/attribute-definitions";
 import { type JwksTestServer, startJwksTestServer } from "./support/jwks-test-server";
 import { registriereQuelle } from "./support/source-systems";
 import { startTestDatabase, type TestDatabase } from "./support/test-database";
@@ -319,6 +320,136 @@ describe("Zustandswechsel", () => {
       );
 
       expect(rows[0]?.workflow_definition_id).toBe(workflow.id);
+    });
+  });
+
+  describe("Bedingungen zur Laufzeit (ADR-0024)", () => {
+    /** Legt einen Workflow an, dessen Uebergang `neu -> in_pruefung` Bedingungen traegt. */
+    const mitBedingungen = (bedingungen: unknown[]) =>
+      registriereWorkflow(pool, null, {
+        transitions: [
+          { from: "neu", to: "in_pruefung", label: "Einreichen", bedingungen },
+          { from: "in_pruefung", to: "erledigt", label: "Freigeben" },
+        ],
+      });
+
+    it("weist ab, wenn die verlangte Rolle fehlt", async () => {
+      await mitBedingungen([{ art: "rolle", eineVon: ["platform-admin"] }]);
+      await anlegen("F-1");
+
+      const antwort = await mit(alsMensch)("put", zustand("F-1"))
+        .send({ toState: "in_pruefung" })
+        .expect(409);
+
+      // Feldbezogen, damit ein Formular alle Gruende auf einmal anzeigen kann.
+      expect(antwort.body.conditions).toHaveLength(1);
+      expect(antwort.body.conditions[0].art).toBe("rolle");
+    });
+
+    it("laesst durch, wenn sie vorhanden ist", async () => {
+      await mitBedingungen([{ art: "rolle", eineVon: ["platform-admin"] }]);
+      await anlegen("F-2");
+
+      await mit(alsAdmin)("put", zustand("F-2")).send({ toState: "in_pruefung" }).expect(200);
+    });
+
+    it("weist dieselbe Person beim Vier-Augen-Prinzip ab", async () => {
+      // `neu` wird beim Anlegen betreten - der Bezug darauf trifft den Ersteller.
+      await mitBedingungen([{ art: "vier_augen", andersAlsBeiEintritt: "neu" }]);
+      await anlegen("F-3");
+
+      const antwort = await mit(alsMensch)("put", zustand("F-3"))
+        .send({ toState: "in_pruefung" })
+        .expect(409);
+
+      expect(antwort.body.conditions[0].message).toContain("andere Person");
+    });
+
+    it("laesst eine andere Person durch", async () => {
+      await mitBedingungen([{ art: "vier_augen", andersAlsBeiEintritt: "neu" }]);
+      await anlegen("F-4");
+
+      await mit(alsAdmin)("put", zustand("F-4")).send({ toState: "in_pruefung" }).expect(200);
+    });
+
+    it("verlangt gefuellte Pflichtfelder", async () => {
+      await registriereAttribut(pool, { key: "abweichungsbegruendung" });
+      await mitBedingungen([{ art: "pflichtfelder", felder: ["abweichungsbegruendung"] }]);
+      await anlegen("F-5");
+
+      await mit(alsMensch)("put", zustand("F-5")).send({ toState: "in_pruefung" }).expect(409);
+
+      await mit(alsMensch)("patch", "/v1/requirements/by-source/sap/F-5")
+        .send({ dynamicAttributes: { abweichungsbegruendung: "Speicherbedarf" } })
+        .expect(200);
+
+      await mit(alsMensch)("put", zustand("F-5")).send({ toState: "in_pruefung" }).expect(200);
+    });
+
+    it("verlangt eine Begruendung und haelt sie in der Version fest", async () => {
+      await mitBedingungen([{ art: "begruendung", mindestlaenge: 10 }]);
+      await anlegen("F-6");
+
+      await mit(alsMensch)("put", zustand("F-6")).send({ toState: "in_pruefung" }).expect(409);
+
+      await mit(alsMensch)("put", zustand("F-6"))
+        .send({ toState: "in_pruefung", reason: "Fachlich abgestimmt mit dem Bereich" })
+        .expect(200);
+
+      const { rows } = await pool.query<{ change_reason: string | null }>(
+        "SELECT change_reason FROM requirement_history ORDER BY version DESC LIMIT 1",
+      );
+
+      expect(rows[0]?.change_reason).toContain("abgestimmt");
+    });
+
+    describe("Vorbehalt", () => {
+      const abSchwelle = () =>
+        mitBedingungen([
+          {
+            art: "rolle",
+            eineVon: ["platform-admin"],
+            nurWenn: [{ feld: "kostenschaetzung", operator: "mindestens", wert: 50000 }],
+          },
+        ]);
+
+      beforeEach(async () => {
+        await registriereAttribut(pool, { key: "kostenschaetzung", dataType: "number" });
+      });
+
+      it("prueft nicht, wenn der Vorbehalt nicht greift", async () => {
+        await abSchwelle();
+        await anlegen("G-1");
+
+        await mit(alsMensch)("patch", "/v1/requirements/by-source/sap/G-1")
+          .send({ dynamicAttributes: { kostenschaetzung: 1000 } })
+          .expect(200);
+
+        await mit(alsMensch)("put", zustand("G-1")).send({ toState: "in_pruefung" }).expect(200);
+      });
+
+      it("prueft, wenn er greift", async () => {
+        await abSchwelle();
+        await anlegen("G-2");
+
+        await mit(alsMensch)("patch", "/v1/requirements/by-source/sap/G-2")
+          .send({ dynamicAttributes: { kostenschaetzung: 80000 } })
+          .expect(200);
+
+        await mit(alsMensch)("put", zustand("G-2")).send({ toState: "in_pruefung" }).expect(409);
+      });
+
+      it("weist ab, wenn der Vorbehalt nicht auswertbar ist", async () => {
+        await abSchwelle();
+        await anlegen("G-3");
+
+        // Kein Wert gesetzt - weder anwenden noch ueberspringen waere begruendbar.
+        const antwort = await mit(alsMensch)("put", zustand("G-3"))
+          .send({ toState: "in_pruefung" })
+          .expect(409);
+
+        expect(antwort.body.conditions[0].message).toContain("Vorbehalt");
+      });
     });
   });
 });

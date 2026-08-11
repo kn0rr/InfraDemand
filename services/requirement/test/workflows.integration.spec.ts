@@ -4,6 +4,7 @@ import { Pool } from "pg";
 import request from "supertest";
 import { AppModule } from "../src/app.module";
 import { configureApp } from "../src/app.setup";
+import { registriereAttribut } from "./support/attribute-definitions";
 import { type JwksTestServer, startJwksTestServer } from "./support/jwks-test-server";
 import { startTestDatabase, type TestDatabase } from "./support/test-database";
 import { pruefeVersionshistorie } from "./support/versionierung";
@@ -374,6 +375,107 @@ describe("Workflow-Definitionen", () => {
       );
 
       expect(verstoesse).toEqual([]);
+    });
+  });
+
+  describe("Bedingungen (ADR-0024)", () => {
+    const mitBedingungen = (bedingungen: unknown[]) => ({
+      ...gueltig,
+      transitions: [
+        { from: "neu", to: "in_pruefung", label: "Einreichen" },
+        { from: "in_pruefung", to: "erledigt", label: "Freigeben", bedingungen },
+      ],
+    });
+
+    it("nimmt eine Bedingung auf einem Kernfeld an", async () => {
+      await alsAdmin()
+        .send(mitBedingungen([{ art: "identitaet", feld: "owner" }]))
+        .expect(201);
+    });
+
+    it("nimmt eine Bedingung auf einem geltenden Attribut an", async () => {
+      await registriereAttribut(pool, { key: "kostenschaetzung", dataType: "number" });
+
+      await alsAdmin()
+        .send(
+          mitBedingungen([
+            {
+              art: "rolle",
+              eineVon: ["budget-freigeber"],
+              nurWenn: [{ feld: "kostenschaetzung", operator: "mindestens", wert: 50000 }],
+            },
+          ]),
+        )
+        .expect(201);
+    });
+
+    it("weist ein Feld ab, das es nicht gibt", async () => {
+      // Eine Pflicht auf ein nicht vorhandenes Feld waere nie erfuellbar - der Uebergang
+      // dauerhaft gesperrt, und auffallen wuerde es erst, wenn jemand feststeckt.
+      const antwort = await alsAdmin()
+        .send(mitBedingungen([{ art: "pflichtfelder", felder: ["gibt_es_nicht"] }]))
+        .expect(400);
+
+      expect(antwort.body.message).toContain("gibt_es_nicht");
+    });
+
+    it("weist einen unpassenden Wert zum Operator ab", async () => {
+      const antwort = await alsAdmin()
+        .send(
+          mitBedingungen([
+            {
+              art: "rolle",
+              eineVon: ["freigeber"],
+              nurWenn: [{ feld: "owner", operator: "istEinesVon", wert: "nicht-liste" }],
+            },
+          ]),
+        )
+        .expect(400);
+
+      // Nicht die Rumpfpruefung, sondern die Graphpruefung soll das abweisen.
+      expect(antwort.body.message).toContain("istEinesVon erwartet eine Liste");
+    });
+
+    it("weist Bedingungen an einem fremdgefuehrten Workflow ab", async () => {
+      // Dort entscheidet das Fremdsystem - die Bedingung wuerde nie ausgewertet und saehe
+      // trotzdem aus wie eine Zusicherung (ADR-0021 Punkt 4).
+      const antwort = await alsAdmin()
+        .send({
+          ...mitBedingungen([{ art: "identitaet", feld: "owner" }]),
+          mode: "external",
+        })
+        .expect(400);
+
+      expect(antwort.body.message).toContain("wirkungslos");
+    });
+
+    it("weist einen Vier-Augen-Bezug ab, der nicht auf jedem Weg liegt", async () => {
+      const antwort = await alsAdmin()
+        .send({
+          label: "Mit Eilverfahren",
+          initialState: "neu",
+          states: [
+            { key: "neu", label: "Neu" },
+            { key: "in_pruefung", label: "In Pruefung" },
+            { key: "eilverfahren", label: "Eilverfahren" },
+            { key: "erledigt", label: "Erledigt", final: true },
+          ],
+          transitions: [
+            { from: "neu", to: "in_pruefung", label: "Einreichen" },
+            { from: "neu", to: "eilverfahren", label: "Eilig einreichen" },
+            { from: "in_pruefung", to: "erledigt", label: "Freigeben" },
+            {
+              from: "eilverfahren",
+              to: "erledigt",
+              label: "Eilig freigeben",
+              // Ueber das Eilverfahren wird "in_pruefung" nie betreten.
+              bedingungen: [{ art: "vier_augen", andersAlsBeiEintritt: "in_pruefung" }],
+            },
+          ],
+        })
+        .expect(400);
+
+      expect(antwort.body.message).toContain("nicht auf jedem Weg");
     });
   });
 });

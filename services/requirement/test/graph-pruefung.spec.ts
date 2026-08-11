@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { pruefeGraph, unerreichbareZustaende } from "../src/workflows/graph-pruefung";
-import type { Graph } from "../src/workflows/typen";
+import type { Bedingung, Graph } from "../src/workflows/typen";
 
 function graph(teil: Partial<Graph> = {}): Graph {
   return {
@@ -170,6 +170,124 @@ describe("pruefeGraph", () => {
       });
 
       expect(pruefeGraph(fremd, "external")).toHaveLength(2);
+    });
+  });
+
+  describe("Bedingungen (ADR-0024)", () => {
+    const mitBedingung = (bedingung: Bedingung, von = "neu", nach = "in_pruefung") =>
+      graph({
+        states: [
+          { key: "neu", label: "Neu" },
+          { key: "in_pruefung", label: "In Pruefung" },
+          { key: "erledigt", label: "Erledigt", final: true },
+        ],
+        transitions: [
+          { from: "neu", to: "in_pruefung", label: "Einreichen" },
+          { from: "in_pruefung", to: "erledigt", label: "Freigeben" },
+        ].map((uebergang) =>
+          uebergang.from === von && uebergang.to === nach
+            ? { ...uebergang, bedingungen: [bedingung] }
+            : uebergang,
+        ),
+      });
+
+    it("nimmt eine wohlgeformte Bedingung an", () => {
+      expect(
+        pruefeGraph(mitBedingung({ art: "rolle", eineVon: ["freigeber"] }), "internal"),
+      ).toEqual([]);
+    });
+
+    it("weist eine Rollenbedingung ohne Rolle ab", () => {
+      expect(pruefeGraph(mitBedingung({ art: "rolle", eineVon: [] }), "internal")).toHaveLength(1);
+    });
+
+    it("weist einen unbekannten Zustand im Vier-Augen-Bezug ab", () => {
+      expect(
+        pruefeGraph(
+          mitBedingung({ art: "vier_augen", andersAlsBeiEintritt: "erfunden" }),
+          "internal",
+        ),
+      ).toHaveLength(1);
+    });
+
+    it("weist einen unbekannten Vergleich ab", () => {
+      const befunde = pruefeGraph(
+        mitBedingung({
+          art: "rolle",
+          eineVon: ["freigeber"],
+          nurWenn: [{ feld: "betrag", operator: "ungefaehr" as never, wert: 1 }],
+        }),
+        "internal",
+      );
+
+      expect(befunde).toHaveLength(1);
+    });
+
+    it("weist einen Operator mit unpassendem Wert ab", () => {
+      expect(
+        pruefeGraph(
+          mitBedingung({
+            art: "rolle",
+            eineVon: ["freigeber"],
+            nurWenn: [{ feld: "kategorie", operator: "istEinesVon", wert: "cloud" }],
+          }),
+          "internal",
+        ),
+      ).toHaveLength(1);
+    });
+
+    it("weist Bedingungen an einem fremdgefuehrten Workflow ab", () => {
+      // Dort entscheidet das Fremdsystem - eine Bedingung wuerde nie ausgewertet und
+      // saehe trotzdem aus wie eine Zusicherung.
+      const fremd = mitBedingung({ art: "rolle", eineVon: ["freigeber"] });
+
+      expect(pruefeGraph(fremd, "external").length).toBeGreaterThan(0);
+    });
+  });
+
+  describe("Vier-Augen-Bezug muss auf jedem Weg liegen", () => {
+    /**
+     * neu -> in_pruefung -> erledigt
+     * neu -> eilverfahren -> erledigt
+     *
+     * Der Uebergang nach `erledigt` aus `eilverfahren` kann sich nicht auf `in_pruefung`
+     * berufen - auf diesem Weg hat ihn niemand ausgeloest.
+     */
+    const zweiWege = (bezug: string) =>
+      graph({
+        states: [
+          { key: "neu", label: "Neu" },
+          { key: "in_pruefung", label: "In Pruefung" },
+          { key: "eilverfahren", label: "Eilverfahren" },
+          { key: "erledigt", label: "Erledigt", final: true },
+        ],
+        transitions: [
+          { from: "neu", to: "in_pruefung", label: "Einreichen" },
+          { from: "neu", to: "eilverfahren", label: "Eilig einreichen" },
+          { from: "in_pruefung", to: "erledigt", label: "Freigeben" },
+          {
+            from: "eilverfahren",
+            to: "erledigt",
+            label: "Eilig freigeben",
+            bedingungen: [{ art: "vier_augen", andersAlsBeiEintritt: bezug }],
+          },
+        ],
+      });
+
+    it("weist einen Bezug ab, der nur auf einem Weg liegt", () => {
+      const befunde = pruefeGraph(zweiWege("in_pruefung"), "internal");
+
+      expect(befunde).toHaveLength(1);
+      expect(befunde[0]?.message).toContain("nicht auf jedem Weg");
+    });
+
+    it("nimmt einen Bezug an, der auf jedem Weg liegt", () => {
+      // `neu` wird immer durchlaufen - der Bezug trifft damit den Ersteller.
+      expect(pruefeGraph(zweiWege("neu"), "internal")).toEqual([]);
+    });
+
+    it("nimmt den Ausgangszustand selbst an", () => {
+      expect(pruefeGraph(zweiWege("eilverfahren"), "internal")).toEqual([]);
     });
   });
 });

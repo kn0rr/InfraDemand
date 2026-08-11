@@ -1,5 +1,5 @@
-import { ApiProperty } from "@nestjs/swagger";
-import { IsString, MaxLength, MinLength } from "class-validator";
+import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
+import { IsOptional, IsString, MaxLength, MinLength } from "class-validator";
 
 /**
  * Zustandswechsel (§7, ADR-0022 Punkt 1).
@@ -19,6 +19,18 @@ export class WechsleZustandDto {
   @MinLength(1)
   @MaxLength(100)
   toState!: string;
+
+  @ApiPropertyOptional({
+    example: "Budget durch die Bereichsleitung bestaetigt",
+    maxLength: 500,
+    description:
+      "Pflicht, wenn der Uebergang eine Begruendung verlangt (ADR-0024). Sie wird als " +
+      "Bestandteil der Version festgehalten, nicht als Kommentar daneben.",
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  reason?: string;
 }
 
 /**
