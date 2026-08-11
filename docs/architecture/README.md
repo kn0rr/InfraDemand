@@ -269,6 +269,48 @@ schwierigste Teil der Plattform.
 Grund bewusst spät eingeordnet: Sie brauchen ein belastbares Fundament, sonst werden sie
 zweimal gebaut.
 
+### M4 im Detail
+
+M4 setzt §7 um – konfigurierbare Workflows als Zustandsgraph.
+
+| | Inhalt | Beweist | Stand |
+|---|---|---|---|
+| **M4.1** | Workflow-Definition als versionierte Fachdaten: Zustände und Übergänge | Ein Zustand entsteht ohne Redeploy | abgeschlossen |
+| **M4.2** | Statuswechsel über einen eigenen Vorgang statt über das Feld `status` | Jeder Wechsel wird gegen den Zustandsgraphen geprüft | offen |
+| **M4.3** | Bedingungen an Übergängen: Pflichtfelder, benötigte Berechtigung | Ein Übergang kann verlangen, was §7 nennt | offen |
+| **M4.4** | Laufende Anforderungen bleiben auf ihrer Workflow-Fassung | Eine Änderung der Definition wirkt nicht rückwirkend (§7) | offen |
+| **M4.5** | Oberfläche: zulässige Übergänge als Schaltflächen statt eines freien Statusfeldes | Die Zustände kommen aus den Daten, nicht aus dem Code | offen |
+
+**M4.2 ist der unbequeme Schritt.** `status` ist heute eine freie Zeichenkette, die über
+`POST` und `PATCH` beliebig gesetzt werden kann. Solange das so bleibt, gibt es nichts zu
+prüfen – §7 verlangt aber, dass jeder Wechsel gegen den Graphen läuft. Das ist zugleich
+die erste **inkompatible Änderung mit echter Verhaltensänderung**: Anders als bei den
+Contract-Korrekturen aus M3 verhält sich der Dienst danach tatsächlich anders. Bis dahin
+gilt `PROD-052`: Ein konfigurierter Ablauf, der nichts erzwingt, ist gefährlicher als
+keiner.
+
+**Zwei Fragen stehen am Anfang von M4.2, bevor eine Zeile entsteht:**
+
+- **Die Bestandsdaten passen nicht auf die Zustandsschlüssel.** M4.1 legt für Zustände
+  `^[a-z][a-z0-9_]*$` fest; vorhandene `status`-Werte sind freier Text und können anders
+  aussehen. Der erste Wechsel gegen den Graphen trifft auf Anforderungen, deren aktueller
+  Zustand in keinem Graphen vorkommt. Das ist eine Abbildung oder eine Datenmigration, und
+  sie gehört entschieden, bevor die Prüfung scharf geschaltet wird.
+- **Was bedeutet ein Anforderungstyp ohne gültigen Workflow** – jeder Wechsel erlaubt oder
+  jeder verweigert? Das Repository liefert bewusst auch außer Kraft gesetzte Definitionen
+  aus, damit diese Entscheidung im Service sichtbar fällt und nicht als stiller Rückfall
+  auf den allgemeinen Workflow geschieht.
+
+**M4.4 ist der Gegensatz zu §6 und muss es sein.** Attributdefinitionen werden gegen die
+*aktuell gültige* Fassung geprüft (M3.3); Workflow-Definitionen gelten für eine laufende
+Anforderung in der Fassung, unter der sie gestartet ist. Der Unterschied ist beabsichtigt:
+Ein nachträglich geänderter Zustandsgraph würde sonst Anforderungen in Zustände versetzen,
+die es zu ihrer Zeit nicht gab.
+
+**Die seit [ADR-0001](../adr/0001-backend-sprache-und-framework.md) vertagte Wahl der
+Regel-Engine** fällt in M4.3 – nicht früher. Ob es überhaupt eine braucht, zeigt sich erst
+an den tatsächlich benötigten Bedingungen.
+
 ### Warum diese Reihenfolge
 
 **M1 vor allem anderen**, weil der vertikale Durchstich sämtliche Querschnittsfragen

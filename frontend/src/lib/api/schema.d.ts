@@ -254,6 +254,70 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/workflow-definitions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Workflow-Definitionen auflisten
+         * @description Einschliesslich ausser Kraft gesetzter. Lesen ist nicht auf platform-admin beschraenkt: Die Oberflaeche braucht den Graphen, um zulaessige Uebergaenge als Schaltflaechen anzubieten statt eines freien Statusfeldes (§7, M4.5).
+         */
+        get: operations["WorkflowsController_findAll_v1"];
+        put?: never;
+        /**
+         * Workflow-Definition anlegen
+         * @description Legt den gueltigen Ablauf fest und verlangt daher platform-admin.
+         */
+        post: operations["WorkflowsController_create_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workflow-definitions/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Workflow-Definition aendern
+         * @description Erzeugt eine neue Version (ADR-0012). requirementType ist unveraenderlich - er bezeichnet, wofuer der Workflow gilt.
+         */
+        put: operations["WorkflowsController_update_v1"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workflow-definitions/{id}/versions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Versionen einer Workflow-Definition
+         * @description Vollstaendige Historie nach §19.4. Zugleich der Lesepfad fuer §7: Eine laufende Anforderung bleibt auf ihrer Ursprungsfassung, und die steht hier.
+         */
+        get: operations["WorkflowsController_findVersions_v1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -390,6 +454,24 @@ export interface components {
              * @example neu
              */
             status: string;
+        };
+        CreateWorkflowDefinitionDto: {
+            /** @example neu */
+            initialState: string;
+            /** @example Standardablauf */
+            label: string;
+            /**
+             * @default internal
+             * @enum {string}
+             */
+            mode: "internal" | "external";
+            /**
+             * @description Ohne Angabe gilt der Workflow fuer alle Typen ohne eigenen.
+             * @example bestellung
+             */
+            requirementType?: string;
+            states: components["schemas"]["WorkflowStateDto"][];
+            transitions: components["schemas"]["WorkflowTransitionDto"][];
         };
         FesthaltungUebersicht: {
             /** @example A-4711 */
@@ -581,6 +663,109 @@ export interface components {
         UpdateMastershipRuleDto: {
             /** @enum {string} */
             mode: "manual_allowed" | "automatic_wins" | "manual_locked";
+        };
+        UpdateWorkflowDefinitionDto: {
+            /** @description false setzt den Workflow ausser Kraft, ohne ihn zu loeschen. */
+            active: boolean;
+            initialState: string;
+            label: string;
+            /** @enum {string} */
+            mode: "internal" | "external";
+            states: components["schemas"]["WorkflowStateDto"][];
+            transitions: components["schemas"]["WorkflowTransitionDto"][];
+        };
+        WorkflowDefinitionResponse: {
+            /** @description false setzt den Workflow ausser Kraft, ohne ihn zu loeschen. */
+            active: boolean;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: uuid */
+            id: string;
+            /** @example neu */
+            initialState: string;
+            /** @example Standardablauf */
+            label: string;
+            /**
+             * @description internal: Uebergaenge werden hier geprueft und abgewiesen. external: Ein Fremdsystem fuehrt den Vorgang, der Graph beschreibt ihn nur (ADR-0021).
+             * @enum {string}
+             */
+            mode: "internal" | "external";
+            /** @description Anforderungstyp, fuer den der Workflow gilt. Leer bedeutet: fuer alle uebrigen. */
+            requirementType: string | null;
+            states: components["schemas"]["WorkflowStateResponse"][];
+            transitions: components["schemas"]["WorkflowTransitionResponse"][];
+            /** @description Zustaende, die vom Anfangszustand aus nicht erreichbar sind. Kein Fehler - ein Graph im Aufbau ist unvollstaendig, nicht falsch -, aber ein Hinweis fuer die Verwaltungsoberflaeche. */
+            unreachableStates: string[];
+            /** Format: date-time */
+            updatedAt: string;
+            /** @example 1 */
+            version: number;
+        };
+        WorkflowDefinitionVersionResponse: {
+            /** @description false setzt den Workflow ausser Kraft, ohne ihn zu loeschen. */
+            active: boolean;
+            changeSource: string;
+            changedBy: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: uuid */
+            id: string;
+            /** @example neu */
+            initialState: string;
+            /** @example Standardablauf */
+            label: string;
+            /**
+             * @description internal: Uebergaenge werden hier geprueft und abgewiesen. external: Ein Fremdsystem fuehrt den Vorgang, der Graph beschreibt ihn nur (ADR-0021).
+             * @enum {string}
+             */
+            mode: "internal" | "external";
+            /** @enum {string} */
+            operation: "insert" | "update" | "delete";
+            /** @description Anforderungstyp, fuer den der Workflow gilt. Leer bedeutet: fuer alle uebrigen. */
+            requirementType: string | null;
+            states: components["schemas"]["WorkflowStateResponse"][];
+            transitions: components["schemas"]["WorkflowTransitionResponse"][];
+            /** @description Zustaende, die vom Anfangszustand aus nicht erreichbar sind. Kein Fehler - ein Graph im Aufbau ist unvollstaendig, nicht falsch -, aber ein Hinweis fuer die Verwaltungsoberflaeche. */
+            unreachableStates: string[];
+            /** Format: date-time */
+            updatedAt: string;
+            /** Format: date-time */
+            validFrom: string;
+            /** Format: date-time */
+            validTo: string | null;
+            /** @example 1 */
+            version: number;
+        };
+        WorkflowStateDto: {
+            /**
+             * @description Endzustand - von hier fuehrt kein Uebergang weiter.
+             * @default false
+             */
+            final: boolean;
+            /** @example in_pruefung */
+            key: string;
+            /** @example In Pruefung */
+            label: string;
+        };
+        WorkflowStateResponse: {
+            final: boolean;
+            /** @example in_pruefung */
+            key: string;
+            /** @example In Pruefung */
+            label: string;
+        };
+        WorkflowTransitionDto: {
+            /** @example neu */
+            from: string;
+            /** @example Einreichen */
+            label: string;
+            /** @example in_pruefung */
+            to: string;
+        };
+        WorkflowTransitionResponse: {
+            from: string;
+            label: string;
+            to: string;
         };
     };
     responses: never;
@@ -1230,6 +1415,171 @@ export interface operations {
             };
             /** @description Kein oder ungueltiges Token */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    WorkflowsController_findAll_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkflowDefinitionResponse"][];
+                };
+            };
+            /** @description Kein oder ungueltiges Token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    WorkflowsController_create_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateWorkflowDefinitionDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkflowDefinitionResponse"];
+                };
+            };
+            /** @description Rumpf unvollstaendig oder Graph widerspruechlich */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Kein oder ungueltiges Token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Rolle platform-admin fehlt */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Fuer diesen Anforderungstyp gibt es bereits einen */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    WorkflowsController_update_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateWorkflowDefinitionDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkflowDefinitionResponse"];
+                };
+            };
+            /** @description Rumpf unvollstaendig oder Graph widerspruechlich */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Kein oder ungueltiges Token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Rolle platform-admin fehlt */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Definition existiert nicht */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    WorkflowsController_findVersions_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkflowDefinitionVersionResponse"][];
+                };
+            };
+            /** @description Kein oder ungueltiges Token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Definition existiert nicht */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

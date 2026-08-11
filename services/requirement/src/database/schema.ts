@@ -11,6 +11,7 @@ import {
   unique,
   uuid,
 } from "drizzle-orm/pg-core";
+import { WORKFLOW_MODES, type WorkflowState, type WorkflowTransition } from "../workflows/typen";
 
 /** Name der Eindeutigkeit aus §19.1. Wird beim Abfangen des Konflikts gebraucht. */
 export const REQUIREMENT_SOURCE_EXTERNAL_CONSTRAINT = "requirement_source_external_uq";
@@ -417,6 +418,74 @@ export const writeRejections = pgTable(
   ],
 );
 
+// Weiterhin von hier aus verfuegbar, damit bestehende Importe gueltig bleiben.
+export type { WorkflowState, WorkflowTransition };
+
+/** Betriebsart eines Workflows - Begruendung bei `WORKFLOW_MODES` in `../workflows/typen`. */
+export const workflowMode = pgEnum("workflow_mode", WORKFLOW_MODES);
+
+/** Name der Eindeutigkeit je Anforderungstyp. */
+export const WORKFLOW_REQUIREMENT_TYPE_CONSTRAINT = "workflow_definition_requirement_type_uq";
+
+/**
+ * Workflow-Definition nach §7 - Fachdaten, versioniert, ohne Redeploy aenderbar.
+ *
+ * Der Graph liegt als **ein Wert** in zwei JSONB-Spalten und nicht in eigenen Tabellen.
+ * §7 verlangt, dass laufende Anforderungen auf ihrer Ursprungsfassung bleiben; als Wert
+ * ist diese Fassung ein Zeiger auf eine Historienzeile, und der Graph steht vollstaendig
+ * darin. Auf drei Tabellen verteilt muesste man ihn zu jedem Zeitpunkt zusammensetzen.
+ */
+export const workflowDefinitions = pgTable(
+  "workflow_definition",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    label: text("label").notNull(),
+    /**
+     * Anforderungstyp, fuer den der Workflow gilt. NULL bedeutet: fuer alle, die keinen
+     * eigenen haben. Genau ein Workflow je Typ - sonst waere nicht entscheidbar, welcher
+     * Graph einen Wechsel pruefen soll.
+     */
+    requirementType: text("requirement_type"),
+    mode: workflowMode("mode").notNull(),
+    /** Zustand, in dem eine neue Anforderung beginnt. Muss in `states` enthalten sein. */
+    initialState: text("initial_state").notNull(),
+    states: jsonb("states").$type<WorkflowState[]>().notNull(),
+    transitions: jsonb("transitions").$type<WorkflowTransition[]>().notNull(),
+    active: boolean("active").notNull().default(true),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    version: integer("version").notNull().default(1),
+  },
+  (table) => [
+    unique(WORKFLOW_REQUIREMENT_TYPE_CONSTRAINT).on(table.requirementType).nullsNotDistinct(),
+  ],
+);
+
+/** Versionshistorie der Workflow-Definitionen (ADR-0012). */
+export const workflowDefinitionHistory = pgTable(
+  "workflow_definition_history",
+  {
+    historyId: uuid("history_id").primaryKey().defaultRandom(),
+
+    id: uuid("id").notNull(),
+    label: text("label").notNull(),
+    requirementType: text("requirement_type"),
+    mode: workflowMode("mode").notNull().default("internal"),
+    initialState: text("initial_state").notNull(),
+    states: jsonb("states").$type<WorkflowState[]>().notNull(),
+    transitions: jsonb("transitions").$type<WorkflowTransition[]>().notNull(),
+    active: boolean("active").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull(),
+
+    ...versionierungsSpalten(),
+  },
+  (table) => [
+    index("workflow_definition_history_id_valid_from_idx").on(table.id, table.validFrom),
+    unique("workflow_definition_history_id_version_uq").on(table.id, table.version),
+  ],
+);
+
 export type RequirementRow = typeof requirements.$inferSelect;
 export type NewRequirementRow = typeof requirements.$inferInsert;
 export type RequirementHistoryRow = typeof requirementHistory.$inferSelect;
@@ -431,3 +500,5 @@ export type MastershipRuleRow = typeof mastershipRules.$inferSelect;
 export type MastershipRuleHistoryRow = typeof mastershipRuleHistory.$inferSelect;
 export type WriteRejectionRow = typeof writeRejections.$inferSelect;
 export type NewWriteRejectionRow = typeof writeRejections.$inferInsert;
+export type WorkflowDefinitionRow = typeof workflowDefinitions.$inferSelect;
+export type WorkflowDefinitionHistoryRow = typeof workflowDefinitionHistory.$inferSelect;
