@@ -1,0 +1,1 @@
+ALTER TYPE "public"."requirement_change_kind" ADD VALUE 'version_upgrade';

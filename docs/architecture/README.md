@@ -278,7 +278,7 @@ M4 setzt §7 um – konfigurierbare Workflows als Zustandsgraph.
 | **M4.1** | Workflow-Definition als versionierte Fachdaten: Zustände und Übergänge | Ein Zustand entsteht ohne Redeploy | abgeschlossen |
 | **M4.2** | Statuswechsel über einen eigenen Vorgang statt über das Feld `status` | Jeder Wechsel wird gegen den Zustandsgraphen geprüft | abgeschlossen |
 | **M4.3** | Bedingungen an Übergängen: Pflichtfelder, benötigte Berechtigung | Ein Übergang kann verlangen, was §7 nennt | abgeschlossen |
-| **M4.4** | Umgang mit der gebundenen Fassung: veraltete Graphen, Sichtbarkeit, Hebung | Eine Änderung der Definition wirkt nicht rückwirkend (§7) | offen, verkleinert |
+| **M4.4** | Umgang mit der gebundenen Fassung: Sichtbarkeit, Heben, Außerkraftsetzung | Eine Änderung der Definition wirkt nicht rückwirkend (§7) | abgeschlossen |
 | **M4.5** | Oberfläche für den Erfasser: zulässige Übergänge als Schaltflächen statt eines freien Statusfeldes | Die Zustände kommen aus den Daten, nicht aus dem Code | offen |
 | **M4.6** | Oberfläche für den Administrator: Workflows und Bedingungen pflegen | §7 verlangt Konfiguration statt Redeploy – ohne sie bleibt „konfigurierbar" eine Behauptung | offen |
 
@@ -293,10 +293,14 @@ Typwechsel in [ADR-0023](../adr/0023-workflow-bindung-beim-typwechsel.md).
 **M4.2 hat einen Teil von M4.4 mitgenommen.** Eine Anforderung wird beim Anlegen an eine
 Workflow-Fassung gebunden, und jeder Wechsel liest diese Fassung – nicht den aktuellen
 Workflow. Die Bindung erst später zu lesen hätte bedeutet, dass M4.4 das Verhalten
-bestehender Anforderungen noch einmal ändert, ohne dass sich an ihnen etwas geändert
-hätte. Für M4.4 bleibt: was gilt, wenn die gebundene Fassung den aktuellen Zustand nicht
-mehr führt; wie sichtbar wird, auf welcher Fassung eine Anforderung läuft; und ob eine
-laufende Anforderung auf eine neuere Fassung gehoben werden kann.
+bestehender Anforderungen noch einmal ändert, ohne dass sich an ihnen etwas geändert hätte.
+
+**Ein Punkt aus dem ursprünglichen M4.4-Zuschnitt hat sich beim Nachsehen aufgelöst:** „was
+gilt, wenn die gebundene Fassung den Zustand nicht mehr führt" kann aus der Bindung heraus
+nicht entstehen – Historienzeilen werden nie geändert. Der Fall tritt nur beim Wechsel der
+Anforderungsart auf, und dafür gibt es seit M4.2 die Meldung und den Zuordnungsvorgang.
+Geblieben und umgesetzt sind Sichtbarkeit der Bindung, das Heben auf die aktuelle Fassung
+und die Bedeutung der Außerkraftsetzung ([ADR-0025](../adr/0025-umgang-mit-der-gebundenen-workflow-fassung.md)).
 
 **`PROD-052` bleibt bis M4.3 offen.** Der Graph erzwingt seit M4.2 die Reihenfolge, aber
 nicht die Zuständigkeit – wer einen Übergang nehmen darf, wird nicht geprüft. Ein Ablauf,

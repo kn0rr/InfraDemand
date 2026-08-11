@@ -254,6 +254,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/requirements/by-source/{sourceSystem}/{externalId}/workflow-version": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Auf die aktuelle Workflow-Fassung heben
+         * @description Laufende Anforderungen bleiben auf ihrer Ursprungsfassung (§7). Ist eine Definition fachlich falsch, erreicht die Berichtigung sie sonst nie - dafuer dieser Vorgang (ADR-0025). Ziel ist immer die aktuelle Fassung; der Zustand bleibt unveraendert. Steht die Anforderung bereits auf der aktuellen Fassung, geschieht nichts.
+         */
+        put: operations["RequirementsController_hebeFassung_v1"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/requirements/holds": {
         parameters: {
             query?: never;
@@ -331,6 +351,26 @@ export interface paths {
          * @description Erzeugt eine neue Version (ADR-0012). requirementType ist unveraenderlich - er bezeichnet, wofuer der Workflow gilt.
          */
         put: operations["WorkflowsController_update_v1"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workflow-definitions/{id}/usage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Welche Fassungen in Gebrauch sind
+         * @description Anforderungen je Fassung. Laufende bleiben auf ihrer Ursprungsfassung (§7) - hier wird sichtbar, wie viele davon eine Berichtigung nicht erreicht und wo ein Heben zu erwaegen ist (ADR-0025). Leere Liste, wenn keine Anforderung darauf laeuft.
+         */
+        get: operations["WorkflowsController_fassungsnutzung_v1"];
+        put?: never;
         post?: never;
         delete?: never;
         options?: never;
@@ -526,6 +566,10 @@ export interface components {
             /** @example sap */
             sourceSystem: string;
         };
+        HebeFassungDto: {
+            /** @example Freigaberolle in Fassung 2 war falsch gesetzt, mit Fassung 3 berichtigt */
+            reason: string;
+        };
         MastershipRuleResponse: {
             /** @description Geltungsbereich nach ADR-0017 A6. Vorerst immer leer - eine Regel gilt fuer alle Anforderungen. */
             bindings: {
@@ -635,6 +679,8 @@ export interface components {
             updatedAt: string;
             /** @example 1 */
             version: number;
+            /** @description Workflow und Fassung, gegen die Zustandswechsel geprueft werden. */
+            workflow: components["schemas"]["RequirementWorkflowResponse"];
         };
         RequirementVersionResponse: {
             /** @description Client, der die Aenderung ausgefuehrt hat - aus dem Token. */
@@ -682,6 +728,17 @@ export interface components {
              */
             validTo: string | null;
             /** @example 1 */
+            version: number;
+            /** @description Workflow und Fassung, gegen die Zustandswechsel geprueft werden. */
+            workflow: components["schemas"]["RequirementWorkflowResponse"];
+        };
+        RequirementWorkflowResponse: {
+            /** Format: uuid */
+            id: string;
+            /**
+             * @description Fassung, unter der diese Anforderung laeuft - nicht zwingend die aktuelle. Eine Aenderung der Definition wirkt nicht rueckwirkend (§7).
+             * @example 1
+             */
             version: number;
         };
         SetzeFesthaltungDto: {
@@ -853,6 +910,17 @@ export interface components {
             from: string;
             label: string;
             to: string;
+        };
+        WorkflowVersionUsageResponse: {
+            /** @description Ob dies die aktuelle Fassung ist. Alles andere laeuft auf einer aelteren - gewollt nach §7, aber der Ort, an dem ein Heben zu erwaegen ist (ADR-0025). */
+            current: boolean;
+            /**
+             * @description Anforderungen auf dieser Fassung.
+             * @example 17
+             */
+            requirements: number;
+            /** @example 2 */
+            version: number;
         };
     };
     responses: never;
@@ -1548,6 +1616,60 @@ export interface operations {
             };
         };
     };
+    RequirementsController_hebeFassung_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sourceSystem: string;
+                externalId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HebeFassungDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RequirementResponse"];
+                };
+            };
+            /** @description Kein oder ungueltiges Token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Rolle platform-admin fehlt */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Kein Datensatz unter dieser Herkunft */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Der aktuelle Zustand kommt in der Zielfassung nicht vor - erst zuordnen */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     RequirementsController_findFesthaltungen_v1: {
         parameters: {
             query?: never;
@@ -1723,6 +1845,48 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Kein oder ungueltiges Token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Rolle platform-admin fehlt */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Definition existiert nicht */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    WorkflowsController_fassungsnutzung_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkflowVersionUsageResponse"][];
+                };
             };
             /** @description Kein oder ungueltiges Token */
             401: {

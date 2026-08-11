@@ -285,3 +285,18 @@ export class WorkflowDefinitionVersionResponse extends WorkflowDefinitionRespons
   @ApiProperty()
   changeSource!: string;
 }
+
+export class WorkflowVersionUsageResponse {
+  @ApiProperty({ type: "integer", example: 2 })
+  version!: number;
+
+  @ApiProperty({ type: "integer", example: 17, description: "Anforderungen auf dieser Fassung." })
+  requirements!: number;
+
+  @ApiProperty({
+    description:
+      "Ob dies die aktuelle Fassung ist. Alles andere laeuft auf einer aelteren - " +
+      "gewollt nach §7, aber der Ort, an dem ein Heben zu erwaegen ist (ADR-0025).",
+  })
+  current!: boolean;
+}

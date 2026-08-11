@@ -29,7 +29,7 @@ import { PatchRequirementDto } from "./patch-requirement.dto";
 import { RequirementResponse } from "./requirement.dto";
 import { RequirementVersionResponse } from "./requirement-version.dto";
 import { RequirementsService } from "./requirements.service";
-import { OrdneZustandZuDto, WechsleZustandDto } from "./zustandswechsel.dto";
+import { HebeFassungDto, OrdneZustandZuDto, WechsleZustandDto } from "./zustandswechsel.dto";
 
 @ApiTags("Anforderungen")
 @ApiBearerAuth()
@@ -265,5 +265,33 @@ export class RequirementsController {
     @CurrentUser() benutzer: AuthenticatedUser,
   ): Promise<RequirementResponse> {
     return this.service.hebeFesthaltungAuf(sourceSystem, externalId, field, benutzer);
+  }
+
+  @Put("by-source/:sourceSystem/:externalId/workflow-version")
+  @Rollen("platform-admin")
+  @ApiOperation({
+    summary: "Auf die aktuelle Workflow-Fassung heben",
+    description:
+      "Laufende Anforderungen bleiben auf ihrer Ursprungsfassung (§7). Ist eine Definition " +
+      "fachlich falsch, erreicht die Berichtigung sie sonst nie - dafuer dieser Vorgang " +
+      "(ADR-0025). Ziel ist immer die aktuelle Fassung; der Zustand bleibt unveraendert. " +
+      "Steht die Anforderung bereits auf der aktuellen Fassung, geschieht nichts.",
+  })
+  @ApiParam({ name: "sourceSystem", example: "sap" })
+  @ApiParam({ name: "externalId", example: "A-4711" })
+  @ApiResponse({ status: 200, type: RequirementResponse })
+  @ApiResponse({ status: 403, description: "Rolle platform-admin fehlt" })
+  @ApiResponse({ status: 404, description: "Kein Datensatz unter dieser Herkunft" })
+  @ApiResponse({
+    status: 409,
+    description: "Der aktuelle Zustand kommt in der Zielfassung nicht vor - erst zuordnen",
+  })
+  hebeFassung(
+    @Param("sourceSystem") sourceSystem: string,
+    @Param("externalId") externalId: string,
+    @Body() eingabe: HebeFassungDto,
+    @CurrentUser() benutzer: AuthenticatedUser,
+  ): Promise<RequirementResponse> {
+    return this.service.hebeFassung(sourceSystem, externalId, eingabe.reason, benutzer);
   }
 }

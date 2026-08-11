@@ -109,11 +109,15 @@ export interface Festhaltung {
 }
 
 /**
- * Art einer Aenderung, soweit sie sich nicht aus `operation` ergibt (ADR-0022).
+ * Art einer Aenderung, soweit sie sich nicht aus `operation` ergibt (ADR-0022, ADR-0025).
  *
- * Leer bei einer gewoehnlichen Aenderung. `transition`: Der Zustand wurde ueber einen
- * Uebergang des Graphen gewechselt. `state_assignment`: Ein Administrator hat ihn
- * zugeordnet, weil der bisherige im Graphen nicht vorkam (ADR-0022 Punkt 5).
+ * Leer bei einer gewoehnlichen Aenderung.
+ *
+ * `transition`: Der Zustand wurde ueber einen Uebergang des Graphen gewechselt.
+ * `state_assignment`: Ein Administrator hat ihn zugeordnet, weil der bisherige im Graphen
+ * nicht vorkam (ADR-0022 Punkt 5).
+ * `version_upgrade`: Die Anforderung wurde auf die aktuelle Fassung ihres Workflows
+ * gehoben (ADR-0025 Punkt 4). Der Zustand bleibt dabei unveraendert.
  *
  * Getrennt von `operation` und nicht als weiterer Wert darin: `operation` beantwortet, ob
  * angelegt, geaendert oder geloescht wurde, und das gilt fuer jede versionierte Entitaet.
@@ -123,6 +127,7 @@ export interface Festhaltung {
 export const requirementChangeKind = pgEnum("requirement_change_kind", [
   "transition",
   "state_assignment",
+  "version_upgrade",
 ]);
 
 /**
