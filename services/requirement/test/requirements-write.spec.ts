@@ -229,7 +229,7 @@ describe("Anforderungen anlegen", () => {
         .set("Authorization", `Bearer ${token}`);
 
     it("weist einen unbekannten Bezeichner mit 404 ab", async () => {
-      await patch("sap", "gibt-es-nicht").send({ status: "x" }).expect(404);
+      await patch("sap", "gibt-es-nicht").send({ owner: "X. Unbekannt" }).expect(404);
     });
 
     it("aendert genanntes und laesst nicht genanntes unberuehrt", async () => {
@@ -300,7 +300,7 @@ describe("Anforderungen anlegen", () => {
         .send({ ...gueltig, sourceSystem: "sap", externalId: "A-6" })
         .expect(201);
 
-      await patch("sap", "A-6").send({ status: "in_arbeit" }).expect(200);
+      await patch("sap", "A-6").send({ owner: "L. Braun" }).expect(200);
 
       const { rows } = await pool.query<{
         valid_from: Date;

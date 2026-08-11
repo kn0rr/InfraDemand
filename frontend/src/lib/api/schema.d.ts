@@ -479,10 +479,6 @@ export interface components {
              * @example A-4711
              */
             externalId?: string;
-            /**
-             * @description Kein Vorgabewert: Ein fest verdrahteter Anfangszustand waere eine Workflow-Annahme, und §7 macht Zustaende konfigurierbar. Ab M4 liefert ihn die Workflow-Definition.
-             * @example neu
-             */
             owner: string;
             /** Format: uuid */
             projectId: string;

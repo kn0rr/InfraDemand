@@ -270,11 +270,7 @@ components:
           maxLength: 200
           type: string
         owner:
-          description: >-
-            Kein Vorgabewert: Ein fest verdrahteter Anfangszustand waere eine Workflow-Annahme, und
-            §7 macht Zustaende konfigurierbar. Ab M4 liefert ihn die Workflow-Definition.
-          example: neu
-          maxLength: 100
+          maxLength: 200
           type: string
         projectId:
           format: uuid

@@ -1050,6 +1050,28 @@ gar keines: Es erzeugt Vertrauen für den Bereich, den es nicht prüft.
 > sehen kann. Der Zielzustand unten ist damit dringlicher als bei seiner Aufnahme
 > angenommen.
 
+> **Dritter Fall am 2026-08-11 mit M4.2 – und diesmal andersherum.** `status` wurde aus
+> `POST /v1/requirements` und aus `PATCH …/by-source/…` entfernt (ADR-0022). `oasdiff`
+> stuft das als **`warning`** ein, nicht als `error`; mit `--fail-on ERR` wäre die
+> Änderung durch das Tor gegangen.
+>
+> Für einen gewöhnlichen Dienst ist die Einstufung richtig: Ein entferntes
+> Anfrageschema-Feld wird üblicherweise ignoriert, der alte Client läuft weiter. **Bei uns
+> nicht.** `forbidNonWhitelisted: true` in `app.setup.ts` macht daraus eine 400 – ein
+> Client, der `status` weiter mitschickt, bekommt gar nichts mehr gespeichert. Die
+> Einstellung ist bewusst so gewählt (ein verworfenes Feld hielte der Aufrufer für
+> übernommen) und steht nirgends im Schema.
+>
+> Rot war der Lauf aus einem anderen Grund: Beim Entfernen blieben die Dekoratoren von
+> `status` stehen und hingen an `owner`, dessen `maxLength` dadurch von 200 auf 100 fiel.
+> **Das Tor hat einen unbeabsichtigten Fehler gefunden und die beabsichtigte inkompatible
+> Änderung durchgelassen.** Beides am selben Lauf.
+>
+> Die beiden ersten Fälle betrafen Verschärfungen bei unverändertem Schema. Dieser betrifft
+> eine Schemaänderung, deren Tragweite von der Laufzeitkonfiguration abhängt. Die
+> Prüfliste aus dem Zielzustand muss deshalb auch **entfernte Anfragefelder** enthalten,
+> nicht nur zusätzliche Prüfungen.
+
 **Zielzustand:** Verschärfungen der Laufzeitprüfung gelten als inkompatible Änderung und
 sind wie Schemaänderungen zu behandeln – angekündigt, versioniert, im Änderungsprotokoll
 vermerkt. Wo möglich, gehört die Einschränkung ins Schema, damit `oasdiff` sie sieht: eine
