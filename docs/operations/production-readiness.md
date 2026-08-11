@@ -49,13 +49,13 @@ Das gilt für alle Beteiligten, einschließlich der KI in ihrer Beraterrolle
 |---|---|---|---|
 | A – Transportverschlüsselung und Netzwerk | 7 | 5 | – |
 | *davon Voraussetzung für ADR-0013:* | `PROD-006`, `PROD-007`, `PROD-032` | | |
-| B – Geheimnisse und Zugangsdaten | 5 | 4 | – |
+| B – Geheimnisse und Zugangsdaten | 5 | 4 | **1** |
 | C – Identität und Zugriff | 11 | 2 | – |
 | D – Daten | 6 | 3 | – |
 | E – Container und Lieferkette | 9 | 1 | **2** |
 | F – Betrieb und Verfügbarkeit | 6 | 1 | – |
-| G – Anwendungssicherheit | 8 | 1 | – |
-| **Gesamt** | **52** | **17** | **2** |
+| G – Anwendungssicherheit | 9 | 1 | **1** |
+| **Gesamt** | **53** | **17** | **4** |
 
 > **Nummern werden nicht neu vergeben.** `PROD-026` ist unbesetzt. Eine Lücke ist kein
 > Fehler – eine wiederverwendete Nummer wäre einer, weil Verweise aus ADRs, Commits und
@@ -323,6 +323,23 @@ M5 vertagt. Ein Produktivgang vor M5 ist damit ausgeschlossen.
 >
 > **Zielzustand:** Entweder wird die Rolle durchgesetzt, oder sie wird entfernt. Ein
 > Zwischenzustand aus beidem ist die schlechteste Variante.
+
+> **Ergänzt am 2026-08-11 mit M4.3.** Ein Workflow-Übergang kann jetzt eine Rolle verlangen
+> ([ADR-0024](../adr/0024-bedingungen-an-workflow-uebergaengen.md)). Damit gibt es zum
+> ersten Mal eine Berechtigungsprüfung, die **nicht** am Endpunkt hängt, sondern am
+> einzelnen Vorgang – ein Schritt in Richtung §8, aber nur einer.
+>
+> **Die Rolle gilt global.** „Freigeber" heißt „Freigeber überall", nicht „Freigeber für
+> dieses Projekt, diese Kostenstelle, diesen Mandanten". Objektbezug, Feldebene und
+> Mandantenzuschnitt fehlen unverändert.
+>
+> Die Erscheinungsform ist heikler als vorher: Eine Freigaberolle an einem Übergang **sieht
+> aus** wie eine zugeschnittene Zuständigkeit. Wer einen Genehmigungsablauf konfiguriert,
+> hat keinen Anlass zu vermuten, dass die Rolle für sämtliche Projekte gilt. Dasselbe
+> Muster wie bei `PROD-052`, eine Ebene tiefer.
+>
+> Das Datum bleibt bei M5 nutzbar: Welche Zuständigkeit ein Übergang verlangt, ist in jeder
+> Variante Fachdatum. Was sich ändert, ist der Prüfer.
 
 #### PROD-051 — Die Herkunftsregistratur ist ein Berechtigungsobjekt ohne Berechtigungsschutz
 **Schwere:** Hoch · **Status:** Offen · **Betrifft:** §8, §19.3 · **Verweis:** [ADR-0017](../adr/0017-regelvokabular-der-datenhoheit-und-mandantenbegriff.md) A4
@@ -976,7 +993,7 @@ Datenbankausfalls mitzubehandeln.
 ## G – Anwendungssicherheit
 
 #### PROD-052 — Workflows sind konfigurierbar, aber sie gelten noch nicht
-**Schwere:** Hoch · **Status:** Offen · **Betrifft:** §7 · **Fundstelle:** `services/requirement/src/workflows/`, `services/requirement/src/requirements/`
+**Schwere:** Hoch · **Status:** ~~Offen~~ **Erledigt (2026-08-11)** · **Betrifft:** §7 · **Fundstelle:** `services/requirement/src/workflows/`, `services/requirement/src/requirements/`
 
 Seit M4.1 lassen sich Workflow-Definitionen anlegen, ändern und versionieren. Ein
 Administrator legt Zustände, Übergänge und Endzustände fest, die Oberfläche zeigt sie an,
@@ -1018,6 +1035,46 @@ und nicht nebenbei implementiert werden.
 > Die Schwere bleibt **Hoch**. Ein Ablauf, der die Reihenfolge erzwingt und die
 > Zuständigkeit nicht, sieht einer Genehmigungsstrecke ähnlicher als vorher – und ist
 > weiterhin keine. Die Verwechslungsgefahr ist damit eher gestiegen als gesunken.
+
+> **Geschlossen am 2026-08-11 mit M4.3** – [ADR-0024](../adr/0024-bedingungen-an-workflow-uebergaengen.md).
+>
+> Übergänge tragen jetzt Bedingungen: benötigte Rolle, Vier-Augen-Prinzip, Pflichtfelder,
+> Feldwerte, Begründungspflicht – jeweils mit einem optionalen Vorbehalt. Damit erzwingt der
+> Ablauf, was §7 nennt, und der Eintrag hat seinen Gegenstand verloren.
+>
+> **Eine Bedingung, die sich nicht auswerten lässt, weist ab.** Das war die Festlegung mit
+> der größten Tragweite: Eine Genehmigungsstrecke, die bei fehlenden Daten nachgibt, gäbe
+> genau dann nach, wenn etwas nicht stimmt.
+>
+> **Zwei Punkte sind nicht miterledigt und stehen anderswo:**
+>
+> - Die Rolle am Übergang gilt **global** – „Freigeber überall", nicht „Freigeber für dieses
+>   Projekt, diese Kostenstelle". Der Objektbezug aus §8 kommt mit M5; geführt unter
+>   `PROD-017`.
+> - Workflows sind nur über die Schnittstelle konfigurierbar, nicht über eine
+>   Verwaltungsoberfläche; geführt unter `PROD-054`.
+
+#### PROD-054 — Workflows sind nur über die Schnittstelle konfigurierbar
+**Schwere:** Mittel · **Status:** Offen · **Betrifft:** §7 · **Verweis:** Meilenstein M4.6
+
+§7 verlangt, dass Workflows „über Admin-UI/Config statt Redeploy" konfiguriert werden. Die
+Definitionen **sind** Fachdaten und ohne Redeploy änderbar – aber es gibt keine
+Verwaltungsoberfläche für sie. Wer einen Zustand hinzufügt oder eine Bedingung ändert,
+stellt den Graphen als JSON zusammen und schickt ihn gegen die API.
+
+Die Oberfläche aus M3.6 deckt Attributdefinitionen, Hoheitsregeln und Festhaltungen ab;
+für Workflows gibt es nichts Vergleichbares. M4.5 ist die Sicht des **Erfassers** – Übergänge
+als Schaltflächen –, nicht die des Administrators.
+
+**Warum das mehr ist als Bequemlichkeit.** Ein Ablauf, den nur ändern kann, wer JSON und
+das Vokabular aus ADR-0024 beherrscht, wird faktisch von der Entwicklung gepflegt. Damit
+ist die Zusicherung aus §7 – Fachlichkeit ohne Auslieferung änderbar – im Betrieb nicht
+eingelöst, obwohl sie technisch besteht. Der Unterschied fällt erst auf, wenn eine Änderung
+dringend ist.
+
+**Zielzustand:** M4.6. Das Vokabular ist darauf zugeschnitten: feste Listen von
+Bedingungsarten und Vergleichen, jeder Vergleich aus Feld, Operator und Wert – als Formular
+mit Auswahllisten darstellbar, ohne freien Ausdruck.
 
 #### PROD-049 — Das Tor für inkompatible Änderungen sieht nur das Schema
 **Schwere:** Mittel · **Status:** Offen · **Betrifft:** §12 · **Fundstelle:** `.github/workflows/ci.yml`, Job `lint`, Schritt „Inkompatible Contract-Aenderungen pruefen"

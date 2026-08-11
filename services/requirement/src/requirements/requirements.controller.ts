@@ -167,10 +167,11 @@ export class RequirementsController {
   @ApiResponse({
     status: 409,
     description:
-      "Drei Ursachen. Es gibt keinen Uebergang vom aktuellen in den gewuenschten " +
+      "Vier Ursachen. Es gibt keinen Uebergang vom aktuellen in den gewuenschten " +
       "Zustand; der aktuelle Zustand kommt im geltenden Workflow gar nicht vor und muss " +
-      "zuerst zugeordnet werden; oder fuer `status` ist eine andere Quelle massgeblich " +
-      "(§19.3), dann traegt die Antwort ein Feld `fields`.",
+      "zuerst zugeordnet werden; die Bedingungen des Uebergangs sind nicht erfuellt, dann " +
+      "traegt die Antwort ein Feld `conditions`; oder fuer `status` ist eine andere Quelle " +
+      "massgeblich (§19.3), dann traegt sie ein Feld `fields`.",
   })
   wechsleZustand(
     @Param("sourceSystem") sourceSystem: string,
@@ -178,7 +179,13 @@ export class RequirementsController {
     @Body() eingabe: WechsleZustandDto,
     @CurrentUser() benutzer: AuthenticatedUser,
   ): Promise<RequirementResponse> {
-    return this.service.wechsleZustand(sourceSystem, externalId, eingabe.toState, benutzer);
+    return this.service.wechsleZustand(
+      sourceSystem,
+      externalId,
+      eingabe.toState,
+      eingabe.reason,
+      benutzer,
+    );
   }
 
   @Put("by-source/:sourceSystem/:externalId/state/assignment")

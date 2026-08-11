@@ -4,10 +4,12 @@ import {
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
+import { AttributeDefinitionsService } from "../attribute-definitions/attribute-definitions.service";
 import type { AuthenticatedUser } from "../auth/jwt.strategy";
 import type { WorkflowDefinitionHistoryRow, WorkflowDefinitionRow } from "../database/schema";
+import { KERNFELDER } from "../requirements/feldherkunft";
 import type { CreateWorkflowDefinitionDto } from "./create-workflow-definition.dto";
-import { pruefeGraph, unerreichbareZustaende } from "./graph-pruefung";
+import { genannteFelder, pruefeGraph, unerreichbareZustaende } from "./graph-pruefung";
 import type { Betriebsart, GeltenderWorkflow, Graph } from "./typen";
 import type { UpdateWorkflowDefinitionDto } from "./update-workflow-definition.dto";
 import type {
@@ -22,7 +24,10 @@ import { WorkflowsRepository } from "./workflows.repository";
 
 @Injectable()
 export class WorkflowsService {
-  constructor(private readonly repository: WorkflowsRepository) {}
+  constructor(
+    private readonly repository: WorkflowsRepository,
+    private readonly attributeDefinitions: AttributeDefinitionsService,
+  ) {}
 
   async findAll(): Promise<WorkflowDefinitionResponse[]> {
     const zeilen = await this.repository.findAll();
@@ -67,6 +72,47 @@ export class WorkflowsService {
       transitions: zeile.transitions,
     };
   }
+
+  /**
+   * Nennen die Bedingungen nur Felder, die es gibt?
+   *
+   * Eine Pflicht auf ein nicht vorhandenes Feld ist nie erfuellbar - der Uebergang waere
+   * dauerhaft gesperrt, und auffallen wuerde es erst, wenn jemand feststeckt. Deshalb
+   * beim Speichern.
+   */
+  private async pruefeFeldnamen(graph: Graph, requirementType: string | null): Promise<void> {
+    const genannt = genannteFelder(graph);
+
+    if (genannt.length === 0) {
+      return;
+    }
+
+    // Leerer Anforderungstyp trifft keinen typbezogenen Eintrag - uebrig bleiben genau
+    // die allgemeinen Definitionen. Das ist fuer einen allgemeinen Workflow das
+    // Richtige, und "" kann kein echter Typ sein (MinLength(1) im DTO).
+    const definitionen = await this.attributeDefinitions.geltendeDefinitionen(
+      requirementType ?? "",
+    );
+
+    const bekannt = new Set<string>([
+      ...(KERNFELDER as readonly string[]),
+      ...definitionen.map((definition) => definition.key),
+    ]);
+
+    const unbekannt = genannt.filter((eintrag) => !bekannt.has(eintrag.feld));
+
+    if (unbekannt.length > 0) {
+      throw new BadRequestException(
+        unbekannt
+          .map(
+            (eintrag) =>
+              `${eintrag.stelle}: "${eintrag.feld}" ist weder ein Kernfeld noch ein hier geltendes Attribut`,
+          )
+          .join("; "),
+      );
+    }
+  }
+
   /**
    * Die Fassung, an die eine laufende Anforderung gebunden ist (§7, ADR-0022).
    *
@@ -113,6 +159,11 @@ export class WorkflowsService {
       mode,
     );
 
+    await this.pruefeFeldnamen(
+      { initialState: eingabe.initialState, states, transitions: eingabe.transitions },
+      eingabe.requirementType ?? null,
+    );
+
     try {
       const zeile = await this.repository.create({
         label: eingabe.label,
@@ -149,7 +200,16 @@ export class WorkflowsService {
       { initialState: eingabe.initialState, states, transitions: eingabe.transitions },
       eingabe.mode,
     );
+    const bestand = await this.repository.findById(id);
 
+    if (bestand === undefined) {
+      throw new NotFoundException(new WorkflowDefinitionNotFoundError(id).message);
+    }
+
+    await this.pruefeFeldnamen(
+      { initialState: eingabe.initialState, states, transitions: eingabe.transitions },
+      bestand.requirementType,
+    );
     try {
       const zeile = await this.repository.update(id, {
         label: eingabe.label,
