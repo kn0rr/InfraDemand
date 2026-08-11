@@ -30,6 +30,8 @@ import {
   useHoheitsregelAnlegen,
 } from "@/lib/api/verwaltung";
 
+import { Workflows } from "./workflows";
+
 const DATENTYPEN = ["text", "number", "boolean", "date", "enum", "multi_enum"] as const;
 
 const MODI: { value: Hoheitsregel["mode"]; label: string }[] = [
@@ -431,6 +433,7 @@ export function Verwaltungsbereich() {
             <Tabs.Tab value="attribute">Attributdefinitionen</Tabs.Tab>
             <Tabs.Tab value="hoheit">Datenhoheit</Tabs.Tab>
             <Tabs.Tab value="festhaltungen">Festgehaltene Felder</Tabs.Tab>
+            <Tabs.Tab value="workflows">Workflows</Tabs.Tab>
           </Tabs.List>
 
           <Tabs.Panel value="attribute">
@@ -441,6 +444,9 @@ export function Verwaltungsbereich() {
           </Tabs.Panel>
           <Tabs.Panel value="festhaltungen">
             <Festhaltungen />
+          </Tabs.Panel>
+          <Tabs.Panel value="workflows">
+            <Workflows />
           </Tabs.Panel>
         </Tabs>
       </Stack>

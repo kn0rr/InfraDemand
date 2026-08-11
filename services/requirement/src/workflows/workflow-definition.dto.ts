@@ -212,6 +212,14 @@ export class WorkflowTransitionResponse {
 
   @ApiProperty()
   label!: string;
+
+  @ApiProperty({
+    type: [WorkflowBedingungDto],
+    description:
+      "Bedingungen an diesem Uebergang (ADR-0024). Leer, wenn es keine gibt. Nur fuer " +
+      "platform-admin lesbar - sie beschreiben, wer was freigeben darf.",
+  })
+  bedingungen!: WorkflowBedingungDto[];
 }
 
 export class WorkflowDefinitionResponse {

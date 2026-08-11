@@ -212,7 +212,7 @@ export class RequirementsController {
     @Body() eingabe: OrdneZustandZuDto,
     @CurrentUser() benutzer: AuthenticatedUser,
   ): Promise<RequirementResponse> {
-    return this.service.ordneZustandZu(
+    return this.service.ordneZustandZuUeberHerkunft(
       sourceSystem,
       externalId,
       eingabe.state,
@@ -293,7 +293,12 @@ export class RequirementsController {
     @Body() eingabe: HebeFassungDto,
     @CurrentUser() benutzer: AuthenticatedUser,
   ): Promise<RequirementResponse> {
-    return this.service.hebeFassung(sourceSystem, externalId, eingabe.reason, benutzer);
+    return this.service.hebeFassungUeberHerkunft(
+      sourceSystem,
+      externalId,
+      eingabe.reason,
+      benutzer,
+    );
   }
   @Get("by-source/:sourceSystem/:externalId/transitions")
   @ApiOperation({
@@ -355,5 +360,47 @@ export class RequirementsController {
     @CurrentUser() benutzer: AuthenticatedUser,
   ): Promise<RequirementResponse> {
     return this.service.wechsleZustandUeberKennung(id, eingabe.toState, eingabe.reason, benutzer);
+  }
+  @Put(":id/state/assignment")
+  @Rollen("platform-admin")
+  @ApiOperation({
+    summary: "Zustand zuordnen, ueber die interne Kennung",
+    description:
+      "Gleichwertig zum Weg ueber die Herkunft. Notwendig fuer eigene Erfassung, deren " +
+      "`externalId` leer ist (§19.1) - und gerade dort haengt eine Anforderung, deren " +
+      "Zustand der Graph nicht kennt.",
+  })
+  @ApiParam({ name: "id", format: "uuid" })
+  @ApiResponse({ status: 200, type: RequirementResponse })
+  @ApiResponse({ status: 400, description: "Der Zustand kommt im geltenden Workflow nicht vor" })
+  @ApiResponse({ status: 403, description: "Rolle platform-admin fehlt" })
+  @ApiResponse({ status: 404, description: "Anforderung existiert nicht" })
+  ordneZustandZuUeberKennung(
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() eingabe: OrdneZustandZuDto,
+    @CurrentUser() benutzer: AuthenticatedUser,
+  ): Promise<RequirementResponse> {
+    return this.service.ordneZustandZuUeberKennung(id, eingabe.state, eingabe.reason, benutzer);
+  }
+
+  @Put(":id/workflow-version")
+  @Rollen("platform-admin")
+  @ApiOperation({
+    summary: "Auf die aktuelle Workflow-Fassung heben, ueber die interne Kennung",
+    description:
+      "Gleichwertig zum Weg ueber die Herkunft (ADR-0025). Steht die Anforderung bereits " +
+      "auf der aktuellen Fassung, geschieht nichts.",
+  })
+  @ApiParam({ name: "id", format: "uuid" })
+  @ApiResponse({ status: 200, type: RequirementResponse })
+  @ApiResponse({ status: 403, description: "Rolle platform-admin fehlt" })
+  @ApiResponse({ status: 404, description: "Anforderung existiert nicht" })
+  @ApiResponse({ status: 409, description: "Der aktuelle Zustand fehlt in der Zielfassung" })
+  hebeFassungUeberKennung(
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() eingabe: HebeFassungDto,
+    @CurrentUser() benutzer: AuthenticatedUser,
+  ): Promise<RequirementResponse> {
+    return this.service.hebeFassungUeberKennung(id, eingabe.reason, benutzer);
   }
 }

@@ -20,19 +20,24 @@ export class WorkflowsController {
   constructor(private readonly service: WorkflowsService) {}
 
   @Get()
+  @Rollen("platform-admin")
   @ApiOperation({
     summary: "Workflow-Definitionen auflisten",
     description:
-      "Einschliesslich ausser Kraft gesetzter. Lesen ist nicht auf platform-admin " +
-      "beschraenkt: Die Oberflaeche braucht den Graphen, um zulaessige Uebergaenge als " +
-      "Schaltflaechen anzubieten statt eines freien Statusfeldes (§7, M4.5).",
+      "Einschliesslich ausser Kraft gesetzter und **einschliesslich der Bedingungen** - " +
+      "damit beschreibt die Antwort, wer was freigeben darf, und ist deshalb auf " +
+      "platform-admin beschraenkt. Was ein Erfasser braucht, liefert " +
+      "`GET /v1/requirements/{id}/transitions`: die zulaessigen Uebergaenge seiner " +
+      "Anforderung samt Grund fuer die gesperrten.",
   })
   @ApiResponse({ status: 200, type: [WorkflowDefinitionResponse] })
+  @ApiResponse({ status: 403, description: "Rolle platform-admin fehlt" })
   findAll(): Promise<WorkflowDefinitionResponse[]> {
     return this.service.findAll();
   }
 
   @Get(":id/versions")
+  @Rollen("platform-admin")
   @ApiOperation({
     summary: "Versionen einer Workflow-Definition",
     description:
@@ -41,6 +46,7 @@ export class WorkflowsController {
   })
   @ApiParam({ name: "id", format: "uuid" })
   @ApiResponse({ status: 200, type: [WorkflowDefinitionVersionResponse] })
+  @ApiResponse({ status: 403, description: "Rolle platform-admin fehlt" })
   @ApiResponse({ status: 404, description: "Definition existiert nicht" })
   findVersions(
     @Param("id", ParseUUIDPipe) id: string,

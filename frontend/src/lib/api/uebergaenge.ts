@@ -8,6 +8,7 @@ import type { components } from "./schema";
 export type Uebergangsauskunft = components["schemas"]["UebergangsauskunftResponse"];
 export type Uebergangsoption = components["schemas"]["UebergangsoptionResponse"];
 export type Bedingungsverstoss = components["schemas"]["BedingungsverstossResponse"];
+export type Workflowzustand = components["schemas"]["WorkflowZustandResponse"];
 
 /**
  * Der Service weist einen Uebergang mit den einzelnen Gruenden ab (ADR-0024). Sie werden
@@ -84,6 +85,72 @@ export function useZustandswechsel() {
       }
 
       throw new Error(rumpf?.message ?? `Zustandswechsel fehlgeschlagen (${response.status})`);
+    },
+    onSuccess: async (_ergebnis, eingabe) => {
+      await Promise.all([
+        abfrageClient.invalidateQueries({ queryKey: anforderungenSchluessel }),
+        abfrageClient.invalidateQueries({ queryKey: uebergaengeSchluessel(eingabe.id) }),
+      ]);
+    },
+  });
+}
+export interface Zustandszuordnung {
+  id: string;
+  state: string;
+  reason: string;
+}
+
+/**
+ * Setzt den Zustand auf einen des geltenden Graphen (ADR-0022 Punkt 5).
+ *
+ * **Kein Uebergang.** Fuer Anforderungen, deren aktueller Zustand im Graphen nicht
+ * vorkommt - ohne diesen Vorgang bleiben sie stehen, und die Oberflaeche sagt es ihnen,
+ * ohne einen Ausweg anzubieten.
+ */
+export function useZustandZuordnen() {
+  const abfrageClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (eingabe: Zustandszuordnung): Promise<void> => {
+      const { error, response } = await api.PUT("/v1/requirements/{id}/state/assignment", {
+        params: { path: { id: eingabe.id } },
+        body: { state: eingabe.state, reason: eingabe.reason },
+      });
+
+      if (!response.ok) {
+        const rumpf = error as { message?: string } | undefined;
+        throw new Error(rumpf?.message ?? `Zuordnung fehlgeschlagen (${response.status})`);
+      }
+    },
+    onSuccess: async (_ergebnis, eingabe) => {
+      await Promise.all([
+        abfrageClient.invalidateQueries({ queryKey: anforderungenSchluessel }),
+        abfrageClient.invalidateQueries({ queryKey: uebergaengeSchluessel(eingabe.id) }),
+      ]);
+    },
+  });
+}
+
+export interface Fassungshebung {
+  id: string;
+  reason: string;
+}
+
+/** Hebt eine laufende Anforderung auf die aktuelle Fassung ihres Workflows (ADR-0025). */
+export function useFassungHeben() {
+  const abfrageClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (eingabe: Fassungshebung): Promise<void> => {
+      const { error, response } = await api.PUT("/v1/requirements/{id}/workflow-version", {
+        params: { path: { id: eingabe.id } },
+        body: { reason: eingabe.reason },
+      });
+
+      if (!response.ok) {
+        const rumpf = error as { message?: string } | undefined;
+        throw new Error(rumpf?.message ?? `Heben fehlgeschlagen (${response.status})`);
+      }
     },
     onSuccess: async (_ergebnis, eingabe) => {
       await Promise.all([

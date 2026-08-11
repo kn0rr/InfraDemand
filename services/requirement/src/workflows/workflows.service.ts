@@ -283,7 +283,10 @@ export class WorkflowsService {
       mode: row.mode,
       initialState: row.initialState,
       // Ausgeschrieben und nicht durchgereicht: Kaeme spaeter ein internes Feld an den
-      // Zustand, geriete es sonst unbemerkt in den Contract.
+      // Zustand, geriete es sonst unbemerkt in den Contract. Dass `bedingungen` hier
+      // urspruenglich fehlte, war dennoch ein Versehen - es kam mit M4.3 hinzu und wurde
+      // hier nicht nachgezogen. Aufgefallen ist es erst, als der Editor sie durchreichen
+      // sollte.
       states: row.states.map((zustand) => ({
         key: zustand.key,
         label: zustand.label,
@@ -293,6 +296,7 @@ export class WorkflowsService {
         from: uebergang.from,
         to: uebergang.to,
         label: uebergang.label,
+        bedingungen: uebergang.bedingungen ?? [],
       })),
       // Bei fremdgefuehrten Workflows ist Unerreichbarkeit der Normalfall - ohne
       // Uebergaenge ist jeder Zustand ausser dem ersten "nicht erreichbar". Der Hinweis

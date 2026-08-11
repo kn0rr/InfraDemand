@@ -39,6 +39,13 @@ export class UebergangsoptionResponse {
   })
   requiresReason!: boolean;
 }
+export class WorkflowZustandResponse {
+  @ApiProperty({ example: "in_pruefung" })
+  key!: string;
+
+  @ApiProperty({ example: "In Pruefung" })
+  label!: string;
+}
 
 export class UebergangsauskunftResponse {
   @ApiProperty({ example: "in_pruefung" })
@@ -51,6 +58,14 @@ export class UebergangsauskunftResponse {
       "Anforderung ist dann nicht fertig, sondern haengt.",
   })
   currentStateInWorkflow!: boolean;
+  @ApiProperty({
+    type: [WorkflowZustandResponse],
+    description:
+      "Alle Zustaende der gebundenen Fassung - die Auswahl fuer die Zuordnung, wenn der " +
+      "aktuelle Zustand nicht darin vorkommt (ADR-0022 Punkt 5). Immer gefuellt, gerade " +
+      "auch dann, wenn `transitions` leer ist.",
+  })
+  states!: WorkflowZustandResponse[];
 
   @ApiProperty({
     type: [UebergangsoptionResponse],

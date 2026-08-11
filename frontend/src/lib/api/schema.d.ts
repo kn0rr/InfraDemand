@@ -334,6 +334,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/requirements/{id}/state/assignment": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Zustand zuordnen, ueber die interne Kennung
+         * @description Gleichwertig zum Weg ueber die Herkunft. Notwendig fuer eigene Erfassung, deren `externalId` leer ist (§19.1) - und gerade dort haengt eine Anforderung, deren Zustand der Graph nicht kennt.
+         */
+        put: operations["RequirementsController_ordneZustandZuUeberKennung_v1"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/requirements/{id}/transitions": {
         parameters: {
             query?: never;
@@ -374,6 +394,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/requirements/{id}/workflow-version": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Auf die aktuelle Workflow-Fassung heben, ueber die interne Kennung
+         * @description Gleichwertig zum Weg ueber die Herkunft (ADR-0025). Steht die Anforderung bereits auf der aktuellen Fassung, geschieht nichts.
+         */
+        put: operations["RequirementsController_hebeFassungUeberKennung_v1"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/workflow-definitions": {
         parameters: {
             query?: never;
@@ -383,7 +423,7 @@ export interface paths {
         };
         /**
          * Workflow-Definitionen auflisten
-         * @description Einschliesslich ausser Kraft gesetzter. Lesen ist nicht auf platform-admin beschraenkt: Die Oberflaeche braucht den Graphen, um zulaessige Uebergaenge als Schaltflaechen anzubieten statt eines freien Statusfeldes (§7, M4.5).
+         * @description Einschliesslich ausser Kraft gesetzter und **einschliesslich der Bedingungen** - damit beschreibt die Antwort, wer was freigeben darf, und ist deshalb auf platform-admin beschraenkt. Was ein Erfasser braucht, liefert `GET /v1/requirements/{id}/transitions`: die zulaessigen Uebergaenge seiner Anforderung samt Grund fuer die gesperrten.
          */
         get: operations["WorkflowsController_findAll_v1"];
         put?: never;
@@ -822,6 +862,8 @@ export interface components {
             currentState: string;
             /** @description Ob der aktuelle Zustand im geltenden Graphen vorkommt. Bei `false` ist kein Uebergang moeglich, bis ein Administrator ihn zuordnet (ADR-0022 Punkt 5) - die Anforderung ist dann nicht fertig, sondern haengt. */
             currentStateInWorkflow: boolean;
+            /** @description Alle Zustaende der gebundenen Fassung - die Auswahl fuer die Zuordnung, wenn der aktuelle Zustand nicht darin vorkommt (ADR-0022 Punkt 5). Immer gefuellt, gerade auch dann, wenn `transitions` leer ist. */
+            states: components["schemas"]["WorkflowZustandResponse"][];
             /** @description Alle Uebergaenge aus dem aktuellen Zustand, zulaessige wie gesperrte. Bei fremdgefuehrten Workflows leer: Dort entscheidet das Fremdsystem (ADR-0021). */
             transitions: components["schemas"]["UebergangsoptionResponse"][];
         };
@@ -999,6 +1041,8 @@ export interface components {
             to: string;
         };
         WorkflowTransitionResponse: {
+            /** @description Bedingungen an diesem Uebergang (ADR-0024). Leer, wenn es keine gibt. Nur fuer platform-admin lesbar - sie beschreiben, wer was freigeben darf. */
+            bedingungen: components["schemas"]["WorkflowBedingungDto"][];
             from: string;
             label: string;
             to: string;
@@ -1013,6 +1057,12 @@ export interface components {
             requirements: number;
             /** @example 2 */
             version: number;
+        };
+        WorkflowZustandResponse: {
+            /** @example in_pruefung */
+            key: string;
+            /** @example In Pruefung */
+            label: string;
         };
     };
     responses: never;
@@ -1884,6 +1934,59 @@ export interface operations {
             };
         };
     };
+    RequirementsController_ordneZustandZuUeberKennung_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OrdneZustandZuDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RequirementResponse"];
+                };
+            };
+            /** @description Der Zustand kommt im geltenden Workflow nicht vor */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Kein oder ungueltiges Token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Rolle platform-admin fehlt */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Anforderung existiert nicht */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     RequirementsController_uebergaengeUeberKennung_v1: {
         parameters: {
             query?: never;
@@ -1955,6 +2058,59 @@ export interface operations {
             };
         };
     };
+    RequirementsController_hebeFassungUeberKennung_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HebeFassungDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RequirementResponse"];
+                };
+            };
+            /** @description Kein oder ungueltiges Token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Rolle platform-admin fehlt */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Anforderung existiert nicht */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Der aktuelle Zustand fehlt in der Zielfassung */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     WorkflowsController_findAll_v1: {
         parameters: {
             query?: never;
@@ -1974,6 +2130,13 @@ export interface operations {
             };
             /** @description Kein oder ungueltiges Token */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Rolle platform-admin fehlt */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -2148,6 +2311,13 @@ export interface operations {
             };
             /** @description Kein oder ungueltiges Token */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Rolle platform-admin fehlt */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };

@@ -15,5 +15,10 @@ export default async function AnforderungenSeite() {
     redirect("/api/auth/login?ziel=/anforderungen");
   }
 
-  return <Anforderungsbereich benutzer={sitzung.benutzername ?? ""} />;
+  return (
+    <Anforderungsbereich
+      benutzer={sitzung.benutzername ?? ""}
+      istAdmin={(sitzung.rollen ?? []).includes("platform-admin")}
+    />
+  );
 }

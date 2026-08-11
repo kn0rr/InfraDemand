@@ -31,7 +31,13 @@ function pflichtfeld(wert: string): string | null {
   return wert.trim() === "" ? "Pflichtfeld" : null;
 }
 
-export function Anforderungsbereich({ benutzer }: { benutzer: string }) {
+export function Anforderungsbereich({
+  benutzer,
+  istAdmin,
+}: {
+  benutzer: string;
+  istAdmin: boolean;
+}) {
   const anforderungen = useAnforderungen();
   const anlegen = useAnforderungAnlegen();
   const typen = useBekannteAnforderungstypen();
@@ -224,7 +230,7 @@ export function Anforderungsbereich({ benutzer }: { benutzer: string }) {
                       {offeneZeile === eintrag.id ? (
                         <Table.Tr>
                           <Table.Td colSpan={5}>
-                            <Zustandswechsel anforderungId={eintrag.id} />
+                            <Zustandswechsel anforderungId={eintrag.id} istAdmin={istAdmin} />
                           </Table.Td>
                         </Table.Tr>
                       ) : null}

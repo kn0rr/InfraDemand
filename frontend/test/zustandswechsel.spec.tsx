@@ -7,11 +7,18 @@ vi.mock("@/lib/api/uebergaenge", async (original) => ({
   ...(await original<typeof import("@/lib/api/uebergaenge")>()),
   useUebergaenge: vi.fn(),
   useZustandswechsel: vi.fn(),
+  useZustandZuordnen: vi.fn(),
+  useFassungHeben: vi.fn(),
 }));
 
 import { Zustandswechsel } from "@/app/anforderungen/zustandswechsel";
 import type { Uebergangsauskunft } from "@/lib/api/uebergaenge";
-import { useUebergaenge, useZustandswechsel } from "@/lib/api/uebergaenge";
+import {
+  useFassungHeben,
+  useUebergaenge,
+  useZustandswechsel,
+  useZustandZuordnen,
+} from "@/lib/api/uebergaenge";
 
 /**
  * Die Hooks sind ersetzt, nicht der Netzwerkzugriff.
@@ -26,12 +33,13 @@ function auskunft(teil: Partial<Uebergangsauskunft> = {}): Uebergangsauskunft {
   return {
     currentState: "neu",
     currentStateInWorkflow: true,
+    states: [],
     transitions: [],
     ...teil,
   };
 }
 
-function zeige(daten: Uebergangsauskunft) {
+function zeige(daten: Uebergangsauskunft, istAdmin = false) {
   vi.mocked(useUebergaenge).mockReturnValue({
     data: daten,
     isPending: false,
@@ -40,7 +48,7 @@ function zeige(daten: Uebergangsauskunft) {
 
   render(
     <MantineProvider>
-      <Zustandswechsel anforderungId="a-1" />
+      <Zustandswechsel anforderungId="a-1" istAdmin={istAdmin} />
     </MantineProvider>,
   );
 }
@@ -53,6 +61,14 @@ beforeEach(() => {
     isPending: false,
     isError: false,
   } as unknown as ReturnType<typeof useZustandswechsel>);
+
+  const ruhend = { mutate: vi.fn(), isPending: false, error: null };
+  vi.mocked(useZustandZuordnen).mockReturnValue(
+    ruhend as unknown as ReturnType<typeof useZustandZuordnen>,
+  );
+  vi.mocked(useFassungHeben).mockReturnValue(
+    ruhend as unknown as ReturnType<typeof useFassungHeben>,
+  );
 });
 
 describe("Gesperrte Uebergaenge", () => {
@@ -193,5 +209,21 @@ describe("Zulaessiger Uebergang ohne Begruendung", () => {
       { id: "a-1", toState: "in_pruefung", reason: undefined },
       expect.anything(),
     );
+  });
+  describe("Verwaltungsvorgaenge", () => {
+    it("bleiben ohne platform-admin verborgen", () => {
+      zeige(auskunft());
+
+      expect(screen.queryByRole("button", { name: "Zustand zuordnen" })).toBeNull();
+    });
+
+    it("erscheinen fuer einen Administrator", () => {
+      zeige(auskunft(), true);
+
+      expect(screen.getByRole("button", { name: "Zustand zuordnen" })).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: "Auf aktuelle Fassung heben" }),
+      ).toBeInTheDocument();
+    });
   });
 });
