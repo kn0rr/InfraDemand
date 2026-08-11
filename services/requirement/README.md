@@ -129,14 +129,36 @@ Für nicht-lokale Umgebungen gilt CLAUDE.md §13 – Werte aus HashiCorp Vault, 
 
 ## Endpunkte
 
+Maßgeblich ist der Contract unter [`docs/api/requirement.openapi.yaml`](../../docs/api/requirement.openapi.yaml);
+diese Tabelle ist die Übersicht dazu.
+
 | Pfad | Auth | Zweck |
 |---|---|---|
 | `GET /health` | nein | Bereitschaftsprüfung für die Orchestrierungsschicht |
-| `GET /v1/requirements` | **ja** | Liste der Anforderungen; liefert bis M1.3 eine leere Liste |
+| `GET /v1/requirements` | ja | Liste der Anforderungen, mit Stichtag über `asOf` |
+| `POST /v1/requirements` | ja | Anforderung anlegen |
+| `PATCH /v1/requirements/by-source/{sourceSystem}/{externalId}` | ja | Schreiben über Herkunft statt über interne Kennung (ADR-0010) |
+| `GET /v1/requirements/{id}/versions` | ja | Vollständige Versionshistorie (§19.4) |
+| `PUT`/`DELETE /v1/requirements/by-source/…/holds/{field}` | ja | Feld festhalten und wieder freigeben (ADR-0017 Teil B) |
+| `GET /v1/requirements/holds` | ja | Übersicht aller festgehaltenen Felder |
+| `GET /v1/attribute-definitions` | ja | Attributdefinitionen; mit `requirementType` die geltenden (§6) |
+| `POST`/`PUT /v1/attribute-definitions` | **platform-admin** | Definitionen pflegen |
+| `GET /v1/mastership-rules` | ja | Hoheitsregeln je Feld (§19.3) |
+| `POST`/`PUT /v1/mastership-rules` | **platform-admin** | Regeln pflegen |
+| `GET /v1/workflow-definitions` | ja | Zustandsgraphen; die Oberfläche baut daraus die Übergänge (§7) |
+| `POST`/`PUT /v1/workflow-definitions` | **platform-admin** | Workflows pflegen |
+
+Zu jeder gepflegten Ressource gehört `GET …/{id}/versions` – die Historie ist zugleich der
+Auditpfad ([ADR-0012](../../docs/adr/0012-vollstaendige-versionierung-mit-zeitbezug.md)).
 
 `/health` ist bewusst **unversioniert und unauthentifiziert**. Alle fachlichen Endpunkte
 liegen unter `/v1/` und erfordern ein gültiges Token
 ([ADR-0004](../../docs/adr/0004-authentifizierung-und-autorisierung.md)).
+
+**Lesen ist nirgends auf `platform-admin` beschränkt.** Definitionen, Regeln und
+Zustandsgraphen sind das, woraus das Frontend seine Formulare und Schaltflächen baut – ein
+Leseschutz darauf würde die Oberfläche für gewöhnliche Anwender unbrauchbar machen. Was
+daran zu eng oder zu weit ist, führt `PROD-017`.
 
 ### Wie der Schutz greift
 
@@ -432,6 +454,32 @@ veränderbar. `satisfies` hält die Zeichenketten eng genug und die Liste verän
 `{ type: "null" }`. Die Nachbehandlung `nullableNach31()` in `openapi.export.ts` wandelt
 nur die Form `{ type: X, nullable: true }` um; steht kein `type` daneben, reicht sie
 `nullable` durch, und erst `redocly lint` schlägt an.
+
+### `db:migrate` bricht mit `Exit status 1` ohne Meldung ab
+
+drizzle-kit gibt die Konfigurationszeilen aus und beendet sich dann mit Status 1, **ohne
+den Grund zu nennen**. Die Meldung der Datenbank geht dabei verloren. Jeder
+Migrationsfehler sieht deshalb gleich aus – ein laufender Container, eine falsche
+Zugangsdatei und eine fehlerhafte Migration sind an der Ausgabe nicht zu unterscheiden.
+
+Der Stand ist nur in der Datenbank selbst zu sehen:
+
+```powershell
+docker exec id-postgres psql -U requirement -d requirement -c "select id, created_at from drizzle.__drizzle_migrations order by id desc limit 3;"
+```
+
+**Beobachteter Fall:** Eine bereits angewandte Migration wurde neu erzeugt – die Datei
+gelöscht, der Journaleintrag zurückgenommen, `db:generate` erneut ausgeführt. Der Inhalt
+war gleichwertig, der **Hash** aber nicht. `drizzle-kit` vergleicht gegen die Hashes in
+`drizzle.__drizzle_migrations` und hielt die neue Fassung für unangewandt. Das folgende
+`CREATE TABLE` traf auf eine vorhandene Tabelle.
+
+**Regel:** Eine angewandte Migration neu zu erzeugen verlangt beides – die Datei **und**
+die Zeile in `drizzle.__drizzle_migrations`. Bleibt die Zeile stehen, laufen Journal und
+Datenbank dauerhaft auseinander.
+
+Vorher prüfen, ob die betroffenen Tabellen leer sind. Sind sie es nicht, ist das Verwerfen
+der Migration keine Aufräumarbeit mehr, sondern Datenverlust.
 
 ### `toISOString is not a function` bei rohem SQL über `db.execute`
 

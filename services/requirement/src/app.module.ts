@@ -6,6 +6,7 @@ import { DatabaseModule } from "./database/database.module";
 import { HealthModule } from "./health/health.module";
 import { MastershipModule } from "./mastership/mastership.module";
 import { RequirementsModule } from "./requirements/requirements.module";
+import { WorkflowsModule } from "./workflows/workflows.module";
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { RequirementsModule } from "./requirements/requirements.module";
     RequirementsModule,
     AttributeDefinitionsModule,
     MastershipModule,
+    WorkflowsModule,
   ],
 })
 export class AppModule {}

@@ -56,6 +56,8 @@ Zulässige Status: `Vorgeschlagen`, `Angenommen`, `Abgelehnt`, `Ersetzt durch AD
 | [0017](0017-regelvokabular-der-datenhoheit-und-mandantenbegriff.md) | Regelvokabular der Datenhoheit und Begriff des Mandanten | Angenommen | 2026-08-06 |
 | [0018](0018-vollstaendigkeit-und-loeschung-an-der-importgrenze.md) | Vollständigkeit und Löschung an der Importgrenze | Angenommen | 2026-08-07 |
 | [0019](0019-verhalten-bei-abgewiesener-schreiboperation.md) | Verhalten bei abgewiesener Schreiboperation | Angenommen | 2026-08-07 |
+| [0020](0020-lebenszyklus-der-infrastruktur.md) | Lebenszyklus der Infrastruktur – Maßnahme und abgeleiteter Bestandszustand | Angenommen | 2026-08-11 |
+| [0021](0021-anbindung-externer-workflows.md) | Anbindung externer Workflows | Angenommen | 2026-08-11 |
 
 ## Offene, bewusst vertagte Entscheidungen
 
@@ -72,6 +74,12 @@ Zeitpunkt als eigenes ADR nachgezogen.
 | Ablage der Sitzung: Cookie oder serverseitiger Speicher – und welcher, ohne ADR-0002 zu verletzen | Vor Meilenstein M3 | [ADR-0014](0014-frontend-authentifizierung-ueber-bff.md), `PROD-045` |
 | Policy-Engine für Feldebene (OPA vs. OpenFGA) | Meilenstein M5 | [ADR-0004](0004-authentifizierung-und-autorisierung.md) |
 | Regel-Engine für Workflow-Übergänge (JSONLogic vs. json-rules-engine) | Meilenstein M4 | [ADR-0001](0001-backend-sprache-und-framework.md) |
+| Gültigkeitszeit als zweite Zeitachse – durch [ADR-0020](0020-lebenszyklus-der-infrastruktur.md) von optional zu **erforderlich** geworden | Vor Meilenstein M6 | [ADR-0012](0012-vollstaendige-versionierung-mit-zeitbezug.md) Punkt 7 |
+| Zustandsnamen der Bestandsobjekte: Fachdaten oder Code | Meilenstein M6 | [ADR-0020](0020-lebenszyklus-der-infrastruktur.md) |
+| Speicherung von Szenarien: Auswahl von Maßnahmen oder eigene, nicht genehmigte Maßnahmen | Meilenstein M7 | [ADR-0020](0020-lebenszyklus-der-infrastruktur.md) |
+| Workflow-Maschine als geteiltes Paket unter `packages/` | Sobald der Infrastructure Service sie braucht (M6) | CLAUDE.md §5, §7 |
+| Zuordnung eingehender Rueckmeldungen zum wartenden Vorgang | Meilenstein M4.3 | [ADR-0021](0021-anbindung-externer-workflows.md) |
+| Abgleich fremdgefuehrter Vorgaenge, falls Rueckmeldungen ausbleiben | Wenn die erste Fremdanbindung steht | [ADR-0021](0021-anbindung-externer-workflows.md) |
 | Messaging-Backbone (Kafka vs. NATS) | Sobald der zweite Service existiert | CLAUDE.md §12 |
 | Diagrammbibliothek (Recharts vs. ECharts) | Mit dem ersten Dashboard | [ADR-0016](0016-ui-grundlage-und-datenzugriff-im-frontend.md) |
 | Umstieg auf TypeScript 7 (nativer Compiler) | Nach M1, wenn das NestJS-Tooling nachgezogen hat | [ADR-0006](0006-typescript-version-und-modulsemantik.md) |

@@ -55,6 +55,25 @@ Korrekturen – „der Bedarf war schon immer 100, wir hatten irrtümlich 80 erf
 erfordern eine zweite Zeitachse. Das Modell wird so geschnitten, dass sie ergänzbar
 bleibt.
 
+> **Präzisierung vom 2026-08-10 – der Auslöser war falsch benannt.**
+>
+> Als Anlass für die Gültigkeitszeit stand hier die rückwirkende Korrektur. Beim
+> Zuschnitt von M4 zeigte sich ein anderer, früherer und zwingenderer: die
+> **vorausschauende Bestandsführung der Infrastruktur**.
+>
+> Ein Rack hat ein geplantes Ende der Wartung, ein Server ein geplantes
+> Außerbetriebnahmedatum. Die Kernfrage des Capacity Service lautet *„wie viel Kapazität
+> steht im März 2028 zur Verfügung"* – also nach einem **künftigen** Zustand. Die
+> Transaktionszeit aus Punkt 3 beantwortet ausschließlich die umgekehrte Frage: was das
+> System zu einem vergangenen Zeitpunkt wusste.
+>
+> **Rückwirkende Korrekturen treten vielleicht auf. Vorausschauende Planung ist der Zweck
+> des Capacity Service.** Ein Auslöser, der das eigentliche Ereignis nicht beschreibt,
+> feuert nie – deshalb die Richtigstellung, obwohl die Entscheidung selbst unverändert
+> bleibt.
+>
+> Fällig damit vor Meilenstein M6, nicht „wenn es fachlich auftritt".
+
 ## Begründung
 
 **Warum eine Historientabelle und kein Ereignisprotokoll.** Event Sourcing könnte

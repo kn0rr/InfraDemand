@@ -297,6 +297,41 @@ components:
         - status
         - owner
       type: object
+    CreateWorkflowDefinitionDto:
+      properties:
+        initialState:
+          example: neu
+          maxLength: 100
+          type: string
+        label:
+          example: Standardablauf
+          maxLength: 200
+          type: string
+        mode:
+          default: internal
+          enum:
+            - internal
+            - external
+          type: string
+        requirementType:
+          description: Ohne Angabe gilt der Workflow fuer alle Typen ohne eigenen.
+          example: bestellung
+          maxLength: 100
+          type: string
+        states:
+          items:
+            $ref: '#/components/schemas/WorkflowStateDto'
+          type: array
+        transitions:
+          items:
+            $ref: '#/components/schemas/WorkflowTransitionDto'
+          type: array
+      required:
+        - label
+        - initialState
+        - states
+        - transitions
+      type: object
     FesthaltungUebersicht:
       properties:
         externalId:
@@ -688,6 +723,258 @@ components:
           type: string
       required:
         - mode
+      type: object
+    UpdateWorkflowDefinitionDto:
+      properties:
+        active:
+          description: false setzt den Workflow ausser Kraft, ohne ihn zu loeschen.
+          type: boolean
+        initialState:
+          maxLength: 100
+          type: string
+        label:
+          maxLength: 200
+          type: string
+        mode:
+          enum:
+            - internal
+            - external
+          type: string
+        states:
+          items:
+            $ref: '#/components/schemas/WorkflowStateDto'
+          type: array
+        transitions:
+          items:
+            $ref: '#/components/schemas/WorkflowTransitionDto'
+          type: array
+      required:
+        - label
+        - mode
+        - initialState
+        - states
+        - transitions
+        - active
+      type: object
+    WorkflowDefinitionResponse:
+      properties:
+        active:
+          description: false setzt den Workflow ausser Kraft, ohne ihn zu loeschen.
+          type: boolean
+        createdAt:
+          format: date-time
+          type: string
+        id:
+          format: uuid
+          type: string
+        initialState:
+          example: neu
+          type: string
+        label:
+          example: Standardablauf
+          type: string
+        mode:
+          description: >-
+            internal: Uebergaenge werden hier geprueft und abgewiesen. external: Ein Fremdsystem
+            fuehrt den Vorgang, der Graph beschreibt ihn nur (ADR-0021).
+          enum:
+            - internal
+            - external
+          type: string
+        requirementType:
+          description: 'Anforderungstyp, fuer den der Workflow gilt. Leer bedeutet: fuer alle uebrigen.'
+          type:
+            - string
+            - 'null'
+        states:
+          items:
+            $ref: '#/components/schemas/WorkflowStateResponse'
+          type: array
+        transitions:
+          items:
+            $ref: '#/components/schemas/WorkflowTransitionResponse'
+          type: array
+        unreachableStates:
+          description: >-
+            Zustaende, die vom Anfangszustand aus nicht erreichbar sind. Kein Fehler - ein Graph im
+            Aufbau ist unvollstaendig, nicht falsch -, aber ein Hinweis fuer die
+            Verwaltungsoberflaeche.
+          items:
+            type: string
+          type: array
+        updatedAt:
+          format: date-time
+          type: string
+        version:
+          example: 1
+          type: integer
+      required:
+        - id
+        - label
+        - requirementType
+        - mode
+        - initialState
+        - states
+        - transitions
+        - unreachableStates
+        - active
+        - createdAt
+        - updatedAt
+        - version
+      type: object
+    WorkflowDefinitionVersionResponse:
+      properties:
+        active:
+          description: false setzt den Workflow ausser Kraft, ohne ihn zu loeschen.
+          type: boolean
+        changeSource:
+          type: string
+        changedBy:
+          type: string
+        createdAt:
+          format: date-time
+          type: string
+        id:
+          format: uuid
+          type: string
+        initialState:
+          example: neu
+          type: string
+        label:
+          example: Standardablauf
+          type: string
+        mode:
+          description: >-
+            internal: Uebergaenge werden hier geprueft und abgewiesen. external: Ein Fremdsystem
+            fuehrt den Vorgang, der Graph beschreibt ihn nur (ADR-0021).
+          enum:
+            - internal
+            - external
+          type: string
+        operation:
+          enum:
+            - insert
+            - update
+            - delete
+          type: string
+        requirementType:
+          description: 'Anforderungstyp, fuer den der Workflow gilt. Leer bedeutet: fuer alle uebrigen.'
+          type:
+            - string
+            - 'null'
+        states:
+          items:
+            $ref: '#/components/schemas/WorkflowStateResponse'
+          type: array
+        transitions:
+          items:
+            $ref: '#/components/schemas/WorkflowTransitionResponse'
+          type: array
+        unreachableStates:
+          description: >-
+            Zustaende, die vom Anfangszustand aus nicht erreichbar sind. Kein Fehler - ein Graph im
+            Aufbau ist unvollstaendig, nicht falsch -, aber ein Hinweis fuer die
+            Verwaltungsoberflaeche.
+          items:
+            type: string
+          type: array
+        updatedAt:
+          format: date-time
+          type: string
+        validFrom:
+          format: date-time
+          type: string
+        validTo:
+          format: date-time
+          type:
+            - string
+            - 'null'
+        version:
+          example: 1
+          type: integer
+      required:
+        - id
+        - label
+        - requirementType
+        - mode
+        - initialState
+        - states
+        - transitions
+        - unreachableStates
+        - active
+        - createdAt
+        - updatedAt
+        - version
+        - validFrom
+        - validTo
+        - operation
+        - changedBy
+        - changeSource
+      type: object
+    WorkflowStateDto:
+      properties:
+        final:
+          default: false
+          description: Endzustand - von hier fuehrt kein Uebergang weiter.
+          type: boolean
+        key:
+          example: in_pruefung
+          maxLength: 100
+          type: string
+        label:
+          example: In Pruefung
+          maxLength: 200
+          type: string
+      required:
+        - key
+        - label
+      type: object
+    WorkflowStateResponse:
+      properties:
+        final:
+          type: boolean
+        key:
+          example: in_pruefung
+          type: string
+        label:
+          example: In Pruefung
+          type: string
+      required:
+        - key
+        - label
+        - final
+      type: object
+    WorkflowTransitionDto:
+      properties:
+        from:
+          example: neu
+          maxLength: 100
+          type: string
+        label:
+          example: Einreichen
+          maxLength: 200
+          type: string
+        to:
+          example: in_pruefung
+          maxLength: 100
+          type: string
+      required:
+        - from
+        - to
+        - label
+      type: object
+    WorkflowTransitionResponse:
+      properties:
+        from:
+          type: string
+        label:
+          type: string
+        to:
+          type: string
+      required:
+        - from
+        - to
+        - label
       type: object
   securitySchemes:
     bearer:
@@ -1234,6 +1521,130 @@ paths:
       summary: Versionshistorie einer Anforderung
       tags:
         - Anforderungen
+  /v1/workflow-definitions:
+    get:
+      description: >-
+        Einschliesslich ausser Kraft gesetzter. Lesen ist nicht auf platform-admin beschraenkt: Die
+        Oberflaeche braucht den Graphen, um zulaessige Uebergaenge als Schaltflaechen anzubieten
+        statt eines freien Statusfeldes (§7, M4.5).
+      operationId: WorkflowsController_findAll_v1
+      parameters: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/WorkflowDefinitionResponse'
+                type: array
+          description: ''
+        '401':
+          description: Kein oder ungueltiges Token
+      security:
+        - bearer: []
+      summary: Workflow-Definitionen auflisten
+      tags:
+        - Workflow-Definitionen
+    post:
+      description: Legt den gueltigen Ablauf fest und verlangt daher platform-admin.
+      operationId: WorkflowsController_create_v1
+      parameters: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateWorkflowDefinitionDto'
+        required: true
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkflowDefinitionResponse'
+          description: ''
+        '400':
+          description: Rumpf unvollstaendig oder Graph widerspruechlich
+        '401':
+          description: Kein oder ungueltiges Token
+        '403':
+          description: Rolle platform-admin fehlt
+        '409':
+          description: Fuer diesen Anforderungstyp gibt es bereits einen
+      security:
+        - bearer: []
+      summary: Workflow-Definition anlegen
+      tags:
+        - Workflow-Definitionen
+  /v1/workflow-definitions/{id}:
+    put:
+      description: >-
+        Erzeugt eine neue Version (ADR-0012). requirementType ist unveraenderlich - er bezeichnet,
+        wofuer der Workflow gilt.
+      operationId: WorkflowsController_update_v1
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: uuid
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateWorkflowDefinitionDto'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkflowDefinitionResponse'
+          description: ''
+        '400':
+          description: Rumpf unvollstaendig oder Graph widerspruechlich
+        '401':
+          description: Kein oder ungueltiges Token
+        '403':
+          description: Rolle platform-admin fehlt
+        '404':
+          description: Definition existiert nicht
+      security:
+        - bearer: []
+      summary: Workflow-Definition aendern
+      tags:
+        - Workflow-Definitionen
+  /v1/workflow-definitions/{id}/versions:
+    get:
+      description: >-
+        Vollstaendige Historie nach §19.4. Zugleich der Lesepfad fuer §7: Eine laufende Anforderung
+        bleibt auf ihrer Ursprungsfassung, und die steht hier.
+      operationId: WorkflowsController_findVersions_v1
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: uuid
+            type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/WorkflowDefinitionVersionResponse'
+                type: array
+          description: ''
+        '401':
+          description: Kein oder ungueltiges Token
+        '404':
+          description: Definition existiert nicht
+      security:
+        - bearer: []
+      summary: Versionen einer Workflow-Definition
+      tags:
+        - Workflow-Definitionen
 servers:
   - description: Gleicher Ursprung wie dieses Dokument
     url: /

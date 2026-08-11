@@ -50,12 +50,12 @@ Das gilt für alle Beteiligten, einschließlich der KI in ihrer Beraterrolle
 | A – Transportverschlüsselung und Netzwerk | 7 | 5 | – |
 | *davon Voraussetzung für ADR-0013:* | `PROD-006`, `PROD-007`, `PROD-032` | | |
 | B – Geheimnisse und Zugangsdaten | 5 | 4 | – |
-| C – Identität und Zugriff | 10 | 2 | – |
+| C – Identität und Zugriff | 11 | 2 | – |
 | D – Daten | 5 | 3 | – |
 | E – Container und Lieferkette | 9 | 1 | **2** |
 | F – Betrieb und Verfügbarkeit | 6 | 1 | – |
-| G – Anwendungssicherheit | 7 | 1 | – |
-| **Gesamt** | **49** | **17** | **2** |
+| G – Anwendungssicherheit | 8 | 1 | – |
+| **Gesamt** | **51** | **17** | **2** |
 
 > **Nummern werden nicht neu vergeben.** `PROD-026` ist unbesetzt. Eine Lücke ist kein
 > Fehler – eine wiederverwendete Nummer wäre einer, weil Verweise aus ADRs, Commits und
@@ -946,6 +946,33 @@ Datenbankausfalls mitzubehandeln.
 ---
 
 ## G – Anwendungssicherheit
+
+#### PROD-052 — Workflows sind konfigurierbar, aber sie gelten noch nicht
+**Schwere:** Hoch · **Status:** Offen · **Betrifft:** §7 · **Fundstelle:** `services/requirement/src/workflows/`, `services/requirement/src/requirements/`
+
+Seit M4.1 lassen sich Workflow-Definitionen anlegen, ändern und versionieren. Ein
+Administrator legt Zustände, Übergänge und Endzustände fest, die Oberfläche zeigt sie an,
+der Graph wird auf Widersprüche geprüft.
+
+**Durchgesetzt wird davon nichts.** `requirement.status` ist weiterhin eine freie
+Zeichenkette, die über `PATCH /v1/requirements/{id}` auf jeden beliebigen Wert gesetzt
+werden kann – auch auf einen, den der Graph nicht kennt, und ohne den vorgesehenen
+Übergang zu nehmen. Der Workflow beschreibt heute, er entscheidet nicht.
+
+**Das ist gefährlicher als gar kein Workflow.** Ein konfigurierter Ablauf mit
+Genehmigungsschritten erweckt den Eindruck, dass diese Schritte erzwungen werden. §7 sieht
+ausdrücklich Vier-Augen-Prinzip und Genehmigungen an Übergängen vor; wer den Graphen in
+der Verwaltungsoberfläche sieht, hat keinen Anlass zu vermuten, dass er umgangen werden
+kann. Ein fehlendes Merkmal fällt auf, ein wirkungsloses nicht.
+
+**Zielzustand:** M4.2 macht den Statuswechsel zu einem eigenen Vorgang und entfernt
+`status` aus dem allgemeinen Schreibpfad; M4.3 ergänzt die Bedingungen an den Übergängen.
+**Bis dahin darf kein Betrieb mit echten Genehmigungsanforderungen stattfinden** – auch
+kein Pilotbetrieb, weil gerade dort die Annahme entstünde, die Genehmigung sei belegt.
+
+Offen bleibt dabei, was ein Anforderungstyp **ohne** gültigen Workflow bedeutet: jeden
+Wechsel zulassen oder jeden verweigern. Beides ist vertretbar, aber es muss entschieden
+und nicht nebenbei implementiert werden.
 
 #### PROD-049 — Das Tor für inkompatible Änderungen sieht nur das Schema
 **Schwere:** Mittel · **Status:** Offen · **Betrifft:** §12 · **Fundstelle:** `.github/workflows/ci.yml`, Job `lint`, Schritt „Inkompatible Contract-Aenderungen pruefen"
