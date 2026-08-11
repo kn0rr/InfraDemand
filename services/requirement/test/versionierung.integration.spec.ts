@@ -8,6 +8,7 @@ import { type JwksTestServer, startJwksTestServer } from "./support/jwks-test-se
 import { registriereQuelle } from "./support/source-systems";
 import { startTestDatabase, type TestDatabase } from "./support/test-database";
 import { pruefeVersionshistorie } from "./support/versionierung";
+import { registriereWorkflow } from "./support/workflows";
 
 describe("Zeitliche Zusicherung der Versionierung", () => {
   let app: NestFastifyApplication;
@@ -33,6 +34,7 @@ describe("Zeitliche Zusicherung der Versionierung", () => {
 
     pool = new Pool({ connectionString: database.connectionString });
     await registriereQuelle(pool, "sap");
+    await registriereWorkflow(pool);
 
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
@@ -78,15 +80,15 @@ describe("Zeitliche Zusicherung der Versionierung", () => {
       .send({
         projectId: "11111111-1111-4111-8111-111111111111",
         requirementType: "feature",
-        status: "neu",
+
         owner: "test.admin",
         sourceSystem: "sap",
         externalId: "A-1",
       })
       .expect(201);
 
-    await alsAdmin("patch", "/v1/requirements/by-source/sap/A-1")
-      .send({ status: "in_arbeit" })
+    await alsAdmin("put", "/v1/requirements/by-source/sap/A-1/state")
+      .send({ toState: "in_pruefung" })
       .expect(200);
 
     // --- die Zusicherung, fuer alle drei gleich ---
@@ -94,6 +96,7 @@ describe("Zeitliche Zusicherung der Versionierung", () => {
       ["requirement", "requirement_history"],
       ["attribute_definition", "attribute_definition_history"],
       ["mastership_rule", "mastership_rule_history"],
+      ["workflow_definition", "workflow_definition_history"],
     ] as const) {
       const verstoesse = await pruefeVersionshistorie(pool, fach, historie);
       expect(verstoesse, `${historie}: ${JSON.stringify(verstoesse)}`).toEqual([]);

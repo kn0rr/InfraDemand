@@ -58,6 +58,8 @@ Zulässige Status: `Vorgeschlagen`, `Angenommen`, `Abgelehnt`, `Ersetzt durch AD
 | [0019](0019-verhalten-bei-abgewiesener-schreiboperation.md) | Verhalten bei abgewiesener Schreiboperation | Angenommen | 2026-08-07 |
 | [0020](0020-lebenszyklus-der-infrastruktur.md) | Lebenszyklus der Infrastruktur – Maßnahme und abgeleiteter Bestandszustand | Angenommen | 2026-08-11 |
 | [0021](0021-anbindung-externer-workflows.md) | Anbindung externer Workflows | Angenommen | 2026-08-11 |
+| [0022](0022-statuswechsel-als-eigener-vorgang.md) | Statuswechsel als eigener Vorgang und Pflicht zum Workflow | Angenommen | 2026-08-11 |
+| [0023](0023-workflow-bindung-beim-typwechsel.md) | Workflow-Bindung beim Wechsel der Anforderungsart | Angenommen | 2026-08-11 |
 
 ## Offene, bewusst vertagte Entscheidungen
 
@@ -73,7 +75,9 @@ Zeitpunkt als eigenes ADR nachgezogen.
 | Befristung von Festhaltungen – verfällt eine Festhaltung von selbst? | Wenn Erfahrung aus dem Betrieb vorliegt | [ADR-0017](0017-regelvokabular-der-datenhoheit-und-mandantenbegriff.md) Teil B |
 | Ablage der Sitzung: Cookie oder serverseitiger Speicher – und welcher, ohne ADR-0002 zu verletzen | Vor Meilenstein M3 | [ADR-0014](0014-frontend-authentifizierung-ueber-bff.md), `PROD-045` |
 | Policy-Engine für Feldebene (OPA vs. OpenFGA) | Meilenstein M5 | [ADR-0004](0004-authentifizierung-und-autorisierung.md) |
-| Regel-Engine für Workflow-Übergänge (JSONLogic vs. json-rules-engine) | Meilenstein M4 | [ADR-0001](0001-backend-sprache-und-framework.md) |
+| Regel-Engine für Workflow-Übergänge (JSONLogic vs. json-rules-engine) | Meilenstein M4.3 | [ADR-0001](0001-backend-sprache-und-framework.md), [ADR-0022](0022-statuswechsel-als-eigener-vorgang.md) |
+| Abbildung der Workflow-Zustände auf das stabile Statusvokabular des Vertrags | Wenn der Capacity Service angebunden wird | [ADR-0010](0010-entkopplung-anforderung-und-kapazitaet.md), [ADR-0022](0022-statuswechsel-als-eigener-vorgang.md) |
+| Ist „abgeschlossen" der erreichte Endzustand oder ein eigenes Merkmal der Anforderung? | Meilenstein M4.3 | [ADR-0022](0022-statuswechsel-als-eigener-vorgang.md) |
 | Gültigkeitszeit als zweite Zeitachse – durch [ADR-0020](0020-lebenszyklus-der-infrastruktur.md) von optional zu **erforderlich** geworden | Vor Meilenstein M6 | [ADR-0012](0012-vollstaendige-versionierung-mit-zeitbezug.md) Punkt 7 |
 | Zustandsnamen der Bestandsobjekte: Fachdaten oder Code | Meilenstein M6 | [ADR-0020](0020-lebenszyklus-der-infrastruktur.md) |
 | Speicherung von Szenarien: Auswahl von Maßnahmen oder eigene, nicht genehmigte Maßnahmen | Meilenstein M7 | [ADR-0020](0020-lebenszyklus-der-infrastruktur.md) |

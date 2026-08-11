@@ -7,6 +7,7 @@ import { configureApp } from "../src/app.setup";
 import { type JwksTestServer, startJwksTestServer } from "./support/jwks-test-server";
 import { registriereQuelle } from "./support/source-systems";
 import { startTestDatabase, type TestDatabase } from "./support/test-database";
+import { registriereWorkflow } from "./support/workflows";
 
 describe("Datenhoheit im Schreibpfad", () => {
   let app: NestFastifyApplication;
@@ -22,7 +23,6 @@ describe("Datenhoheit im Schreibpfad", () => {
   const basis = {
     projectId: "11111111-1111-4111-8111-111111111111",
     requirementType: "feature",
-    status: "neu",
   };
 
   beforeAll(async () => {
@@ -45,6 +45,7 @@ describe("Datenhoheit im Schreibpfad", () => {
 
     pool = new Pool({ connectionString: database.connectionString });
     await registriereQuelle(pool, "sap", "automatic");
+    await registriereWorkflow(pool);
 
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
@@ -112,7 +113,7 @@ describe("Datenhoheit im Schreibpfad", () => {
       await regel("owner", "automatic_wins");
 
       await mit(alsMensch)("patch", "/v1/requirements/by-source/sap/A-3")
-        .send({ status: "in_arbeit" })
+        .send({ requirementType: "bug" })
         .expect(200);
     });
 
@@ -121,13 +122,17 @@ describe("Datenhoheit im Schreibpfad", () => {
       await regel("owner", "automatic_wins");
 
       await mit(alsMensch)("patch", "/v1/requirements/by-source/sap/A-4")
-        .send({ owner: "T. Schmidt", status: "in_arbeit" })
+        .send({ owner: "T. Schmidt", requirementType: "bug" })
         .expect(409);
 
       const liste = await mit(alsMensch)("get", "/v1/requirements").expect(200);
 
       // ADR-0019 Punkt 1: alles oder nichts.
-      expect(liste.body[0]).toMatchObject({ owner: "M. Weber", status: "neu", version: 1 });
+      expect(liste.body[0]).toMatchObject({
+        owner: "M. Weber",
+        requirementType: "feature",
+        version: 1,
+      });
     });
 
     it("laesst den unveraenderten Wert durch", async () => {
@@ -136,7 +141,7 @@ describe("Datenhoheit im Schreibpfad", () => {
 
       // Ein Formular, das seine Felder vollstaendig zurueckschickt, darf nicht scheitern.
       await mit(alsMensch)("patch", "/v1/requirements/by-source/sap/A-5")
-        .send({ owner: "M. Weber", status: "in_arbeit" })
+        .send({ owner: "M. Weber", requirementType: "bug" })
         .expect(200);
     });
   });

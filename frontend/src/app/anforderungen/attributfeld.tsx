@@ -4,10 +4,16 @@ import { Checkbox, MultiSelect, NumberInput, Select, TextInput } from "@mantine/
 import type { UseFormReturnType } from "@mantine/form";
 import type { Attributdefinition } from "@/lib/api/attributdefinitionen";
 
+/**
+ * Werte des Anlageformulars.
+ *
+ * `status` fehlt seit ADR-0022: Der Anfangszustand kommt aus der Workflow-Definition des
+ * Anforderungstyps, nicht aus einer Eingabe. Ein Feld dafuer wuerde der Service mit 400
+ * abweisen.
+ */
 export interface Formularwerte {
   projectId: string;
   requirementType: string;
-  status: string;
   owner: string;
   dynamicAttributes: Record<string, unknown>;
 }

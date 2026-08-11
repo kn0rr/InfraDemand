@@ -55,6 +55,21 @@ Alle Befehle aus dem Repository-Wurzelverzeichnis, mit `--filter` auf dieses Pak
 
 Aus dem Wurzelverzeichnis über alle Pakete hinweg: `pnpm test`, `pnpm typecheck`.
 
+### Contract erzeugen – ohne `--filter`
+
+```powershell
+pnpm run api:generate
+```
+
+**Dieser eine Befehl gehört nicht gefiltert.** Der Contract besteht aus zwei Artefakten:
+`docs/api/requirement.openapi.yaml` aus diesem Dienst und `frontend/src/lib/api/schema.d.ts`
+daraus abgeleitet. Das Wurzelskript erzeugt beide;
+`pnpm --filter @infrademand/requirement api:generate` erzeugt nur das erste.
+
+Die Abweichung fällt nicht beim Übersetzen auf, sondern erst im Abgleichsschritt der CI –
+mit einem Diff über hunderte Zeilen, der nach einem inhaltlichen Problem aussieht und
+keines ist.
+
 ---
 
 ## Projektstruktur
@@ -138,6 +153,8 @@ diese Tabelle ist die Übersicht dazu.
 | `GET /v1/requirements` | ja | Liste der Anforderungen, mit Stichtag über `asOf` |
 | `POST /v1/requirements` | ja | Anforderung anlegen |
 | `PATCH /v1/requirements/by-source/{sourceSystem}/{externalId}` | ja | Schreiben über Herkunft statt über interne Kennung (ADR-0010) |
+| `PUT /v1/requirements/by-source/…/state` | ja | Zustandswechsel gegen den Zustandsgraphen (§7, ADR-0022) |
+| `PUT /v1/requirements/by-source/…/state/assignment` | **platform-admin** | Zustand zuordnen, wenn der aktuelle im Graphen fehlt |
 | `GET /v1/requirements/{id}/versions` | ja | Vollständige Versionshistorie (§19.4) |
 | `PUT`/`DELETE /v1/requirements/by-source/…/holds/{field}` | ja | Feld festhalten und wieder freigeben (ADR-0017 Teil B) |
 | `GET /v1/requirements/holds` | ja | Übersicht aller festgehaltenen Felder |

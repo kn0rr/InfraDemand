@@ -22,6 +22,12 @@ export interface RequirementCreateInput {
   sourceSystem: string;
   externalId: string | null;
   dynamicAttributes: Record<string, unknown>;
+  /**
+   * Der Workflow, unter dem die Anforderung laeuft, und seine Fassung (ADR-0022).
+   * Ermittelt der Service - das Repository entscheidet nicht, welcher Graph gilt.
+   */
+  workflowDefinitionId: string;
+  workflowVersion: number;
   /** Ausloesende Identitaet aus dem Token. */
   changedBy: string;
   /** Client, der die Aenderung ausgefuehrt hat - aus dem Token, nicht vom Aufrufer. */
@@ -37,7 +43,18 @@ export interface RequirementUpdateInput {
   changedBy: string;
   changeSource: string;
   /** Festhaltungen (ADR-0017 B6). Wird durchgereicht, nicht abgeleitet. */
+  /** Art der Aenderung, soweit sie ueber `operation` hinausgeht (ADR-0022). */
+  changeKind?: "transition" | "state_assignment";
+  /** Pflicht bei `state_assignment` - erzwungen im Service. */
+  changeReason?: string;
   heldFields: Record<string, Festhaltung>;
+  /**
+   * Neue Workflow-Bindung. Nur beim Wechsel der Anforderungsart gesetzt (ADR-0023);
+   * sonst bleibt die bestehende unberuehrt.
+   *
+   * Als Paar und nicht als zwei Felder: Kennung ohne Fassung zeigt auf keine Zeile.
+   */
+  workflowBindung?: { definitionId: string; version: number };
 }
 
 export interface AbweisungsZusammenfassung {
@@ -154,6 +171,8 @@ export class RequirementsRepository {
             sourceSystem: eingabe.sourceSystem,
             externalId: eingabe.externalId,
             dynamicAttributes: eingabe.dynamicAttributes,
+            workflowDefinitionId: eingabe.workflowDefinitionId,
+            workflowVersion: eingabe.workflowVersion,
           })
           .returning();
 
@@ -170,6 +189,8 @@ export class RequirementsRepository {
           sourceSystem: zeile.sourceSystem,
           externalId: zeile.externalId,
           dynamicAttributes: zeile.dynamicAttributes,
+          workflowDefinitionId: zeile.workflowDefinitionId,
+          workflowVersion: zeile.workflowVersion,
           heldFields: zeile.heldFields,
           createdAt: zeile.createdAt,
           updatedAt: zeile.updatedAt,
@@ -244,6 +265,12 @@ export class RequirementsRepository {
           updatedAt: new Date(),
           version: sql`${requirements.version} + 1`,
           heldFields: eingabe.heldFields,
+          ...(eingabe.workflowBindung === undefined
+            ? {}
+            : {
+                workflowDefinitionId: eingabe.workflowBindung.definitionId,
+                workflowVersion: eingabe.workflowBindung.version,
+              }),
         })
         .where(eq(requirements.id, id))
         .returning();
@@ -267,12 +294,16 @@ export class RequirementsRepository {
         heldFields: zeile.heldFields,
         externalId: zeile.externalId,
         dynamicAttributes: zeile.dynamicAttributes,
+        workflowDefinitionId: zeile.workflowDefinitionId,
+        workflowVersion: zeile.workflowVersion,
         createdAt: zeile.createdAt,
         updatedAt: zeile.updatedAt,
         version: zeile.version,
         validFrom: zeile.updatedAt,
         validTo: null,
         operation: "update",
+        changeKind: eingabe.changeKind ?? null,
+        changeReason: eingabe.changeReason ?? null,
         changedBy: eingabe.changedBy,
         changeSource: eingabe.changeSource,
       });

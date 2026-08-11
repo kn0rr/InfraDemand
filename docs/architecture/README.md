@@ -191,7 +191,7 @@ nacheinander. Die Begründung steht in
 | **M1** | Walking Skeleton Requirement Service: Kernentität, Authentifizierung, Persistenz, Versionshistorie, OpenAPI-Contract | abgeschlossen |
 | **M2** | Frontend-Durchstich: Anmeldung, Liste, Anlegen, generierter API-Client | abgeschlossen |
 | **M3** | Dynamisches Attributmodell (§6) und Datenhoheit (§19.3) | abgeschlossen |
-| **M4** | Workflow-Engine (§7) | offen |
+| **M4** | Workflow-Engine (§7) | laufend |
 | **M5** | Feingranulares Berechtigungsmodell (§8), Identity & Access Service | offen |
 | **M6** | Infrastructure Service, Bereitstellungskategorien und Service-Katalog (§17, §18) | offen |
 | **M7** | Capacity Service, Overhead-Berechnung und Forecasting (§9, §18) | offen |
@@ -276,30 +276,31 @@ M4 setzt §7 um – konfigurierbare Workflows als Zustandsgraph.
 | | Inhalt | Beweist | Stand |
 |---|---|---|---|
 | **M4.1** | Workflow-Definition als versionierte Fachdaten: Zustände und Übergänge | Ein Zustand entsteht ohne Redeploy | abgeschlossen |
-| **M4.2** | Statuswechsel über einen eigenen Vorgang statt über das Feld `status` | Jeder Wechsel wird gegen den Zustandsgraphen geprüft | offen |
+| **M4.2** | Statuswechsel über einen eigenen Vorgang statt über das Feld `status` | Jeder Wechsel wird gegen den Zustandsgraphen geprüft | abgeschlossen |
 | **M4.3** | Bedingungen an Übergängen: Pflichtfelder, benötigte Berechtigung | Ein Übergang kann verlangen, was §7 nennt | offen |
-| **M4.4** | Laufende Anforderungen bleiben auf ihrer Workflow-Fassung | Eine Änderung der Definition wirkt nicht rückwirkend (§7) | offen |
+| **M4.4** | Umgang mit der gebundenen Fassung: veraltete Graphen, Sichtbarkeit, Hebung | Eine Änderung der Definition wirkt nicht rückwirkend (§7) | offen, verkleinert |
 | **M4.5** | Oberfläche: zulässige Übergänge als Schaltflächen statt eines freien Statusfeldes | Die Zustände kommen aus den Daten, nicht aus dem Code | offen |
 
-**M4.2 ist der unbequeme Schritt.** `status` ist heute eine freie Zeichenkette, die über
-`POST` und `PATCH` beliebig gesetzt werden kann. Solange das so bleibt, gibt es nichts zu
-prüfen – §7 verlangt aber, dass jeder Wechsel gegen den Graphen läuft. Das ist zugleich
-die erste **inkompatible Änderung mit echter Verhaltensänderung**: Anders als bei den
-Contract-Korrekturen aus M3 verhält sich der Dienst danach tatsächlich anders. Bis dahin
-gilt `PROD-052`: Ein konfigurierter Ablauf, der nichts erzwingt, ist gefährlicher als
-keiner.
+**M4.2 war der unbequeme Schritt** und die erste **inkompatible Änderung mit echter
+Verhaltensänderung**: Anders als bei den Contract-Korrekturen aus M3 verhält sich der
+Dienst danach tatsächlich anders. `status` ist kein Feld im Rumpf mehr, sondern ein
+eigener Vorgang gegen den Graphen; der Anfangszustand kommt aus der Definition, und ohne
+gültigen Workflow entsteht keine Anforderung. Die Entscheidungen dahinter stehen in
+[ADR-0022](../adr/0022-statuswechsel-als-eigener-vorgang.md), die Neubindung beim
+Typwechsel in [ADR-0023](../adr/0023-workflow-bindung-beim-typwechsel.md).
 
-**Zwei Fragen stehen am Anfang von M4.2, bevor eine Zeile entsteht:**
+**M4.2 hat einen Teil von M4.4 mitgenommen.** Eine Anforderung wird beim Anlegen an eine
+Workflow-Fassung gebunden, und jeder Wechsel liest diese Fassung – nicht den aktuellen
+Workflow. Die Bindung erst später zu lesen hätte bedeutet, dass M4.4 das Verhalten
+bestehender Anforderungen noch einmal ändert, ohne dass sich an ihnen etwas geändert
+hätte. Für M4.4 bleibt: was gilt, wenn die gebundene Fassung den aktuellen Zustand nicht
+mehr führt; wie sichtbar wird, auf welcher Fassung eine Anforderung läuft; und ob eine
+laufende Anforderung auf eine neuere Fassung gehoben werden kann.
 
-- **Die Bestandsdaten passen nicht auf die Zustandsschlüssel.** M4.1 legt für Zustände
-  `^[a-z][a-z0-9_]*$` fest; vorhandene `status`-Werte sind freier Text und können anders
-  aussehen. Der erste Wechsel gegen den Graphen trifft auf Anforderungen, deren aktueller
-  Zustand in keinem Graphen vorkommt. Das ist eine Abbildung oder eine Datenmigration, und
-  sie gehört entschieden, bevor die Prüfung scharf geschaltet wird.
-- **Was bedeutet ein Anforderungstyp ohne gültigen Workflow** – jeder Wechsel erlaubt oder
-  jeder verweigert? Das Repository liefert bewusst auch außer Kraft gesetzte Definitionen
-  aus, damit diese Entscheidung im Service sichtbar fällt und nicht als stiller Rückfall
-  auf den allgemeinen Workflow geschieht.
+**`PROD-052` bleibt bis M4.3 offen.** Der Graph erzwingt seit M4.2 die Reihenfolge, aber
+nicht die Zuständigkeit – wer einen Übergang nehmen darf, wird nicht geprüft. Ein Ablauf,
+der das eine tut und das andere nicht, sieht aus wie eine Genehmigungsstrecke und ist
+keine.
 
 **M4.4 ist der Gegensatz zu §6 und muss es sein.** Attributdefinitionen werden gegen die
 *aktuell gültige* Fassung geprüft (M3.3); Workflow-Definitionen gelten für eine laufende
@@ -376,5 +377,6 @@ mit Zeitpunkten steht in [`../adr/README.md`](../adr/README.md#offene-bewusst-ve
 ## 8. Weiterführend
 
 - Verantwortlichkeiten und Datenhoheit je Service: [`services.md`](services.md)
+- Aufbau und Durchsetzung konfigurierbarer Abläufe (§7): [`workflows.md`](workflows.md)
 - Einrichtung der Entwicklungsumgebung: [`../development/installation.md`](../development/installation.md)
 - Werkzeugkette und Konventionen: [`../development/tooling.md`](../development/tooling.md)
