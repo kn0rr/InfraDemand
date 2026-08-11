@@ -439,18 +439,12 @@ export class RequirementsService {
    * ist Pflicht: Die Zuordnung setzt einen Zustand, den kein Uebergang hergibt, und wer
    * sie spaeter vorfindet, muss erkennen koennen, worauf sie beruhte.
    */
-  async ordneZustandZu(
-    sourceSystem: string,
-    externalId: string,
+  private async ordneZustandZu(
+    bestand: RequirementRow,
     zustand: string,
     reason: string,
     benutzer: AuthenticatedUser,
   ): Promise<RequirementResponse> {
-    const bestand = await this.repository.findBySource(sourceSystem, externalId);
-    if (bestand === undefined) {
-      throw new NotFoundException(new RequirementNotFoundError(sourceSystem, externalId).message);
-    }
-
     const workflow = await this.gebundeneFassung(bestand);
 
     if (!workflow.states.some((eintrag) => eintrag.key === zustand)) {
@@ -494,13 +488,17 @@ export class RequirementsService {
   ): Promise<UebergangsauskunftResponse> {
     const workflow = await this.gebundeneFassung(bestand);
     const bekannt = workflow.states.some((zustand) => zustand.key === bestand.status);
-
+    const zustaende = workflow.states.map((zustand) => ({
+      key: zustand.key,
+      label: zustand.label,
+    }));
     // Bei fremdgefuehrten Workflows entscheidet das Fremdsystem (ADR-0021 Punkt 4) - wir
     // haben keine Uebergaenge anzubieten, auch wenn der Graph welche auffuehrte.
     if (workflow.mode === "external" || !bekannt) {
       return {
         currentState: bestand.status,
         currentStateInWorkflow: bekannt,
+        states: zustaende,
         transitions: [],
       };
     }
@@ -533,7 +531,12 @@ export class RequirementsService {
         };
       });
 
-    return { currentState: bestand.status, currentStateInWorkflow: true, transitions };
+    return {
+      currentState: bestand.status,
+      currentStateInWorkflow: true,
+      states: zustaende,
+      transitions,
+    };
   }
 
   /**
@@ -548,17 +551,11 @@ export class RequirementsService {
    * Ausdruecklich und begruendungspflichtig, nie als Nebenwirkung: Wer hebt, aendert die
    * Regeln unter einem laufenden Vorgang, und das soll man ihm ansehen.
    */
-  async hebeFassung(
-    sourceSystem: string,
-    externalId: string,
+  private async hebeFassung(
+    bestand: RequirementRow,
     reason: string,
     benutzer: AuthenticatedUser,
   ): Promise<RequirementResponse> {
-    const bestand = await this.repository.findBySource(sourceSystem, externalId);
-    if (bestand === undefined) {
-      throw new NotFoundException(new RequirementNotFoundError(sourceSystem, externalId).message);
-    }
-
     const ziel = await this.workflows.aktuelleFassung(bestand.workflowDefinitionId);
 
     if (ziel === undefined) {
@@ -959,5 +956,46 @@ export class RequirementsService {
     benutzer: AuthenticatedUser,
   ): Promise<UebergangsauskunftResponse> {
     return this.zulaessigeUebergaenge(await this.ausKennung(id), benutzer);
+  }
+
+  async ordneZustandZuUeberHerkunft(
+    sourceSystem: string,
+    externalId: string,
+    zustand: string,
+    reason: string,
+    benutzer: AuthenticatedUser,
+  ): Promise<RequirementResponse> {
+    return this.ordneZustandZu(
+      await this.ausHerkunft(sourceSystem, externalId),
+      zustand,
+      reason,
+      benutzer,
+    );
+  }
+
+  async ordneZustandZuUeberKennung(
+    id: string,
+    zustand: string,
+    reason: string,
+    benutzer: AuthenticatedUser,
+  ): Promise<RequirementResponse> {
+    return this.ordneZustandZu(await this.ausKennung(id), zustand, reason, benutzer);
+  }
+
+  async hebeFassungUeberHerkunft(
+    sourceSystem: string,
+    externalId: string,
+    reason: string,
+    benutzer: AuthenticatedUser,
+  ): Promise<RequirementResponse> {
+    return this.hebeFassung(await this.ausHerkunft(sourceSystem, externalId), reason, benutzer);
+  }
+
+  async hebeFassungUeberKennung(
+    id: string,
+    reason: string,
+    benutzer: AuthenticatedUser,
+  ): Promise<RequirementResponse> {
+    return this.hebeFassung(await this.ausKennung(id), reason, benutzer);
   }
 }

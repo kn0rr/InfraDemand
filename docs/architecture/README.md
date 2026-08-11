@@ -280,7 +280,8 @@ M4 setzt §7 um – konfigurierbare Workflows als Zustandsgraph.
 | **M4.3** | Bedingungen an Übergängen: Pflichtfelder, benötigte Berechtigung | Ein Übergang kann verlangen, was §7 nennt | abgeschlossen |
 | **M4.4** | Umgang mit der gebundenen Fassung: Sichtbarkeit, Heben, Außerkraftsetzung | Eine Änderung der Definition wirkt nicht rückwirkend (§7) | abgeschlossen |
 | **M4.5** | Oberfläche für den Erfasser: zulässige Übergänge als Schaltflächen statt eines freien Statusfeldes | Die Zustände kommen aus den Daten, nicht aus dem Code | abgeschlossen |
-| **M4.6** | Oberfläche für den Administrator: Workflows und Bedingungen pflegen | §7 verlangt Konfiguration statt Redeploy – ohne sie bleibt „konfigurierbar" eine Behauptung | offen |
+| **M4.6** | Oberfläche für den Administrator: Workflows und Verwaltungsvorgänge | §7 verlangt Konfiguration statt Redeploy – ohne sie bleibt „konfigurierbar" eine Behauptung | abgeschlossen |
+| **M4.7** | Oberfläche für Bedingungen an Übergängen | Auch die Genehmigungsstrecke ist ohne Auslieferung änderbar | offen |
 
 **M4.2 war der unbequeme Schritt** und die erste **inkompatible Änderung mit echter
 Verhaltensänderung**: Anders als bei den Contract-Korrekturen aus M3 verhält sich der

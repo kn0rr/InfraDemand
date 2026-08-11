@@ -743,6 +743,14 @@ components:
             moeglich, bis ein Administrator ihn zuordnet (ADR-0022 Punkt 5) - die Anforderung ist
             dann nicht fertig, sondern haengt.
           type: boolean
+        states:
+          description: >-
+            Alle Zustaende der gebundenen Fassung - die Auswahl fuer die Zuordnung, wenn der
+            aktuelle Zustand nicht darin vorkommt (ADR-0022 Punkt 5). Immer gefuellt, gerade auch
+            dann, wenn `transitions` leer ist.
+          items:
+            $ref: '#/components/schemas/WorkflowZustandResponse'
+          type: array
         transitions:
           description: >-
             Alle Uebergaenge aus dem aktuellen Zustand, zulaessige wie gesperrte. Bei
@@ -753,6 +761,7 @@ components:
       required:
         - currentState
         - currentStateInWorkflow
+        - states
         - transitions
       type: object
     UebergangsoptionResponse:
@@ -1184,6 +1193,13 @@ components:
       type: object
     WorkflowTransitionResponse:
       properties:
+        bedingungen:
+          description: >-
+            Bedingungen an diesem Uebergang (ADR-0024). Leer, wenn es keine gibt. Nur fuer
+            platform-admin lesbar - sie beschreiben, wer was freigeben darf.
+          items:
+            $ref: '#/components/schemas/WorkflowBedingungDto'
+          type: array
         from:
           type: string
         label:
@@ -1194,6 +1210,7 @@ components:
         - from
         - to
         - label
+        - bedingungen
       type: object
     WorkflowVersionUsageResponse:
       properties:
@@ -1213,6 +1230,18 @@ components:
         - version
         - requirements
         - current
+      type: object
+    WorkflowZustandResponse:
+      properties:
+        key:
+          example: in_pruefung
+          type: string
+        label:
+          example: In Pruefung
+          type: string
+      required:
+        - key
+        - label
       type: object
   securitySchemes:
     bearer:
@@ -1954,6 +1983,46 @@ paths:
       summary: Zustand wechseln, ueber die interne Kennung
       tags:
         - Anforderungen
+  /v1/requirements/{id}/state/assignment:
+    put:
+      description: >-
+        Gleichwertig zum Weg ueber die Herkunft. Notwendig fuer eigene Erfassung, deren `externalId`
+        leer ist (§19.1) - und gerade dort haengt eine Anforderung, deren Zustand der Graph nicht
+        kennt.
+      operationId: RequirementsController_ordneZustandZuUeberKennung_v1
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: uuid
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrdneZustandZuDto'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RequirementResponse'
+          description: ''
+        '400':
+          description: Der Zustand kommt im geltenden Workflow nicht vor
+        '401':
+          description: Kein oder ungueltiges Token
+        '403':
+          description: Rolle platform-admin fehlt
+        '404':
+          description: Anforderung existiert nicht
+      security:
+        - bearer: []
+      summary: Zustand zuordnen, ueber die interne Kennung
+      tags:
+        - Anforderungen
   /v1/requirements/{id}/transitions:
     get:
       description: >-
@@ -2014,12 +2083,52 @@ paths:
       summary: Versionshistorie einer Anforderung
       tags:
         - Anforderungen
+  /v1/requirements/{id}/workflow-version:
+    put:
+      description: >-
+        Gleichwertig zum Weg ueber die Herkunft (ADR-0025). Steht die Anforderung bereits auf der
+        aktuellen Fassung, geschieht nichts.
+      operationId: RequirementsController_hebeFassungUeberKennung_v1
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: uuid
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HebeFassungDto'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RequirementResponse'
+          description: ''
+        '401':
+          description: Kein oder ungueltiges Token
+        '403':
+          description: Rolle platform-admin fehlt
+        '404':
+          description: Anforderung existiert nicht
+        '409':
+          description: Der aktuelle Zustand fehlt in der Zielfassung
+      security:
+        - bearer: []
+      summary: Auf die aktuelle Workflow-Fassung heben, ueber die interne Kennung
+      tags:
+        - Anforderungen
   /v1/workflow-definitions:
     get:
       description: >-
-        Einschliesslich ausser Kraft gesetzter. Lesen ist nicht auf platform-admin beschraenkt: Die
-        Oberflaeche braucht den Graphen, um zulaessige Uebergaenge als Schaltflaechen anzubieten
-        statt eines freien Statusfeldes (§7, M4.5).
+        Einschliesslich ausser Kraft gesetzter und **einschliesslich der Bedingungen** - damit
+        beschreibt die Antwort, wer was freigeben darf, und ist deshalb auf platform-admin
+        beschraenkt. Was ein Erfasser braucht, liefert `GET /v1/requirements/{id}/transitions`: die
+        zulaessigen Uebergaenge seiner Anforderung samt Grund fuer die gesperrten.
       operationId: WorkflowsController_findAll_v1
       parameters: []
       responses:
@@ -2033,6 +2142,8 @@ paths:
           description: ''
         '401':
           description: Kein oder ungueltiges Token
+        '403':
+          description: Rolle platform-admin fehlt
       security:
         - bearer: []
       summary: Workflow-Definitionen auflisten
@@ -2165,6 +2276,8 @@ paths:
           description: ''
         '401':
           description: Kein oder ungueltiges Token
+        '403':
+          description: Rolle platform-admin fehlt
         '404':
           description: Definition existiert nicht
       security:

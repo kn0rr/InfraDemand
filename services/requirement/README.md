@@ -164,7 +164,7 @@ diese Tabelle ist die Übersicht dazu.
 | `POST`/`PUT /v1/attribute-definitions` | **platform-admin** | Definitionen pflegen |
 | `GET /v1/mastership-rules` | ja | Hoheitsregeln je Feld (§19.3) |
 | `POST`/`PUT /v1/mastership-rules` | **platform-admin** | Regeln pflegen |
-| `GET /v1/workflow-definitions` | ja | Zustandsgraphen; die Oberfläche baut daraus die Übergänge (§7) |
+| `GET /v1/workflow-definitions` | **platform-admin** | Zustandsgraphen samt Bedingungen – die Genehmigungsstruktur (§7) |
 | `POST`/`PUT /v1/workflow-definitions` | **platform-admin** | Workflows pflegen |
 | `GET /v1/workflow-definitions/{id}/usage` | **platform-admin** | Welche Fassungen mit wie vielen Anforderungen in Gebrauch sind |
 
@@ -175,10 +175,17 @@ Auditpfad ([ADR-0012](../../docs/adr/0012-vollstaendige-versionierung-mit-zeitbe
 liegen unter `/v1/` und erfordern ein gültiges Token
 ([ADR-0004](../../docs/adr/0004-authentifizierung-und-autorisierung.md)).
 
-**Lesen ist nirgends auf `platform-admin` beschränkt.** Definitionen, Regeln und
-Zustandsgraphen sind das, woraus das Frontend seine Formulare und Schaltflächen baut – ein
-Leseschutz darauf würde die Oberfläche für gewöhnliche Anwender unbrauchbar machen. Was
-daran zu eng oder zu weit ist, führt `PROD-017`.
+**Attributdefinitionen und Hoheitsregeln sind für jeden Angemeldeten lesbar.** Sie sind
+das, woraus das Frontend seine Formulare baut – ein Leseschutz darauf würde die Oberfläche
+für gewöhnliche Anwender unbrauchbar machen. Was daran zu eng oder zu weit ist, führt
+`PROD-017`.
+
+**Workflow-Definitionen sind es seit M4.6 nicht mehr.** Sie tragen seit M4.3 die
+Bedingungen an den Übergängen und beschreiben damit, wer was freigeben darf. Die
+ursprüngliche Begründung für den offenen Zugriff – die Oberfläche brauche den Graphen –
+gilt seit M4.5 nicht mehr: Was ein Erfasser sehen muss, liefert
+`GET /v1/requirements/{id}/transitions` für seine eigene Anforderung, samt Grund für jeden
+gesperrten Übergang. Die vollständige Liste liest nur noch der Verwaltungseditor.
 
 ### Wie der Schutz greift
 

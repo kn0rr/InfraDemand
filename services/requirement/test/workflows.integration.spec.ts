@@ -97,11 +97,14 @@ describe("Workflow-Definitionen", () => {
         .expect(403);
     });
 
-    it("laesst das Lesen ohne platform-admin zu", async () => {
+    it("weist auch das Lesen ohne platform-admin ab", async () => {
+      // Bis M4.5 war das Lesen offen - die Oberflaeche brauchte den Graphen fuer die
+      // Zustandsnamen. Seit es `…/transitions` gibt, liest die Liste nur noch der Editor,
+      // und sie enthaelt seit M4.3 die Genehmigungsstruktur.
       await request(app.getHttpServer())
         .get("/v1/workflow-definitions")
         .set("Authorization", `Bearer ${autorToken}`)
-        .expect(200);
+        .expect(403);
     });
 
     it("weist ohne Token ab", async () => {
@@ -214,6 +217,27 @@ describe("Workflow-Definitionen", () => {
       // der Antwort und keine Abweisung.
       expect(antwort.body.unreachableStates).toEqual(["verworfen"]);
     });
+    it("liefert die Bedingungen eines Uebergangs mit", async () => {
+      const angelegt = await alsAdmin()
+        .send({
+          ...gueltig,
+          transitions: [
+            { from: "neu", to: "in_pruefung", label: "Einreichen" },
+            {
+              from: "in_pruefung",
+              to: "erledigt",
+              label: "Freigeben",
+              bedingungen: [{ art: "rolle", eineVon: ["freigeber"] }],
+            },
+          ],
+        })
+        .expect(201);
+
+      // Ohne sie loeschte der Editor beim Speichern die Bedingungen, weil PUT die
+      // Definition vollstaendig ersetzt.
+      expect(angelegt.body.transitions[1].bedingungen).toHaveLength(1);
+      expect(angelegt.body.transitions[0].bedingungen).toEqual([]);
+    });
   });
 
   describe("Fremdgefuehrte Workflows (ADR-0021)", () => {
@@ -272,7 +296,7 @@ describe("Workflow-Definitionen", () => {
 
       const versionen = await request(app.getHttpServer())
         .get(`/v1/workflow-definitions/${id}/versions`)
-        .set("Authorization", `Bearer ${autorToken}`)
+        .set("Authorization", `Bearer ${adminToken}`)
         .expect(200);
 
       expect(versionen.body).toHaveLength(2);
@@ -297,7 +321,7 @@ describe("Workflow-Definitionen", () => {
 
       const versionen = await request(app.getHttpServer())
         .get(`/v1/workflow-definitions/${id}/versions`)
-        .set("Authorization", `Bearer ${autorToken}`)
+        .set("Authorization", `Bearer ${adminToken}`)
         .expect(200);
 
       // Das ist die Zusicherung aus §7: Eine laufende Anforderung bleibt auf ihrer
@@ -334,7 +358,7 @@ describe("Workflow-Definitionen", () => {
 
       const alle = await request(app.getHttpServer())
         .get("/v1/workflow-definitions")
-        .set("Authorization", `Bearer ${autorToken}`)
+        .set("Authorization", `Bearer ${adminToken}`)
         .expect(200);
 
       expect(alle.body).toHaveLength(1);
@@ -348,7 +372,7 @@ describe("Workflow-Definitionen", () => {
     it("weist eine unbekannte Kennung bei der Historie mit 404 ab", async () => {
       await request(app.getHttpServer())
         .get("/v1/workflow-definitions/11111111-1111-4111-8111-111111111111/versions")
-        .set("Authorization", `Bearer ${autorToken}`)
+        .set("Authorization", `Bearer ${adminToken}`)
         .expect(404);
     });
   });

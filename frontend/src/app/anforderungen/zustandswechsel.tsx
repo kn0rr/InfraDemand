@@ -3,9 +3,11 @@
 import { Alert, Button, Group, Loader, Modal, Stack, Text, Textarea } from "@mantine/core";
 import { useState } from "react";
 import { BedingungsFehler, useUebergaenge, useZustandswechsel } from "@/lib/api/uebergaenge";
+import { Verwaltungsvorgaenge } from "./verwaltungsvorgaenge";
 
 interface Eigenschaften {
   anforderungId: string;
+  istAdmin: boolean;
 }
 
 /**
@@ -18,7 +20,7 @@ interface Eigenschaften {
  * Was zulaessig ist, entscheidet der Dienst - hier wird nichts nachgerechnet. Eine zweite
  * Fassung der Pruefung im Browser boete bei der ersten Abweichung falsche Schaltflaechen an.
  */
-export function Zustandswechsel({ anforderungId }: Eigenschaften) {
+export function Zustandswechsel({ anforderungId, istAdmin }: Eigenschaften) {
   const uebergaenge = useUebergaenge(anforderungId);
   const wechsel = useZustandswechsel();
   const [begruendungFuer, setBegruendungFuer] = useState<string | null>(null);
@@ -142,6 +144,13 @@ export function Zustandswechsel({ anforderungId }: Eigenschaften) {
           </Group>
         </Stack>
       </Modal>
+      {istAdmin ? (
+        <Verwaltungsvorgaenge
+          anforderungId={anforderungId}
+          zustaende={auskunft.states}
+          aktuellerZustand={auskunft.currentState}
+        />
+      ) : null}
     </Stack>
   );
 }

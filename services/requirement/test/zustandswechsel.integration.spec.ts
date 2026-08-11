@@ -595,4 +595,158 @@ describe("Zustandswechsel", () => {
       await mit(alsMensch)("get", uebergaenge("gibt-es-nicht")).expect(404);
     });
   });
+
+  describe("Eigene Erfassung ohne externen Bezeichner", () => {
+    /**
+     * **Die Luecke, die M4.5 aufgedeckt hat.** Saemtliche uebrigen Faelle arbeiten mit
+     * `sourceSystem: "sap"` und einem externen Bezeichner - der Importweg war durchgaengig
+     * geprueft, die eigene Erfassung nie. Sie hat bewusst kein `externalId` (§19.1) und ist
+     * ueber `by-source` deshalb ueberhaupt nicht adressierbar.
+     */
+    async function eigeneAnforderung() {
+      const antwort = await mit(alsMensch)("post", "/v1/requirements")
+        .send({
+          projectId: "11111111-1111-4111-8111-111111111111",
+          requirementType: "feature",
+          owner: "M. Weber",
+        })
+        .expect(201);
+
+      return antwort.body as { id: string; sourceSystem: string; externalId: string | null };
+    }
+
+    it("legt ohne externen Bezeichner an", async () => {
+      await registriereWorkflow(pool);
+      const angelegt = await eigeneAnforderung();
+
+      expect(angelegt).toMatchObject({ sourceSystem: "infrademand", externalId: null });
+    });
+
+    it("nennt ihre Uebergaenge ueber die Kennung", async () => {
+      await registriereWorkflow(pool);
+      const angelegt = await eigeneAnforderung();
+
+      const antwort = await mit(alsMensch)(
+        "get",
+        `/v1/requirements/${angelegt.id}/transitions`,
+      ).expect(200);
+
+      expect(antwort.body.currentState).toBe("neu");
+      expect(antwort.body.transitions[0]).toMatchObject({ toState: "in_pruefung", allowed: true });
+    });
+
+    it("nennt die Zustaende der gebundenen Fassung", async () => {
+      await registriereWorkflow(pool);
+      const angelegt = await eigeneAnforderung();
+
+      const antwort = await mit(alsMensch)(
+        "get",
+        `/v1/requirements/${angelegt.id}/transitions`,
+      ).expect(200);
+
+      // Die Auswahl fuer die Zuordnung - gerade dann noetig, wenn `transitions` leer ist.
+      expect(antwort.body.states.map((zustand: { key: string }) => zustand.key)).toEqual([
+        "neu",
+        "in_pruefung",
+        "erledigt",
+      ]);
+    });
+
+    it("wechselt den Zustand ueber die Kennung", async () => {
+      await registriereWorkflow(pool);
+      const angelegt = await eigeneAnforderung();
+
+      const gewechselt = await mit(alsMensch)("put", `/v1/requirements/${angelegt.id}/state`)
+        .send({ toState: "in_pruefung" })
+        .expect(200);
+
+      expect(gewechselt.body).toMatchObject({ status: "in_pruefung", version: 2 });
+    });
+
+    it("prueft ueber die Kennung dieselben Bedingungen", async () => {
+      // Zwei Zugaenge, ein Pruefpfad - sonst waere der Kennungsweg eine Umgehung.
+      await registriereWorkflow(pool, null, {
+        transitions: [
+          {
+            from: "neu",
+            to: "in_pruefung",
+            label: "Einreichen",
+            bedingungen: [{ art: "rolle", eineVon: ["platform-admin"] }],
+          },
+          { from: "in_pruefung", to: "erledigt", label: "Freigeben" },
+        ],
+      });
+      const angelegt = await eigeneAnforderung();
+
+      const antwort = await mit(alsMensch)("put", `/v1/requirements/${angelegt.id}/state`)
+        .send({ toState: "in_pruefung" })
+        .expect(409);
+
+      expect(antwort.body.conditions[0].kind).toBe("rolle");
+    });
+
+    it("ordnet ueber die Kennung einen Zustand zu", async () => {
+      await registriereWorkflow(pool);
+      const angelegt = await eigeneAnforderung();
+      await pool.query("UPDATE requirement SET status = 'freigegeben' WHERE id = $1", [
+        angelegt.id,
+      ]);
+
+      // Genau der Fall, den die Oberflaeche seit M4.5 anzeigt - und fuer den es bis M4.6
+      // keinen Knopf gab.
+      const antwort = await mit(alsAdmin)("put", `/v1/requirements/${angelegt.id}/state/assignment`)
+        .send({ state: "neu", reason: "Altbestand, zurueck auf den Anfangszustand" })
+        .expect(200);
+
+      expect(antwort.body.status).toBe("neu");
+    });
+
+    it("hebt ueber die Kennung auf die aktuelle Fassung", async () => {
+      const workflow = await registriereWorkflow(pool);
+      const angelegt = await eigeneAnforderung();
+
+      await mit(alsAdmin)("put", `/v1/workflow-definitions/${workflow.id}`)
+        .send({
+          label: "Zweite Fassung",
+          mode: "internal",
+          initialState: "neu",
+          states: [
+            { key: "neu", label: "Neu" },
+            { key: "in_pruefung", label: "In Pruefung" },
+            { key: "erledigt", label: "Erledigt", final: true },
+          ],
+          transitions: [
+            { from: "neu", to: "in_pruefung", label: "Einreichen" },
+            { from: "in_pruefung", to: "erledigt", label: "Freigeben" },
+          ],
+          active: true,
+        })
+        .expect(200);
+
+      const gehoben = await mit(alsAdmin)("put", `/v1/requirements/${angelegt.id}/workflow-version`)
+        .send({ reason: "Auf den heutigen Stand gebracht" })
+        .expect(200);
+
+      expect(gehoben.body.workflow.version).toBe(2);
+    });
+
+    it("weist die Zuordnung ohne platform-admin auch ueber die Kennung ab", async () => {
+      await registriereWorkflow(pool);
+      const angelegt = await eigeneAnforderung();
+
+      // Der Kennungsweg darf keine Umgehung sein - auch nicht bei der Berechtigung.
+      await mit(alsMensch)("put", `/v1/requirements/${angelegt.id}/state/assignment`)
+        .send({ state: "neu", reason: "Ohne Berechtigung versucht" })
+        .expect(403);
+    });
+
+    it("weist eine unbekannte Kennung mit 404 ab", async () => {
+      await registriereWorkflow(pool);
+
+      await mit(alsMensch)(
+        "get",
+        "/v1/requirements/11111111-1111-4111-8111-111111111111/transitions",
+      ).expect(404);
+    });
+  });
 });

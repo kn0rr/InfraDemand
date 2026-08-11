@@ -54,8 +54,8 @@ Das gilt für alle Beteiligten, einschließlich der KI in ihrer Beraterrolle
 | D – Daten | 6 | 3 | – |
 | E – Container und Lieferkette | 9 | 1 | **2** |
 | F – Betrieb und Verfügbarkeit | 6 | 1 | – |
-| G – Anwendungssicherheit | 10 | 1 | **1** |
-| **Gesamt** | **54** | **17** | **4** |
+| G – Anwendungssicherheit | 10 | 1 | **2** |
+| **Gesamt** | **54** | **17** | **5** |
 
 > **Nummern werden nicht neu vergeben.** `PROD-026` ist unbesetzt. Eine Lücke ist kein
 > Fehler – eine wiederverwendete Nummer wäre einer, weil Verweise aus ADRs, Commits und
@@ -1055,7 +1055,36 @@ und nicht nebenbei implementiert werden.
 >   Verwaltungsoberfläche; geführt unter `PROD-054`.
 
 #### PROD-055 — Der offene Lesezugriff auf Workflows gibt die Genehmigungsstruktur preis
-**Schwere:** Mittel · **Status:** Bewusst akzeptiert · **Betrifft:** §8, §15 · **Fundstelle:** `services/requirement/src/workflows/workflows.controller.ts`, `GET /v1/workflow-definitions`
+**Schwere:** Mittel · **Status:** ~~Bewusst akzeptiert~~ **Erledigt (2026-08-11)** · **Betrifft:** §8, §15 · **Fundstelle:** `services/requirement/src/workflows/workflows.controller.ts`, `GET /v1/workflow-definitions`
+
+> **Der Eintrag war beim Verfassen sachlich falsch.** Er behauptete, der offene Lesezugriff
+> gebe seit M4.3 die Bedingungen preis. Das traf nicht zu: `toResponse` im Workflow-Service
+> schreibt die Übergänge Feld für Feld aus und ließ `bedingungen` weg – aus M4.1, wo es
+> noch nichts wegzulassen gab. Die Antwort enthielt sie nie. Ich habe das angenommen,
+> statt nachzusehen; aufgefallen ist es erst, als der Editor sie durchreichen sollte und
+> im Contract nicht fand.
+>
+> Der zweite Teil war ebenfalls überholt: Die Begründung für den offenen Zugriff – die
+> Oberfläche brauche den Graphen – gilt seit M4.5 nicht mehr. Was ein Erfasser sehen muss,
+> liefert `GET /v1/requirements/{id}/transitions` für seine eigene Anforderung. Die
+> vollständige Liste liest nur der Verwaltungseditor aus M4.6.
+>
+> **Erledigt am 2026-08-11 mit M4.6**, und zwar anders als hier vorgeschlagen: `bedingungen`
+> ist in die Antwort aufgenommen **und** `GET /v1/workflow-definitions` samt
+> `GET /{id}/versions` auf `platform-admin` beschränkt. Die verworfene Alternative – eine
+> zweite Antwortgestalt für Nicht-Administratoren – wurde damit gegenstandslos: Es gibt für
+> sie keinen Lesezugriff mehr, den man zuschneiden müsste.
+>
+> Die unten beschriebene Spannung zu `PROD-034` besteht weiter, aber in engerer Form: Die
+> Übergangsauskunft nennt Rollennamen am einzelnen Übergang einer einzelnen Anforderung.
+> Das ist notwendig – sonst zeigt die Oberfläche gesperrte Schaltflächen ohne Erklärung –
+> und deutlich weniger als der ganze Graph.
+>
+> **Für M5 bleibt die Frage aus dem letzten Absatz:** Mit Mandantenfähigkeit ist erneut zu
+> prüfen, ob ein Administrator die Genehmigungsstruktur fremder Mandanten sehen darf. Das
+> gehört dann zu `PROD-017`, nicht hierher.
+
+*Der ursprüngliche Text steht unverändert darunter.*
 
 `GET /v1/workflow-definitions` ist für **jeden angemeldeten Anwender** lesbar. Das war eine
 bewusste Entscheidung aus M4.1: Die Oberfläche baut daraus Zustandsnamen und Schaltflächen,
@@ -1103,6 +1132,24 @@ dringend ist.
 **Zielzustand:** M4.6. Das Vokabular ist darauf zugeschnitten: feste Listen von
 Bedingungsarten und Vergleichen, jeder Vergleich aus Feld, Operator und Wert – als Formular
 mit Auswahllisten darstellbar, ohne freien Ausdruck.
+
+> **Teilweise geschlossen am 2026-08-11 mit M4.6.**
+>
+> Es gibt einen Verwaltungsbereich für Workflows: Zustände, Übergänge, Betriebsart,
+> Anfangszustand und Außerkraftsetzung sind über die Oberfläche pflegbar, dazu die
+> Auskunft, wie viele Anforderungen auf welcher Fassung laufen. Ebenfalls dazugekommen sind
+> die beiden Verwaltungsvorgänge an der Anforderung – Zustand zuordnen und auf die aktuelle
+> Fassung heben –, für die es zuvor **überhaupt keine Oberfläche gab**: Eine
+> hängengebliebene Anforderung ließ sich nur mit `curl` befreien, obwohl die Oberfläche seit
+> M4.5 genau darauf hinwies.
+>
+> **Offen bleiben die Bedingungen.** Rolle, Vier-Augen-Prinzip, Pflichtfelder und Vorbehalte
+> sind weiterhin nur über die Schnittstelle pflegbar. Der Editor **reicht sie unverändert
+> durch** und zeigt je Übergang ihre Anzahl an – ohne das würde jedes Speichern über die
+> Oberfläche sie löschen, weil `PUT` die Definition vollständig ersetzt.
+>
+> Damit ist der schwerwiegendere Teil offen: Genau die Bedingungen tragen die
+> Genehmigungsstrecke. Sie kommen als eigener Schritt.
 
 #### PROD-049 — Das Tor für inkompatible Änderungen sieht nur das Schema
 **Schwere:** Mittel · **Status:** Offen · **Betrifft:** §12 · **Fundstelle:** `.github/workflows/ci.yml`, Job `lint`, Schritt „Inkompatible Contract-Aenderungen pruefen"
@@ -1156,6 +1203,19 @@ gar keines: Es erzeugt Vertrauen für den Bereich, den es nicht prüft.
 > eine Schemaänderung, deren Tragweite von der Laufzeitkonfiguration abhängt. Die
 > Prüfliste aus dem Zielzustand muss deshalb auch **entfernte Anfragefelder** enthalten,
 > nicht nur zusätzliche Prüfungen.
+
+> **Vierter Fall am 2026-08-11 mit M4.6 – diesmal Berechtigung statt Validierung.**
+> `GET /v1/workflow-definitions` und `GET /{id}/versions` sind von „jeder Angemeldete" auf
+> `platform-admin` verengt worden. Für jeden Aufrufer, der sie bisher las, ist das eine
+> brechende Änderung.
+>
+> **Im Contract steht davon nichts.** Rollen sind kein Bestandteil des OpenAPI-Schemas –
+> `security` nennt das Verfahren (Bearer-Token), nicht die verlangte Rolle. `oasdiff` sah
+> eine geänderte Beschreibung und blieb grün.
+>
+> Damit hat die Prüfliste eine dritte Art von Änderung: **verschärfte Berechtigungen.** Sie
+> sind besonders unauffällig, weil sie weder im Schema noch im Code des Aufrufers sichtbar
+> werden – der bekommt eines Tages 403 und weiß nicht, warum.
 
 **Zielzustand:** Verschärfungen der Laufzeitprüfung gelten als inkompatible Änderung und
 sind wie Schemaänderungen zu behandeln – angekündigt, versioniert, im Änderungsprotokoll
