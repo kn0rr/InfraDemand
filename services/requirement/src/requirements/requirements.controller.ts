@@ -29,6 +29,7 @@ import { PatchRequirementDto } from "./patch-requirement.dto";
 import { RequirementResponse } from "./requirement.dto";
 import { RequirementVersionResponse } from "./requirement-version.dto";
 import { RequirementsService } from "./requirements.service";
+import { UebergangsauskunftResponse } from "./uebergaenge.dto";
 import { HebeFassungDto, OrdneZustandZuDto, WechsleZustandDto } from "./zustandswechsel.dto";
 
 @ApiTags("Anforderungen")
@@ -179,7 +180,7 @@ export class RequirementsController {
     @Body() eingabe: WechsleZustandDto,
     @CurrentUser() benutzer: AuthenticatedUser,
   ): Promise<RequirementResponse> {
-    return this.service.wechsleZustand(
+    return this.service.wechsleZustandUeberHerkunft(
       sourceSystem,
       externalId,
       eingabe.toState,
@@ -293,5 +294,66 @@ export class RequirementsController {
     @CurrentUser() benutzer: AuthenticatedUser,
   ): Promise<RequirementResponse> {
     return this.service.hebeFassung(sourceSystem, externalId, eingabe.reason, benutzer);
+  }
+  @Get("by-source/:sourceSystem/:externalId/transitions")
+  @ApiOperation({
+    summary: "Zulaessige Uebergaenge dieser Anforderung",
+    description:
+      "Grundlage fuer Schaltflaechen statt eines freien Statusfeldes (§7). Liefert alle " +
+      "Uebergaenge aus dem aktuellen Zustand - **auch die gesperrten, mit Begruendung**, " +
+      "damit die Oberflaeche sagen kann, warum etwas nicht geht. " +
+      "**Die Antwort haengt vom Anmeldenden ab** und darf nicht zwischengespeichert werden.",
+  })
+  @ApiParam({ name: "sourceSystem", example: "sap" })
+  @ApiParam({ name: "externalId", example: "A-4711" })
+  @ApiResponse({ status: 200, type: UebergangsauskunftResponse })
+  @ApiResponse({ status: 404, description: "Kein Datensatz unter dieser Herkunft" })
+  zulaessigeUebergaenge(
+    @Param("sourceSystem") sourceSystem: string,
+    @Param("externalId") externalId: string,
+    @CurrentUser() benutzer: AuthenticatedUser,
+  ): Promise<UebergangsauskunftResponse> {
+    return this.service.uebergaengeUeberHerkunft(sourceSystem, externalId, benutzer);
+  }
+
+  @Get(":id/transitions")
+  @ApiOperation({
+    summary: "Zulaessige Uebergaenge ueber die interne Kennung",
+    description:
+      "Gleichwertig zum Weg ueber die Herkunft. Notwendig fuer eigene Erfassung: Dort ist " +
+      "`externalId` leer (§19.1), und der Datensatz ist ueber `by-source` nicht adressierbar.",
+  })
+  @ApiParam({ name: "id", format: "uuid" })
+  @ApiResponse({ status: 200, type: UebergangsauskunftResponse })
+  @ApiResponse({ status: 404, description: "Anforderung existiert nicht" })
+  uebergaengeUeberKennung(
+    @Param("id", ParseUUIDPipe) id: string,
+    @CurrentUser() benutzer: AuthenticatedUser,
+  ): Promise<UebergangsauskunftResponse> {
+    return this.service.uebergaengeUeberKennung(id, benutzer);
+  }
+
+  @Put(":id/state")
+  @ApiOperation({
+    summary: "Zustand wechseln, ueber die interne Kennung",
+    description:
+      "Gleichwertig zum Weg ueber die Herkunft - **derselbe Pruefpfad**, nur ein anderer " +
+      "Zugang. Notwendig fuer eigene Erfassung, deren `externalId` leer ist.",
+  })
+  @ApiParam({ name: "id", format: "uuid" })
+  @ApiResponse({ status: 200, type: RequirementResponse })
+  @ApiResponse({ status: 400, description: "Der Zielzustand kommt im Workflow nicht vor" })
+  @ApiResponse({ status: 404, description: "Anforderung existiert nicht" })
+  @ApiResponse({
+    status: 409,
+    description:
+      "Wie beim Weg ueber die Herkunft: kein Uebergang, unbekannter Ausgangszustand, unerfuellte Bedingungen oder fremde Hoheit",
+  })
+  wechsleZustandUeberKennung(
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() eingabe: WechsleZustandDto,
+    @CurrentUser() benutzer: AuthenticatedUser,
+  ): Promise<RequirementResponse> {
+    return this.service.wechsleZustandUeberKennung(id, eingabe.toState, eingabe.reason, benutzer);
   }
 }

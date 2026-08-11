@@ -153,6 +153,7 @@ diese Tabelle ist die Übersicht dazu.
 | `GET /v1/requirements` | ja | Liste der Anforderungen, mit Stichtag über `asOf` |
 | `POST /v1/requirements` | ja | Anforderung anlegen |
 | `PATCH /v1/requirements/by-source/{sourceSystem}/{externalId}` | ja | Schreiben über Herkunft statt über interne Kennung (ADR-0010) |
+| `GET /v1/requirements/by-source/…/transitions` | ja | Zulässige Übergänge dieser Anforderung, gesperrte mit Begründung |
 | `PUT /v1/requirements/by-source/…/state` | ja | Zustandswechsel gegen den Zustandsgraphen (§7, ADR-0022) |
 | `PUT /v1/requirements/by-source/…/state/assignment` | **platform-admin** | Zustand zuordnen, wenn der aktuelle im Graphen fehlt |
 | `PUT /v1/requirements/by-source/…/workflow-version` | **platform-admin** | Auf die aktuelle Workflow-Fassung heben (ADR-0025) |
