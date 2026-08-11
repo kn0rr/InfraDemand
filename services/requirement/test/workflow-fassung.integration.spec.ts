@@ -208,8 +208,10 @@ describe("Gebundene Workflow-Fassung (ADR-0025)", () => {
         .send({ reason: "Versuch, auf die verkuerzte Fassung zu heben" })
         .expect(409);
 
-      // Sonst behebt das Heben ein Problem und erzeugt dabei das aus ADR-0022 Punkt 5.
-      expect(antwort.body.message).toContain("erst zuordnen");
+
+            // Sonst behebt das Heben ein Problem und erzeugt dabei das aus ADR-0022 Punkt 5.
+      expect(antwort.body.message).toContain("in_pruefung");
+      expect(antwort.body.message).toContain("zuordnen");
     });
 
     it("weist ohne platform-admin ab", async () => {
