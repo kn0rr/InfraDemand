@@ -244,6 +244,17 @@ export class RequirementsRepository {
     return zeile;
   }
 
+  /** Zugriff ueber die interne Kennung - der Weg der eigenen Oberflaeche. */
+  async findById(id: string): Promise<RequirementRow | undefined> {
+    const [zeile] = await this.db
+      .select()
+      .from(requirements)
+      .where(eq(requirements.id, id))
+      .limit(1);
+
+    return zeile;
+  }
+
   /**
    * Erzeugt eine neue Version (ADR-0012). Die bisher aktuelle wird geschlossen, die neue
    * beginnt im selben Augenblick - `validTo` der alten und `validFrom` der neuen tragen

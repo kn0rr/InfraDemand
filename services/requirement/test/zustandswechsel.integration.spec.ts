@@ -343,7 +343,7 @@ describe("Zustandswechsel", () => {
 
       // Feldbezogen, damit ein Formular alle Gruende auf einmal anzeigen kann.
       expect(antwort.body.conditions).toHaveLength(1);
-      expect(antwort.body.conditions[0].art).toBe("rolle");
+      expect(antwort.body.conditions[0].kind).toBe("rolle");
     });
 
     it("laesst durch, wenn sie vorhanden ist", async () => {
@@ -450,6 +450,149 @@ describe("Zustandswechsel", () => {
 
         expect(antwort.body.conditions[0].message).toContain("Vorbehalt");
       });
+    });
+  });
+  describe("Zulaessige Uebergaenge (M4.5)", () => {
+    const mitBedingungen = (bedingungen: unknown[]) =>
+      registriereWorkflow(pool, null, {
+        transitions: [
+          { from: "neu", to: "in_pruefung", label: "Einreichen", bedingungen },
+          { from: "in_pruefung", to: "erledigt", label: "Freigeben" },
+        ],
+      });
+
+    const uebergaenge = (externalId: string) =>
+      `/v1/requirements/by-source/sap/${externalId}/transitions`;
+
+    it("nennt nur die Uebergaenge aus dem aktuellen Zustand", async () => {
+      await registriereWorkflow(pool);
+      await anlegen("H-1");
+
+      const antwort = await mit(alsMensch)("get", uebergaenge("H-1")).expect(200);
+
+      expect(antwort.body.currentState).toBe("neu");
+      expect(antwort.body.currentStateInWorkflow).toBe(true);
+      expect(antwort.body.transitions).toEqual([
+        {
+          toState: "in_pruefung",
+          label: "Einreichen",
+          allowed: true,
+          blockedBy: [],
+          requiresReason: false,
+        },
+      ]);
+    });
+
+    it("liefert im Endzustand keine Uebergaenge", async () => {
+      await registriereWorkflow(pool);
+      await anlegen("H-2");
+      await mit(alsMensch)("put", zustand("H-2")).send({ toState: "in_pruefung" }).expect(200);
+      await mit(alsMensch)("put", zustand("H-2")).send({ toState: "erledigt" }).expect(200);
+
+      const antwort = await mit(alsMensch)("get", uebergaenge("H-2")).expect(200);
+
+      // Leere Liste **und** currentStateInWorkflow true - fertig, nicht haengengeblieben.
+      expect(antwort.body).toMatchObject({
+        currentState: "erledigt",
+        currentStateInWorkflow: true,
+      });
+      expect(antwort.body.transitions).toEqual([]);
+    });
+
+    it("nennt einen gesperrten Uebergang mit Begruendung", async () => {
+      await mitBedingungen([{ art: "rolle", eineVon: ["platform-admin"] }]);
+      await anlegen("H-3");
+
+      const antwort = await mit(alsMensch)("get", uebergaenge("H-3")).expect(200);
+
+      expect(antwort.body.transitions[0]).toMatchObject({ toState: "in_pruefung", allowed: false });
+      expect(antwort.body.transitions[0].blockedBy).toHaveLength(1);
+      expect(antwort.body.transitions[0].blockedBy[0].kind).toBe("rolle");
+    });
+
+    it("haengt vom Anmeldenden ab", async () => {
+      await mitBedingungen([{ art: "rolle", eineVon: ["platform-admin"] }]);
+      await anlegen("H-4");
+
+      const ohne = await mit(alsMensch)("get", uebergaenge("H-4")).expect(200);
+      const mitRolle = await mit(alsAdmin)("get", uebergaenge("H-4")).expect(200);
+
+      // Der Grund, aus dem die Oberflaeche das nicht selbst ausrechnen kann - und aus dem
+      // die Antwort nicht zwischen Anwendern zwischengespeichert werden darf.
+      expect(ohne.body.transitions[0].allowed).toBe(false);
+      expect(mitRolle.body.transitions[0].allowed).toBe(true);
+    });
+
+    it("fuehrt mehrere Gruende einzeln auf", async () => {
+      await registriereAttribut(pool, { key: "abweichungsbegruendung" });
+      await mitBedingungen([
+        { art: "rolle", eineVon: ["platform-admin"] },
+        { art: "pflichtfelder", felder: ["abweichungsbegruendung"] },
+      ]);
+      await anlegen("H-5");
+
+      const antwort = await mit(alsMensch)("get", uebergaenge("H-5")).expect(200);
+
+      expect(
+        antwort.body.transitions[0].blockedBy.map((e: { kind: string }) => e.kind).sort(),
+      ).toEqual(["pflichtfelder", "rolle"]);
+    });
+
+    it("zaehlt eine fehlende Begruendung nicht als Hinderungsgrund", async () => {
+      await mitBedingungen([{ art: "begruendung", mindestlaenge: 10 }]);
+      await anlegen("H-6");
+
+      const antwort = await mit(alsMensch)("get", uebergaenge("H-6")).expect(200);
+
+      // Die Begruendung entsteht erst beim Ausloesen. Waere sie ein Hinderungsgrund,
+      // erschiene der Uebergang als gesperrt und die Oberflaeche muesste `allowed`
+      // ignorieren.
+      expect(antwort.body.transitions[0]).toMatchObject({
+        allowed: true,
+        blockedBy: [],
+        requiresReason: true,
+      });
+    });
+
+    it("meldet einen Zustand, den der Graph nicht kennt", async () => {
+      await registriereWorkflow(pool);
+      await anlegen("H-7");
+      await pool.query("UPDATE requirement SET status = 'freigegeben' WHERE external_id = $1", [
+        "H-7",
+      ]);
+
+      const antwort = await mit(alsMensch)("get", uebergaenge("H-7")).expect(200);
+
+      // Leere Liste **und** currentStateInWorkflow false - haengengeblieben, nicht fertig.
+      // Genau diese Unterscheidung kann die Oberflaeche sonst nicht treffen.
+      expect(antwort.body).toMatchObject({
+        currentState: "freigegeben",
+        currentStateInWorkflow: false,
+      });
+      expect(antwort.body.transitions).toEqual([]);
+    });
+
+    it("liefert bei einem fremdgefuehrten Workflow nichts an", async () => {
+      await registriereWorkflow(pool, null, {
+        mode: "external",
+        initialState: "offen",
+        states: [
+          { key: "offen", label: "Offen" },
+          { key: "geschlossen", label: "Geschlossen" },
+        ],
+        transitions: [],
+      });
+      await anlegen("H-8");
+
+      const antwort = await mit(alsMensch)("get", uebergaenge("H-8")).expect(200);
+
+      expect(antwort.body.transitions).toEqual([]);
+    });
+
+    it("weist eine unbekannte Herkunft mit 404 ab", async () => {
+      await registriereWorkflow(pool);
+
+      await mit(alsMensch)("get", uebergaenge("gibt-es-nicht")).expect(404);
     });
   });
 });

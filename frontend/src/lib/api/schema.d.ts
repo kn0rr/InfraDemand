@@ -254,6 +254,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/requirements/by-source/{sourceSystem}/{externalId}/transitions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Zulaessige Uebergaenge dieser Anforderung
+         * @description Grundlage fuer Schaltflaechen statt eines freien Statusfeldes (§7). Liefert alle Uebergaenge aus dem aktuellen Zustand - **auch die gesperrten, mit Begruendung**, damit die Oberflaeche sagen kann, warum etwas nicht geht. **Die Antwort haengt vom Anmeldenden ab** und darf nicht zwischengespeichert werden.
+         */
+        get: operations["RequirementsController_zulaessigeUebergaenge_v1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/requirements/by-source/{sourceSystem}/{externalId}/workflow-version": {
         parameters: {
             query?: never;
@@ -286,6 +306,46 @@ export interface paths {
          * @description Plattformweite Uebersicht nach §19.3. Zeigt je Feld den festgehaltenen Wert, die Begruendung und die zuletzt abgewiesene Lieferung samt Anzahl - die Abweichung wird damit beziffert und nicht nur benannt.
          */
         get: operations["RequirementsController_findFesthaltungen_v1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/requirements/{id}/state": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Zustand wechseln, ueber die interne Kennung
+         * @description Gleichwertig zum Weg ueber die Herkunft - **derselbe Pruefpfad**, nur ein anderer Zugang. Notwendig fuer eigene Erfassung, deren `externalId` leer ist.
+         */
+        put: operations["RequirementsController_wechsleZustandUeberKennung_v1"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/requirements/{id}/transitions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Zulaessige Uebergaenge ueber die interne Kennung
+         * @description Gleichwertig zum Weg ueber die Herkunft. Notwendig fuer eigene Erfassung: Dort ist `externalId` leer (§19.1), und der Datensatz ist ueber `by-source` nicht adressierbar.
+         */
+        get: operations["RequirementsController_uebergaengeUeberKennung_v1"];
         put?: never;
         post?: never;
         delete?: never;
@@ -478,6 +538,18 @@ export interface components {
             validTo: string | null;
             /** @example 1 */
             version: number;
+        };
+        BedingungsverstossResponse: {
+            /**
+             * @example vier_augen
+             * @enum {string}
+             */
+            kind: "rolle" | "vier_augen" | "identitaet" | "pflichtfelder" | "feldwert" | "begruendung";
+            /**
+             * @description Fuer Menschen. Nicht zum Auswerten - der Wortlaut kann sich aendern.
+             * @example Dieser Uebergang verlangt eine andere Person als die, die "in_pruefung" ausgeloest hat
+             */
+            message: string;
         };
         CreateAttributeDefinitionDto: {
             /** @description Pflicht bei enum und multi_enum, unzulaessig bei allen anderen Typen. */
@@ -744,6 +816,26 @@ export interface components {
         SetzeFesthaltungDto: {
             /** @example Von SAP falsch gepflegt, Korrektur dort beantragt unter TICKET-4711 */
             reason: string;
+        };
+        UebergangsauskunftResponse: {
+            /** @example in_pruefung */
+            currentState: string;
+            /** @description Ob der aktuelle Zustand im geltenden Graphen vorkommt. Bei `false` ist kein Uebergang moeglich, bis ein Administrator ihn zuordnet (ADR-0022 Punkt 5) - die Anforderung ist dann nicht fertig, sondern haengt. */
+            currentStateInWorkflow: boolean;
+            /** @description Alle Uebergaenge aus dem aktuellen Zustand, zulaessige wie gesperrte. Bei fremdgefuehrten Workflows leer: Dort entscheidet das Fremdsystem (ADR-0021). */
+            transitions: components["schemas"]["UebergangsoptionResponse"][];
+        };
+        UebergangsoptionResponse: {
+            /** @description Ob dieser Uebergang jetzt und von diesem Anwender genommen werden kann. */
+            allowed: boolean;
+            /** @description Leer, wenn zulaessig. Sonst jeder Grund einzeln, damit die Oberflaeche alle nennen kann. */
+            blockedBy: components["schemas"]["BedingungsverstossResponse"][];
+            /** @example Einreichen */
+            label: string;
+            /** @description Der Uebergang verlangt eine Begruendung. **Kein Hinderungsgrund** - sie wird beim Ausloesen mitgegeben, nicht vorher erfuellt. Deshalb zaehlt sie nicht in `blockedBy`. */
+            requiresReason: boolean;
+            /** @example in_pruefung */
+            toState: string;
         };
         UpdateAttributeDefinitionDto: {
             /** @description false setzt die Definition ausser Kraft, ohne sie zu loeschen. */
@@ -1616,6 +1708,42 @@ export interface operations {
             };
         };
     };
+    RequirementsController_zulaessigeUebergaenge_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sourceSystem: string;
+                externalId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UebergangsauskunftResponse"];
+                };
+            };
+            /** @description Kein oder ungueltiges Token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Kein Datensatz unter dieser Herkunft */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     RequirementsController_hebeFassung_v1: {
         parameters: {
             query?: never;
@@ -1696,6 +1824,94 @@ export interface operations {
             };
             /** @description Rolle platform-admin fehlt */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    RequirementsController_wechsleZustandUeberKennung_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WechsleZustandDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RequirementResponse"];
+                };
+            };
+            /** @description Der Zielzustand kommt im Workflow nicht vor */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Kein oder ungueltiges Token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Anforderung existiert nicht */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Wie beim Weg ueber die Herkunft: kein Uebergang, unbekannter Ausgangszustand, unerfuellte Bedingungen oder fremde Hoheit */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    RequirementsController_uebergaengeUeberKennung_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UebergangsauskunftResponse"];
+                };
+            };
+            /** @description Kein oder ungueltiges Token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Anforderung existiert nicht */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

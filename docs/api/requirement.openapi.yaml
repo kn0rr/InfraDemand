@@ -190,6 +190,26 @@ components:
         - changedBy
         - changeSource
       type: object
+    BedingungsverstossResponse:
+      properties:
+        kind:
+          enum:
+            - rolle
+            - vier_augen
+            - identitaet
+            - pflichtfelder
+            - feldwert
+            - begruendung
+          example: vier_augen
+          type: string
+        message:
+          description: Fuer Menschen. Nicht zum Auswerten - der Wortlaut kann sich aendern.
+          example: Dieser Uebergang verlangt eine andere Person als die, die "in_pruefung" ausgeloest hat
+          type: string
+      required:
+        - kind
+        - message
+      type: object
     CreateAttributeDefinitionDto:
       properties:
         allowedValues:
@@ -711,6 +731,57 @@ components:
           type: string
       required:
         - reason
+      type: object
+    UebergangsauskunftResponse:
+      properties:
+        currentState:
+          example: in_pruefung
+          type: string
+        currentStateInWorkflow:
+          description: >-
+            Ob der aktuelle Zustand im geltenden Graphen vorkommt. Bei `false` ist kein Uebergang
+            moeglich, bis ein Administrator ihn zuordnet (ADR-0022 Punkt 5) - die Anforderung ist
+            dann nicht fertig, sondern haengt.
+          type: boolean
+        transitions:
+          description: >-
+            Alle Uebergaenge aus dem aktuellen Zustand, zulaessige wie gesperrte. Bei
+            fremdgefuehrten Workflows leer: Dort entscheidet das Fremdsystem (ADR-0021).
+          items:
+            $ref: '#/components/schemas/UebergangsoptionResponse'
+          type: array
+      required:
+        - currentState
+        - currentStateInWorkflow
+        - transitions
+      type: object
+    UebergangsoptionResponse:
+      properties:
+        allowed:
+          description: Ob dieser Uebergang jetzt und von diesem Anwender genommen werden kann.
+          type: boolean
+        blockedBy:
+          description: Leer, wenn zulaessig. Sonst jeder Grund einzeln, damit die Oberflaeche alle nennen kann.
+          items:
+            $ref: '#/components/schemas/BedingungsverstossResponse'
+          type: array
+        label:
+          example: Einreichen
+          type: string
+        requiresReason:
+          description: >-
+            Der Uebergang verlangt eine Begruendung. **Kein Hinderungsgrund** - sie wird beim
+            Ausloesen mitgegeben, nicht vorher erfuellt. Deshalb zaehlt sie nicht in `blockedBy`.
+          type: boolean
+        toState:
+          example: in_pruefung
+          type: string
+      required:
+        - toState
+        - label
+        - allowed
+        - blockedBy
+        - requiresReason
       type: object
     UpdateAttributeDefinitionDto:
       properties:
@@ -1732,6 +1803,43 @@ paths:
       summary: Zustand zuordnen
       tags:
         - Anforderungen
+  /v1/requirements/by-source/{sourceSystem}/{externalId}/transitions:
+    get:
+      description: >-
+        Grundlage fuer Schaltflaechen statt eines freien Statusfeldes (§7). Liefert alle Uebergaenge
+        aus dem aktuellen Zustand - **auch die gesperrten, mit Begruendung**, damit die Oberflaeche
+        sagen kann, warum etwas nicht geht. **Die Antwort haengt vom Anmeldenden ab** und darf nicht
+        zwischengespeichert werden.
+      operationId: RequirementsController_zulaessigeUebergaenge_v1
+      parameters:
+        - in: path
+          name: sourceSystem
+          required: true
+          schema:
+            example: sap
+            type: string
+        - in: path
+          name: externalId
+          required: true
+          schema:
+            example: A-4711
+            type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UebergangsauskunftResponse'
+          description: ''
+        '401':
+          description: Kein oder ungueltiges Token
+        '404':
+          description: Kein Datensatz unter dieser Herkunft
+      security:
+        - bearer: []
+      summary: Zulaessige Uebergaenge dieser Anforderung
+      tags:
+        - Anforderungen
   /v1/requirements/by-source/{sourceSystem}/{externalId}/workflow-version:
     put:
       description: >-
@@ -1803,6 +1911,76 @@ paths:
       security:
         - bearer: []
       summary: Alle festgehaltenen Felder
+      tags:
+        - Anforderungen
+  /v1/requirements/{id}/state:
+    put:
+      description: >-
+        Gleichwertig zum Weg ueber die Herkunft - **derselbe Pruefpfad**, nur ein anderer Zugang.
+        Notwendig fuer eigene Erfassung, deren `externalId` leer ist.
+      operationId: RequirementsController_wechsleZustandUeberKennung_v1
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: uuid
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WechsleZustandDto'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RequirementResponse'
+          description: ''
+        '400':
+          description: Der Zielzustand kommt im Workflow nicht vor
+        '401':
+          description: Kein oder ungueltiges Token
+        '404':
+          description: Anforderung existiert nicht
+        '409':
+          description: >-
+            Wie beim Weg ueber die Herkunft: kein Uebergang, unbekannter Ausgangszustand,
+            unerfuellte Bedingungen oder fremde Hoheit
+      security:
+        - bearer: []
+      summary: Zustand wechseln, ueber die interne Kennung
+      tags:
+        - Anforderungen
+  /v1/requirements/{id}/transitions:
+    get:
+      description: >-
+        Gleichwertig zum Weg ueber die Herkunft. Notwendig fuer eigene Erfassung: Dort ist
+        `externalId` leer (§19.1), und der Datensatz ist ueber `by-source` nicht adressierbar.
+      operationId: RequirementsController_uebergaengeUeberKennung_v1
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: uuid
+            type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UebergangsauskunftResponse'
+          description: ''
+        '401':
+          description: Kein oder ungueltiges Token
+        '404':
+          description: Anforderung existiert nicht
+      security:
+        - bearer: []
+      summary: Zulaessige Uebergaenge ueber die interne Kennung
       tags:
         - Anforderungen
   /v1/requirements/{id}/versions:

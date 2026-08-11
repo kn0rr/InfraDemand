@@ -37,6 +37,7 @@ import type { RequirementResponse } from "./requirement.dto";
 import type { RequirementVersionResponse } from "./requirement-version.dto";
 import { DuplicateExternalIdError, RequirementNotFoundError } from "./requirements.errors";
 import { RequirementsRepository } from "./requirements.repository";
+import { UebergangsauskunftResponse } from "./uebergaenge.dto";
 
 @Injectable()
 export class RequirementsService {
@@ -359,17 +360,11 @@ export class RequirementsService {
    * Uebergaenge zwischen demselben Zustandspaar weist die Graphpruefung seit M4.1 ab.
    */
   async wechsleZustand(
-    sourceSystem: string,
-    externalId: string,
+    bestand: RequirementRow,
     zielzustand: string,
     begruendung: string | undefined,
     benutzer: AuthenticatedUser,
   ): Promise<RequirementResponse> {
-    const bestand = await this.repository.findBySource(sourceSystem, externalId);
-    if (bestand === undefined) {
-      throw new NotFoundException(new RequirementNotFoundError(sourceSystem, externalId).message);
-    }
-
     const workflow = await this.gebundeneFassung(bestand);
 
     if (!workflow.states.some((zustand) => zustand.key === zielzustand)) {
@@ -407,7 +402,10 @@ export class RequirementsService {
           statusCode: 409,
           error: "Conflict",
           message: "Die Bedingungen dieses Uebergangs sind nicht erfuellt",
-          conditions: verstoesse,
+          conditions: verstoesse.map((verstoss) => ({
+            kind: verstoss.art,
+            message: verstoss.message,
+          })),
         });
       }
     }
@@ -473,6 +471,69 @@ export class RequirementsService {
     });
 
     return RequirementsService.toResponse(zeile);
+  }
+
+  /**
+   * Welche Uebergaenge diese Anforderung jetzt nehmen kann - und warum die anderen nicht
+   * (M4.5).
+   *
+   * **Die Oberflaeche kann das nicht selbst ausrechnen.** Sie muesste die Bedingungen samt
+   * Vorbehalten auswerten, die Rollen des Anmeldenden dagegenhalten und fuer das
+   * Vier-Augen-Prinzip die Eintritte aus der Versionshistorie kennen - eine zweite Fassung
+   * der Pruefung im Browser, die bei der ersten Abweichung falsche Schaltflaechen anbietet.
+   *
+   * **Die Antwort haengt vom Anmeldenden ab** und darf deshalb nicht zwischengespeichert
+   * werden: Rollen, Identitaet und Vier-Augen-Bezug beziehen sich auf ihn.
+   *
+   * Gesperrte Uebergaenge werden **mitgeliefert, nicht weggelassen.** Wer keine
+   * Schaltflaeche sieht, weiss nicht, ob der Vorgang zu Ende ist oder ihm eine Rolle fehlt.
+   */
+  async zulaessigeUebergaenge(
+    bestand: RequirementRow,
+    benutzer: AuthenticatedUser,
+  ): Promise<UebergangsauskunftResponse> {
+    const workflow = await this.gebundeneFassung(bestand);
+    const bekannt = workflow.states.some((zustand) => zustand.key === bestand.status);
+
+    // Bei fremdgefuehrten Workflows entscheidet das Fremdsystem (ADR-0021 Punkt 4) - wir
+    // haben keine Uebergaenge anzubieten, auch wenn der Graph welche auffuehrte.
+    if (workflow.mode === "external" || !bekannt) {
+      return {
+        currentState: bestand.status,
+        currentStateInWorkflow: bekannt,
+        transitions: [],
+      };
+    }
+
+    const versionen = await this.repository.findVersions(bestand.id);
+    const kontext = {
+      feldwerte: feldwerte(bestand),
+      ausloeser: { userId: benutzer.userId, roles: benutzer.roles },
+      eintritte: eintritte(versionen),
+      // Bewusst leer: Die Begruendung entsteht erst beim Ausloesen. Ihr Fehlen ist kein
+      // Hinderungsgrund, sondern eine Eingabeanforderung - siehe unten.
+      begruendung: undefined,
+    };
+
+    const transitions = workflow.transitions
+      .filter((uebergang) => uebergang.from === bestand.status)
+      .map((uebergang) => {
+        const verstoesse = pruefeUebergangsbedingungen(uebergang.bedingungen ?? [], kontext);
+        const hindernisse = verstoesse.filter((verstoss) => verstoss.art !== "begruendung");
+
+        return {
+          toState: uebergang.to,
+          label: uebergang.label,
+          allowed: hindernisse.length === 0,
+          blockedBy: hindernisse.map((verstoss) => ({
+            kind: verstoss.art,
+            message: verstoss.message,
+          })),
+          requiresReason: verstoesse.length !== hindernisse.length,
+        };
+      });
+
+    return { currentState: bestand.status, currentStateInWorkflow: true, transitions };
   }
 
   /**
@@ -558,6 +619,41 @@ export class RequirementsService {
     }
 
     return workflow;
+  }
+
+  /**
+   * Loest einen Datensatz ueber die Herkunft auf (ADR-0010) - der Weg fuer Vorsysteme,
+   * die unsere Kennungen nicht kennen.
+   */
+  private async ausHerkunft(sourceSystem: string, externalId: string): Promise<RequirementRow> {
+    const bestand = await this.repository.findBySource(sourceSystem, externalId);
+
+    if (bestand === undefined) {
+      throw new NotFoundException(new RequirementNotFoundError(sourceSystem, externalId).message);
+    }
+
+    return bestand;
+  }
+
+  /**
+   * Loest einen Datensatz ueber die interne Kennung auf - der Weg der eigenen Oberflaeche.
+   *
+   * **Notwendig, weil eigene Erfassung keinen externen Bezeichner hat.** `externalId` ist
+   * dort bewusst leer; ein erfundener Wert waere eine Behauptung. Ueber `by-source` sind
+   * diese Datensaetze damit nicht erreichbar.
+   *
+   * Kein Widerspruch zu ADR-0010: Dessen Regel gilt der Grenze zwischen
+   * Anforderungsaufnahme und Kapazitaetsberechnung (§19.1), nicht der eigenen Oberflaeche.
+   * `GET /v1/requirements/{id}/versions` geht diesen Weg seit M1.
+   */
+  private async ausKennung(id: string): Promise<RequirementRow> {
+    const bestand = await this.repository.findById(id);
+
+    if (bestand === undefined) {
+      throw new NotFoundException(`Anforderung ${id} existiert nicht`);
+    }
+
+    return bestand;
   }
 
   /**
@@ -824,5 +920,44 @@ export class RequirementsService {
       changedBy: row.changedBy,
       changeSource: row.changeSource,
     };
+  }
+
+  async wechsleZustandUeberHerkunft(
+    sourceSystem: string,
+    externalId: string,
+    zielzustand: string,
+    begruendung: string | undefined,
+    benutzer: AuthenticatedUser,
+  ): Promise<RequirementResponse> {
+    return this.wechsleZustand(
+      await this.ausHerkunft(sourceSystem, externalId),
+      zielzustand,
+      begruendung,
+      benutzer,
+    );
+  }
+
+  async wechsleZustandUeberKennung(
+    id: string,
+    zielzustand: string,
+    begruendung: string | undefined,
+    benutzer: AuthenticatedUser,
+  ): Promise<RequirementResponse> {
+    return this.wechsleZustand(await this.ausKennung(id), zielzustand, begruendung, benutzer);
+  }
+
+  async uebergaengeUeberHerkunft(
+    sourceSystem: string,
+    externalId: string,
+    benutzer: AuthenticatedUser,
+  ): Promise<UebergangsauskunftResponse> {
+    return this.zulaessigeUebergaenge(await this.ausHerkunft(sourceSystem, externalId), benutzer);
+  }
+
+  async uebergaengeUeberKennung(
+    id: string,
+    benutzer: AuthenticatedUser,
+  ): Promise<UebergangsauskunftResponse> {
+    return this.zulaessigeUebergaenge(await this.ausKennung(id), benutzer);
   }
 }

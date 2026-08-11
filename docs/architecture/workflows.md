@@ -374,6 +374,38 @@ mitschickt: Weder das Anlegen noch das Ändern einer Anforderung setzt ihn.
 5. **Außer Kraft gesetzt heißt „keiner", nicht „der allgemeine".** Es gibt keinen stillen
    Rückfall auf einen anderen Graphen.
 
+### Welche Übergänge eine Anforderung nehmen kann
+
+`GET /v1/requirements/by-source/{sourceSystem}/{externalId}/transitions`
+
+Die Grundlage für Schaltflächen statt eines freien Statusfeldes. **Die Oberfläche kann das
+nicht selbst ausrechnen:** Sie müsste die Bedingungen samt Vorbehalten auswerten, die
+Rollen des Anmeldenden dagegenhalten und für das Vier-Augen-Prinzip die Eintritte aus der
+Versionshistorie kennen – eine zweite Fassung der Prüfung im Browser, die bei der ersten
+Abweichung falsche Schaltflächen anbietet.
+
+**Gesperrte Übergänge werden mitgeliefert, nicht weggelassen.** Wer keine Schaltfläche
+sieht, weiß nicht, ob der Vorgang zu Ende ist oder ihm eine Rolle fehlt.
+
+| Feld | Bedeutung |
+|---|---|
+| `currentState` | der aktuelle Zustand |
+| `currentStateInWorkflow` | `false` → die Anforderung hängt, bis ein Administrator zuordnet |
+| `transitions[].allowed` | ob dieser Übergang jetzt und von diesem Anwender genommen werden kann |
+| `transitions[].blockedBy` | jeder Grund einzeln, mit Meldung für Menschen |
+| `transitions[].requiresReason` | der Übergang verlangt eine Begründung |
+
+Eine leere Liste bei `currentStateInWorkflow: true` heißt **fertig**, bei `false` heißt sie
+**hängengeblieben**. Ohne dieses Feld sähen beide gleich aus.
+
+**Eine fehlende Begründung ist kein Hinderungsgrund.** Sie wird beim Auslösen mitgegeben,
+nicht vorher erfüllt – sie erscheint deshalb als `requiresReason`, nicht in `blockedBy`.
+Sonst wäre ein solcher Übergang immer gesperrt, und die Oberfläche müsste `allowed`
+ignorieren.
+
+**Die Antwort hängt vom Anmeldenden ab** – Rollen, Identität und Vier-Augen-Bezug beziehen
+sich auf ihn. Sie darf nicht zwischen Anwendern zwischengespeichert werden.
+
 ### Wenn die Anforderungsart wechselt
 
 `requirementType` bestimmt, welcher Workflow gilt. Ändert er sich, wird die Anforderung an
@@ -417,7 +449,7 @@ festgehalten statt zurückgemeldet
 | Anforderung ist an eine Workflow-Fassung gebunden | **umgesetzt** (M4.2) |
 | Bedingungen an Übergängen: Pflichtfelder, Berechtigung, Vier-Augen | **umgesetzt** (M4.3) |
 | Bindung sichtbar, Heben auf die aktuelle Fassung, Auskunft über Fassungen | **umgesetzt** (M4.4) |
-| Übergänge als Schaltflächen in der Oberfläche | offen (M4.5) |
+| Übergänge als Schaltflächen in der Oberfläche | **umgesetzt** (M4.5) |
 | Verwaltungsoberfläche für Workflows | offen (M4.6) |
 
 **Der Ablauf erzwingt seit M4.3 Reihenfolge und Zuständigkeit.** Damit ist `PROD-052`

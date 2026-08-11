@@ -54,8 +54,8 @@ Das gilt für alle Beteiligten, einschließlich der KI in ihrer Beraterrolle
 | D – Daten | 6 | 3 | – |
 | E – Container und Lieferkette | 9 | 1 | **2** |
 | F – Betrieb und Verfügbarkeit | 6 | 1 | – |
-| G – Anwendungssicherheit | 9 | 1 | **1** |
-| **Gesamt** | **53** | **17** | **4** |
+| G – Anwendungssicherheit | 10 | 1 | **1** |
+| **Gesamt** | **54** | **17** | **4** |
 
 > **Nummern werden nicht neu vergeben.** `PROD-026` ist unbesetzt. Eine Lücke ist kein
 > Fehler – eine wiederverwendete Nummer wäre einer, weil Verweise aus ADRs, Commits und
@@ -1053,6 +1053,34 @@ und nicht nebenbei implementiert werden.
 >   `PROD-017`.
 > - Workflows sind nur über die Schnittstelle konfigurierbar, nicht über eine
 >   Verwaltungsoberfläche; geführt unter `PROD-054`.
+
+#### PROD-055 — Der offene Lesezugriff auf Workflows gibt die Genehmigungsstruktur preis
+**Schwere:** Mittel · **Status:** Bewusst akzeptiert · **Betrifft:** §8, §15 · **Fundstelle:** `services/requirement/src/workflows/workflows.controller.ts`, `GET /v1/workflow-definitions`
+
+`GET /v1/workflow-definitions` ist für **jeden angemeldeten Anwender** lesbar. Das war eine
+bewusste Entscheidung aus M4.1: Die Oberfläche baut daraus Zustandsnamen und Schaltflächen,
+und ein Leseschutz hätte sie für gewöhnliche Anwender unbrauchbar gemacht.
+
+**Mit M4.3 hat sich geändert, was dieser Zugriff preisgibt.** Vorher waren es Zustände und
+Übergänge. Seither trägt der Graph die Bedingungen: welche Rolle freigeben darf, ab welchem
+Betrag eine zusätzliche Genehmigung nötig ist, wo das Vier-Augen-Prinzip greift. Der
+Endpunkt stand schon offen, die Information ist dazugekommen – **niemand hat das
+entschieden.**
+
+**Bewusst akzeptiert, mit Begründung.** Genehmigungswege sind in den meisten Häusern keine
+Geheimnisse, und die Oberfläche braucht den Graphen einschließlich der Bedingungen: Ohne
+sie kann sie nicht sagen, warum ein Übergang nicht angeboten wird. Die Alternative – eine
+zweite Antwortgestalt ohne `bedingungen` für Nicht-Administratoren – kostet einen zweiten
+Vertrag für dieselbe Ressource bei geringem Gewinn.
+
+Damit ist auch die scheinbare Spannung zu `PROD-034` aufgelöst: Der `RollenGuard` nennt
+bewusst nicht, welche Rolle fehlt; die Übergangsauskunft an der Anforderung nennt sie sehr
+wohl. Das ist kein Widerspruch, sondern eine Folge davon, dass die Rollennamen über die
+Workflow-Definition ohnehin lesbar sind.
+
+**Woran die Entscheidung zu überprüfen ist:** Sobald Mandantenfähigkeit greift (§15, M5),
+stellt sich die Frage neu – ein Anwender sähe dann die Genehmigungsstruktur **fremder
+Mandanten**. Der Eintrag ist mit M5 erneut zu bewerten und nicht vorher zu schließen.
 
 #### PROD-054 — Workflows sind nur über die Schnittstelle konfigurierbar
 **Schwere:** Mittel · **Status:** Offen · **Betrifft:** §7 · **Verweis:** Meilenstein M4.6

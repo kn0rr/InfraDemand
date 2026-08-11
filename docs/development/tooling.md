@@ -66,6 +66,27 @@ index [0]` und weist damit auf die falsche Stelle. Siehe
 | `openapi-typescript` | 7.13.x | `api:types` in `package.json` | Erzeugt `src/lib/api/schema.d.ts` aus dem eingecheckten Contract |
 | `openapi-fetch` | 0.17.x | `src/lib/api/client.ts` | Typsicherer Aufruf entlang des Contracts |
 | Vitest | 4.1.x | `vitest.base.mts`, `vitest.config.mts`, `vitest.integration.config.mts` | Testrunner, ohne SWC – im Frontend gibt es keine Decorators |
+| `jsdom` | 30.0.x | `vitest.config.mts`, `environment` | DOM für Komponententests |
+| `@testing-library/react` | 16.3.x | `test/setup.komponenten.ts` | Rendern und Abfragen von Komponenten |
+| `@testing-library/user-event` | 14.6.x | – | Bedienung nachbilden statt Ereignisse auszulösen |
+| `@testing-library/jest-dom` | 7.0.x | `test/setup.komponenten.ts` | Zusicherungen für DOM-Knoten (`toBeDisabled`, `toBeInTheDocument`) |
+
+**Kein `@vitejs/plugin-react`.** Next.js verlangt `jsx: "preserve"` in der `tsconfig.json`;
+Vite übernimmt das und ließe JSX unverwandelt, was der Testlauf nicht parsen kann. Statt
+des Plugins steht in `vitest.config.mts` eine Zeile:
+
+```ts
+oxc: { jsx: { runtime: "automatic" } },
+```
+
+Vom Plugin bräuchten wir nichts außer dieser Verwandlung. Dieselbe Überlegung wie beim
+`paths`-Alias in `vitest.base.mts` – eine Zeile gegen eine weitere Abhängigkeit. Die Option
+heißt seit Vite 8 `oxc`; `esbuild` ist dort abgekündigt.
+
+**Zwei Vorkehrungen in `test/setup.komponenten.ts`**, beide unvermeidlich und beide
+begründet in der Datei: `window.matchMedia` fehlt in jsdom und wird von Mantine beim Aufbau
+abgefragt; und die Bereinigung von Testing Library muss ausdrücklich registriert werden,
+weil dieses Projekt Vitest ohne `globals` betreibt.
 
 **Kein PostCSS.** Mantine liefert sein CSS übersetzt mit. `postcss-preset-mantine` wird
 erst gebraucht, wenn eigenes CSS Mantines Mixins verwendet – bis dahin wäre es eine

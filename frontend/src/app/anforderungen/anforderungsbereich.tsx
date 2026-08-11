@@ -15,7 +15,7 @@ import {
   Title,
 } from "@mantine/core";
 import { useForm } from "@mantine/form";
-import { useEffect } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { AttributFehler, useAnforderungAnlegen, useAnforderungen } from "@/lib/api/anforderungen";
 import {
   useAttributdefinitionen,
@@ -23,6 +23,7 @@ import {
   useHoheitsregeln,
 } from "@/lib/api/attributdefinitionen";
 import { Attributfeld, type Formularwerte } from "./attributfeld";
+import { Zustandswechsel } from "./zustandswechsel";
 
 const UUID_MUSTER = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -69,7 +70,9 @@ export function Anforderungsbereich({ benutzer }: { benutzer: string }) {
   const bedienbar = (definitionen.data ?? []).filter(
     (definition) => definition.active && !gesperrt.has(definition.key),
   );
-
+  // Genau eine Zeile offen: Zwei gleichzeitig geoeffnete Bereiche mit Schaltflaechen
+  // laden zum Verwechseln ein, welche Anforderung gerade gemeint ist.
+  const [offeneZeile, setOffeneZeile] = useState<string | null>(null);
   // Wechselt der Anforderungstyp, wechselt die Feldmenge. Die bisherigen Werte gehoeren
   // zu Feldern, die es nun nicht mehr gibt - sie werden durch die Vorgabewerte der neuen
   // Definitionen ersetzt.
@@ -200,17 +203,32 @@ export function Anforderungsbereich({ benutzer }: { benutzer: string }) {
                 </Table.Thead>
                 <Table.Tbody>
                   {anforderungen.data.map((eintrag) => (
-                    <Table.Tr key={eintrag.id}>
-                      <Table.Td>{eintrag.requirementType}</Table.Td>
-                      <Table.Td>{eintrag.status}</Table.Td>
-                      <Table.Td>{eintrag.owner}</Table.Td>
-                      <Table.Td>
-                        {Object.entries(eintrag.dynamicAttributes)
-                          .map(([schluessel, wert]) => `${schluessel}: ${String(wert)}`)
-                          .join(", ") || "–"}
-                      </Table.Td>
-                      <Table.Td>{eintrag.version}</Table.Td>
-                    </Table.Tr>
+                    <Fragment key={eintrag.id}>
+                      <Table.Tr
+                        style={{ cursor: "pointer" }}
+                        onClick={() =>
+                          setOffeneZeile((bisher) => (bisher === eintrag.id ? null : eintrag.id))
+                        }
+                      >
+                        <Table.Td>{eintrag.requirementType}</Table.Td>
+                        <Table.Td>{eintrag.status}</Table.Td>
+                        <Table.Td>{eintrag.owner}</Table.Td>
+                        <Table.Td>
+                          {Object.entries(eintrag.dynamicAttributes)
+                            .map(([schluessel, wert]) => `${schluessel}: ${String(wert)}`)
+                            .join(", ") || "–"}
+                        </Table.Td>
+                        <Table.Td>{eintrag.version}</Table.Td>
+                      </Table.Tr>
+
+                      {offeneZeile === eintrag.id ? (
+                        <Table.Tr>
+                          <Table.Td colSpan={5}>
+                            <Zustandswechsel anforderungId={eintrag.id} />
+                          </Table.Td>
+                        </Table.Tr>
+                      ) : null}
+                    </Fragment>
                   ))}
                 </Table.Tbody>
               </Table>
