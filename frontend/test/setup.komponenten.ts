@@ -29,3 +29,15 @@ Object.defineProperty(window, "matchMedia", {
     dispatchEvent: () => false,
   }),
 });
+
+/**
+ * jsdom kennt `ResizeObserver` nicht; Mantine misst damit die Hoehe seiner Auswahllisten.
+ *
+ * Die Nachbildung tut nichts. Fuer die geprueften Fragen - welche Bedingung gemeldet wird,
+ * was beim Wechsel der Art uebrig bleibt - spielt die tatsaechliche Groesse keine Rolle.
+ */
+globalThis.ResizeObserver = class {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+} as unknown as typeof ResizeObserver;

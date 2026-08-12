@@ -17,7 +17,9 @@ import {
   Title,
 } from "@mantine/core";
 import { useForm } from "@mantine/form";
+import { useState } from "react";
 import type { components } from "@/lib/api/schema";
+import { useAlleAttributdefinitionen } from "@/lib/api/verwaltung";
 import {
   useFassungsnutzung,
   useWorkflowAendern,
@@ -25,6 +27,17 @@ import {
   useWorkflows,
   type Workflow,
 } from "@/lib/api/workflows";
+import { Bedingungseditor } from "./bedingungen";
+
+/**
+ * Kernfelder, die eine Bedingung nennen kann.
+ *
+ * Doppelung zu `KERNFELDER` im Dienst - der Contract fuehrt die Liste nicht, weil kein DTO
+ * sie als Aufzaehlung ausweist. **Der Schaden ist begrenzt:** Was hier fehlt, fehlt als
+ * Vorschlag, nicht als Moeglichkeit; eingeben laesst sich jedes Feld, und geprueft wird
+ * beim Speichern.
+ */
+const KERNFELDER = ["projectId", "requirementType", "status", "owner"];
 
 type Bedingung = components["schemas"]["WorkflowBedingungDto"];
 
@@ -54,6 +67,8 @@ const LEER: Formularwerte = {
 export function Workflows() {
   const workflows = useWorkflows();
   const anlegen = useWorkflowAnlegen();
+  const attribute = useAlleAttributdefinitionen();
+  const [bedingungenFuer, setBedingungenFuer] = useState<number | null>(null);
   const aendern = useWorkflowAendern();
 
   /**
@@ -69,6 +84,19 @@ export function Workflows() {
   const zustandsauswahl = formular.values.states
     .filter((zustand) => zustand.key.trim() !== "")
     .map((zustand) => ({ value: zustand.key, label: `${zustand.label} (${zustand.key})` }));
+
+  // Genau die Menge, die der Dienst akzeptiert: Kernfelder plus die fuer diese
+  // Anforderungsart geltenden Attribute - typbezogene und allgemeine.
+  const feldnamen = [
+    ...KERNFELDER,
+    ...(attribute.data ?? [])
+      .filter(
+        (definition) =>
+          definition.requirementType === null ||
+          definition.requirementType === formular.values.requirementType,
+      )
+      .map((definition) => definition.key),
+  ];
 
   const uebernehmen = (workflow: Workflow) => {
     formular.setValues({
@@ -238,11 +266,15 @@ export function Workflows() {
                   placeholder="Einreichen"
                   {...formular.getInputProps(`transitions.${index}.label`)}
                 />
-                <Text size="xs" c="dimmed" pb={10}>
+                <Button
+                  size="xs"
+                  variant={uebergang.bedingungen.length === 0 ? "subtle" : "light"}
+                  onClick={() => setBedingungenFuer(index)}
+                >
                   {uebergang.bedingungen.length === 0
-                    ? "keine Bedingungen"
-                    : `${uebergang.bedingungen.length} Bedingungen`}
-                </Text>
+                    ? "Bedingungen"
+                    : `Bedingungen (${uebergang.bedingungen.length})`}
+                </Button>
                 <ActionIcon
                   variant="subtle"
                   color="red"
@@ -270,10 +302,27 @@ export function Workflows() {
                 Uebergang hinzufuegen
               </Button>
             </Group>
+            {bedingungenFuer === null ? null : (
+              <Bedingungseditor
+                geoeffnet
+                schliessen={() => setBedingungenFuer(null)}
+                uebergang={
+                  formular.values.transitions[bedingungenFuer]?.label ||
+                  `Uebergang ${bedingungenFuer + 1}`
+                }
+                bedingungen={formular.values.transitions[bedingungenFuer]?.bedingungen ?? []}
+                aendern={(neue) =>
+                  formular.setFieldValue(`transitions.${bedingungenFuer}.bedingungen`, neue)
+                }
+                zustaende={formular.values.states}
+                feldnamen={feldnamen}
+              />
+            )}
 
             <Text size="xs" c="dimmed">
-              Bedingungen an Uebergaengen – Rolle, Vier-Augen-Prinzip, Pflichtfelder – bleiben beim
-              Speichern unveraendert erhalten, sind hier aber noch nicht bearbeitbar.
+              Bedingungen werden beim Speichern geprueft: unbekannte Zustaende und Felder,
+              unpassende Werte, und ob ein Vier-Augen-Bezug auf jedem Weg zum Uebergang liegt. Die
+              Meldung nennt die Fundstelle.
             </Text>
 
             {fehler === null ? null : (

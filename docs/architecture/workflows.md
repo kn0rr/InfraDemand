@@ -451,7 +451,7 @@ festgehalten statt zurückgemeldet
 | Bindung sichtbar, Heben auf die aktuelle Fassung, Auskunft über Fassungen | **umgesetzt** (M4.4) |
 | Übergänge als Schaltflächen in der Oberfläche | **umgesetzt** (M4.5) |
 | Verwaltungsoberfläche: Zustände, Übergänge, Verwaltungsvorgänge | **umgesetzt** (M4.6) |
-| Verwaltungsoberfläche für Bedingungen | offen (M4.7) |
+| Verwaltungsoberfläche für Bedingungen | **umgesetzt** (M4.7) |
 
 **Der Ablauf erzwingt seit M4.3 Reihenfolge und Zuständigkeit.** Damit ist `PROD-052`
 geschlossen: Ein Übergang kann eine Rolle verlangen, das Vier-Augen-Prinzip durchsetzen,
@@ -463,11 +463,8 @@ Pflichtfelder und Feldwerte prüfen und eine Begründung fordern.
   „Freigeber für dieses Projekt". Der Objektbezug aus §8 kommt mit M5 – geführt unter
   `PROD-017`. Wer einen Genehmigungsablauf konfiguriert, hat keinen Anlass zu vermuten,
   dass die Rolle für sämtliche Projekte gilt.
-- **Bedingungen werden weiterhin über die API gepflegt, nicht über eine Oberfläche** –
-  `PROD-054`. Zustände, Übergänge und Betriebsart sind seit M4.6 im Verwaltungsbereich
-  pflegbar; die Bedingungen kommen mit M4.7. Der Editor **reicht sie unverändert durch** und
-  zeigt je Übergang ihre Anzahl – ohne das löschte jedes Speichern sie, weil `PUT` die
-  Definition vollständig ersetzt.
+Damit ist §7 auch im Betrieb erfüllt: Zustände, Übergänge und Bedingungen sind über den
+Verwaltungsbereich pflegbar, ohne Kenntnis von JSON und ohne Auslieferung (`PROD-054`).
 
 ---
 
