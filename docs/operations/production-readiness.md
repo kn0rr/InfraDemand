@@ -54,8 +54,8 @@ Das gilt für alle Beteiligten, einschließlich der KI in ihrer Beraterrolle
 | D – Daten | 6 | 3 | – |
 | E – Container und Lieferkette | 9 | 1 | **2** |
 | F – Betrieb und Verfügbarkeit | 6 | 1 | – |
-| G – Anwendungssicherheit | 10 | 1 | **2** |
-| **Gesamt** | **54** | **17** | **5** |
+| G – Anwendungssicherheit | 10 | 1 | **3** |
+| **Gesamt** | **54** | **17** | **6** |
 
 > **Nummern werden nicht neu vergeben.** `PROD-026` ist unbesetzt. Eine Lücke ist kein
 > Fehler – eine wiederverwendete Nummer wäre einer, weil Verweise aus ADRs, Commits und
@@ -1112,7 +1112,7 @@ stellt sich die Frage neu – ein Anwender sähe dann die Genehmigungsstruktur *
 Mandanten**. Der Eintrag ist mit M5 erneut zu bewerten und nicht vorher zu schließen.
 
 #### PROD-054 — Workflows sind nur über die Schnittstelle konfigurierbar
-**Schwere:** Mittel · **Status:** Offen · **Betrifft:** §7 · **Verweis:** Meilenstein M4.6
+**Schwere:** Mittel · **Status:** ~~Offen~~ **Erledigt (2026-08-12)** · **Betrifft:** §7 · **Verweis:** Meilensteine M4.6, M4.7
 
 §7 verlangt, dass Workflows „über Admin-UI/Config statt Redeploy" konfiguriert werden. Die
 Definitionen **sind** Fachdaten und ohne Redeploy änderbar – aber es gibt keine
@@ -1150,6 +1150,22 @@ mit Auswahllisten darstellbar, ohne freien Ausdruck.
 >
 > Damit ist der schwerwiegendere Teil offen: Genau die Bedingungen tragen die
 > Genehmigungsstrecke. Sie kommen als eigener Schritt.
+
+> **Geschlossen am 2026-08-12 mit M4.7.**
+>
+> Bedingungen sind über einen Dialog je Übergang pflegbar: sechs Anforderungsarten, sechs
+> Vergleiche, Vorbehalte als eigene Liste. Damit ist §7 auch im Betrieb erfüllt – ein Ablauf
+> lässt sich ohne Auslieferung ändern, und zwar von jemandem, der weder JSON noch das
+> Vokabular aus ADR-0024 beherrschen muss.
+>
+> **Was der Editor bewusst nicht tut:** Er prüft den Graphen nicht vor. Sackgassen,
+> unerreichbare Zustände, unbekannte Felder und der Vier-Augen-Bezug werden beim Speichern
+> geprüft, und die Meldung nennt die Fundstelle. Eine zweite Prüfung im Browser wäre eine
+> zweite Fassung derselben Regeln – und läge bei der ersten Abweichung falsch.
+>
+> Die Vorschlagsliste der Feldnamen führt die Kernfelder als Kopie; der Contract weist sie
+> nicht als Aufzählung aus. Fehlt dort künftig eines, fehlt es als **Vorschlag**, nicht als
+> Möglichkeit – eingeben lässt sich jedes Feld, und geprüft wird beim Speichern.
 
 #### PROD-049 — Das Tor für inkompatible Änderungen sieht nur das Schema
 **Schwere:** Mittel · **Status:** Offen · **Betrifft:** §12 · **Fundstelle:** `.github/workflows/ci.yml`, Job `lint`, Schritt „Inkompatible Contract-Aenderungen pruefen"

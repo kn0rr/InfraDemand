@@ -191,7 +191,7 @@ nacheinander. Die Begründung steht in
 | **M1** | Walking Skeleton Requirement Service: Kernentität, Authentifizierung, Persistenz, Versionshistorie, OpenAPI-Contract | abgeschlossen |
 | **M2** | Frontend-Durchstich: Anmeldung, Liste, Anlegen, generierter API-Client | abgeschlossen |
 | **M3** | Dynamisches Attributmodell (§6) und Datenhoheit (§19.3) | abgeschlossen |
-| **M4** | Workflow-Engine (§7) | laufend |
+| **M4** | Workflow-Engine (§7) | abgeschlossen |
 | **M5** | Feingranulares Berechtigungsmodell (§8), Identity & Access Service | offen |
 | **M6** | Infrastructure Service, Bereitstellungskategorien und Service-Katalog (§17, §18) | offen |
 | **M7** | Capacity Service, Overhead-Berechnung und Forecasting (§9, §18) | offen |
@@ -281,7 +281,7 @@ M4 setzt §7 um – konfigurierbare Workflows als Zustandsgraph.
 | **M4.4** | Umgang mit der gebundenen Fassung: Sichtbarkeit, Heben, Außerkraftsetzung | Eine Änderung der Definition wirkt nicht rückwirkend (§7) | abgeschlossen |
 | **M4.5** | Oberfläche für den Erfasser: zulässige Übergänge als Schaltflächen statt eines freien Statusfeldes | Die Zustände kommen aus den Daten, nicht aus dem Code | abgeschlossen |
 | **M4.6** | Oberfläche für den Administrator: Workflows und Verwaltungsvorgänge | §7 verlangt Konfiguration statt Redeploy – ohne sie bleibt „konfigurierbar" eine Behauptung | abgeschlossen |
-| **M4.7** | Oberfläche für Bedingungen an Übergängen | Auch die Genehmigungsstrecke ist ohne Auslieferung änderbar | offen |
+| **M4.7** | Oberfläche für Bedingungen an Übergängen | Auch die Genehmigungsstrecke ist ohne Auslieferung änderbar | abgeschlossen |
 
 **M4.2 war der unbequeme Schritt** und die erste **inkompatible Änderung mit echter
 Verhaltensänderung**: Anders als bei den Contract-Korrekturen aus M3 verhält sich der
