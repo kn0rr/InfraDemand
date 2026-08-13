@@ -28,6 +28,13 @@ export class RequirementResponse {
 
   @ApiProperty({ example: "feature" })
   requirementType!: string;
+  @ApiProperty({
+    example: "t-eins",
+    description:
+      "Mandant, dem die Anforderung gehoert (§15). Er entscheidet, wer sie sehen und " +
+      "aendern darf (ADR-0026).",
+  })
+  tenant!: string;
 
   @ApiProperty({
     type: RequirementWorkflowResponse,

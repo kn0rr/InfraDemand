@@ -1,0 +1,15 @@
+# Ausnahmen von der Kompatibilitaetspruefung (ADR-0027).
+#
+# Je Zeile genau eine inkompatible Aenderung: Verfahren, Pfad und Meldungstext, so wie
+# oasdiff sie ausgibt. Darueber als Kommentar Datum, Meilenstein und Grund.
+#
+# Kommentarzeilen treffen auf keine Meldung zu und wirken nicht als Freibrief.
+# Eine Zeile deckt genau die benannte Aenderung - schon ein anderer Feldname greift nicht.
+#
+# Der Mechanismus endet mit dem ersten Konsumenten ausserhalb dieses Repositories
+# (ADR-0027 Punkt 5). Dann wird diese Datei geleert.
+
+# 2026-08-13, M5.1: Der Mandant ist Pflicht ohne Vorgabewert (ADR-0026 Punkt 3). Ein
+# erfundener Rueckfallwert waere die falsche Antwort auf die erste Frage nach
+# Mandantenfaehigkeit. Ausserhalb dieses Repositories besteht kein Konsument.
+api POST /v1/requirements added the new required request property `tenant`

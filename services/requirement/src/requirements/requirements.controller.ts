@@ -42,7 +42,9 @@ export class RequirementsController {
   @Get()
   @ApiOperation({
     summary: "Anforderungen auflisten",
-    description: "Ohne asOf der aktuelle Bestand, mit asOf der Zustand zum Stichtag (§19.4).",
+    description:
+      "Ohne asOf der aktuelle Bestand, mit asOf der Zustand zum Stichtag (§19.4). " +
+      "Liefert ausschliesslich Anforderungen der eigenen Mandanten (§15, ADR-0026).",
   })
   @ApiQuery({
     name: "asOf",
@@ -55,8 +57,11 @@ export class RequirementsController {
   })
   @ApiResponse({ status: 200, type: [RequirementResponse], description: "Bestand" })
   @ApiResponse({ status: 400, description: "Unlesbarer Stichtag" })
-  findAll(@Query() abfrage: ListRequirementsQuery): Promise<RequirementResponse[]> {
-    return this.service.findAll(abfrage.asOf);
+  findAll(
+    @Query() abfrage: ListRequirementsQuery,
+    @CurrentUser() benutzer: AuthenticatedUser,
+  ): Promise<RequirementResponse[]> {
+    return this.service.findAll(abfrage.asOf, benutzer);
   }
 
   @Get("holds")
@@ -84,8 +89,18 @@ export class RequirementsController {
   @ApiParam({ name: "id", schema: { type: "string", format: "uuid" } })
   @ApiResponse({ status: 200, type: [RequirementVersionResponse], description: "Alle Versionen" })
   @ApiResponse({ status: 400, description: "Unlesbare Kennung" })
-  findVersions(@Param("id", ParseUUIDPipe) id: string): Promise<RequirementVersionResponse[]> {
-    return this.service.findVersions(id);
+  @ApiResponse({
+    status: 404,
+    description:
+      "Anforderung existiert nicht oder gehoert einem fremden Mandanten - beides sieht " +
+      "gleich aus. Dass ein Datensatz existiert, waere bereits eine Auskunft ueber den " +
+      "anderen Mandanten (ADR-0026).",
+  })
+  findVersions(
+    @Param("id", ParseUUIDPipe) id: string,
+    @CurrentUser() benutzer: AuthenticatedUser,
+  ): Promise<RequirementVersionResponse[]> {
+    return this.service.findVersions(id, benutzer);
   }
 
   @Post()

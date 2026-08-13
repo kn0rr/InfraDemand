@@ -54,4 +54,16 @@ export class CreateRequirementDto {
   @IsOptional()
   @IsObject()
   dynamicAttributes?: Record<string, unknown>;
+
+  @ApiProperty({
+    example: "t-eins",
+    maxLength: 100,
+    description:
+      "Mandant, dem die Anforderung gehoert (§15). Muss einer der eigenen sein - er " +
+      "bestimmt, wer sie spaeter sehen und aendern darf (ADR-0026).",
+  })
+  @IsString()
+  @MinLength(1)
+  @MaxLength(100)
+  tenant!: string;
 }

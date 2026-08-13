@@ -30,6 +30,7 @@ describe("Zeitliche Zusicherung der Versionierung", () => {
       azp: "frontend",
       preferred_username: "test.admin",
       realm_access: { roles: ["platform-admin", "requirement-author"] },
+      tenants: ["t-eins"],
     });
 
     pool = new Pool({ connectionString: database.connectionString });
@@ -80,7 +81,7 @@ describe("Zeitliche Zusicherung der Versionierung", () => {
       .send({
         projectId: "11111111-1111-4111-8111-111111111111",
         requirementType: "feature",
-
+        tenant: "t-eins",
         owner: "test.admin",
         sourceSystem: "sap",
         externalId: "A-1",

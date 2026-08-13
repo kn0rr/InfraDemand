@@ -50,12 +50,12 @@ Das gilt für alle Beteiligten, einschließlich der KI in ihrer Beraterrolle
 | A – Transportverschlüsselung und Netzwerk | 7 | 5 | – |
 | *davon Voraussetzung für ADR-0013:* | `PROD-006`, `PROD-007`, `PROD-032` | | |
 | B – Geheimnisse und Zugangsdaten | 5 | 4 | **1** |
-| C – Identität und Zugriff | 11 | 2 | – |
-| D – Daten | 6 | 3 | – |
+| C – Identität und Zugriff | 12 | 2 | – |
+| D – Daten | 7 | 3 | – |
 | E – Container und Lieferkette | 9 | 1 | **2** |
 | F – Betrieb und Verfügbarkeit | 6 | 1 | – |
 | G – Anwendungssicherheit | 10 | 1 | **3** |
-| **Gesamt** | **54** | **17** | **6** |
+| **Gesamt** | **56** | **17** | **6** |
 
 > **Nummern werden nicht neu vergeben.** `PROD-026` ist unbesetzt. Eine Lücke ist kein
 > Fehler – eine wiederverwendete Nummer wäre einer, weil Verweise aus ADRs, Commits und
@@ -478,6 +478,29 @@ Modell erzeugt regelmäßig zweistellige Rollenzahlen. Mit dem zweiten Service k
 Zielgruppe und dessen Rollen hinzu. Nach ADR-0015 kommen bei vermittelten Anwendern
 Merkmale der Ursprungsquelle dazu.
 
+> **Ergänzt am 2026-08-13 mit M5.1.** Die Sitzung führt jetzt zusätzlich die
+> Mandantenzugehörigkeiten (`mandanten`), weil das Anlageformular eine Auswahl braucht und
+> der Anspruch nur im Token steht. Die Steigung oben gilt sinngemäß: **rund 48 Byte je
+> Mandant**, dazu derselbe Wert ein zweites Mal, weil `tenants` auch im Zugriffstoken
+> selbst steht.
+>
+> Bei einem Mandanten ist das folgenlos. Die Rechnung ändert sich mit §15: Ein Anwender in
+> zehn Mandanten kostet rund 1000 Byte – **den gesamten verbleibenden Spielraum**, ohne
+> eine einzige zusätzliche Rolle. Damit ist die Mandantenfähigkeit neben dem
+> Rollenmodell der zweite Wachstumspfad, und beide wachsen multiplikativ, nicht additiv:
+> Rollen je Mandant ist die realistische Ausbaustufe.
+>
+> **Die Messung oben ist damit veraltet und vor M6 zu wiederholen.** Sie stammt aus M2.3
+> und kennt weder die Mandanten noch den zweiten Service.
+>
+> Wichtiger als die Tabelle ist die automatische Prüfung in
+> `frontend/test/sitzungsgroesse.integration.spec.ts`. Sie baut den Sitzungsinhalt
+> **nach** – „derselbe Inhalt, den der Rückruf schreibt" – und misst ihn. Diese
+> Entsprechung hält keine Übersetzung und kein Test aufrecht: Wer dem Rückruf ein Feld
+> hinzufügt und dem Prüfaufbau nicht, misst weiter die alte Sitzung und bekommt grün.
+> **Jedes neue Feld in `Sitzungsinhalt` gehört in denselben Arbeitsschritt in diesen
+> Prüfaufbau.**
+
 Dritte, kleinere Wirkung: Das Cookie wird bei **jeder** Anfrage an denselben Ursprung
 mitgeschickt, auch für statische Dateien unter `/_next/static/`. Drei Kilobyte je Anfrage
 sind kein Beinbruch, aber ein zusätzliches Argument gegen die zustandslose Ablage.
@@ -506,6 +529,36 @@ M2.4, gemeinsam mit den Tests des Weiterleitungspfads.
 PostgreSQL, das ohnehin läuft – widerspricht [ADR-0002](../adr/0002-repository-struktur.md):
 Das Frontend hat bewusst keine eigene Datenhaltung. Die Entscheidung braucht daher ein
 eigenes ADR und ist im Index der vertagten Entscheidungen geführt.
+
+#### PROD-056 — Mandantenspezifische Konfiguration ist lesbar, aber über keine Schnittstelle anlegbar
+**Schwere:** Mittel · **Status:** Offen · **Betrifft:** §8, §15 · **Verweis:** [ADR-0026](../adr/0026-wirksamer-mandant-und-stufung-der-konfiguration.md) Punkt 4 · **Fundstelle:** `attribute-definitions.service.ts` `create`/`update`, `mastership.service.ts`, `workflows.service.ts`
+
+ADR-0026 Punkt 4 stuft die Konfiguration: plattformweite Vorgabe plus mandantenspezifische
+Ergänzung, für Attributdefinitionen, Hoheitsregeln und Workflow-Definitionen. Die Spalte
+steht in allen drei Tabellen, die Auflösung ist umgesetzt und mit Tests belegt.
+
+**Der Schreibpfad kennt sie nicht.** In allen drei Diensten kommt `tenant` ausschließlich in
+`findKandidaten` vor. Weder die Anlege-DTOs noch `create`/`update` reichen einen Mandanten
+durch, und die Verwaltungsoberfläche hat kein Feld dafür. Jede über die Schnittstelle oder
+die Oberfläche angelegte Definition ist damit plattformweit – **die zweite Stufe ist nur
+per direktem SQL erreichbar.** In den Integrationstests tut genau das der Testhelfer.
+
+Die Wirkung ist nicht „ein Feld fehlt", sondern: Von der Mandantenfähigkeit aus §15 ist der
+Teil umgesetzt, der Daten trennt, und der Teil nicht umgesetzt, der Fachlichkeit trennt –
+also der, dessentwegen die Entscheidung überhaupt getroffen wurde. Die verworfene
+Alternative „Konfiguration ausschließlich plattformweit" beschreibt den heutigen Zustand
+genauer als die getroffene Entscheidung.
+
+**Gefährlich ist die Erscheinungsform**, dasselbe Muster wie bei `PROD-052` und der
+Freigaberolle in `PROD-017`: Die Auflösung funktioniert, die Tests sind grün, das ADR ist
+angenommen. Wer die Stufung für nutzbar hält, findet drei Belege dafür und keinen dagegen.
+
+**Zielzustand:** `tenant` in den Anlege- und Änderungs-DTOs der drei Konfigurationsobjekte,
+mit Prüfung gegen die Zugehörigkeiten im Token – ein platform-admin darf für einen fremden
+Mandanten nichts festlegen –, und ein Feld in der Verwaltungsoberfläche. **Vor Abschluss von
+M5**, sonst schließt der Meilenstein mit einer Zusicherung, die nur auf dem Lesepfad gilt.
+Die Anzeige der tatsächlich geltenden Definition ist davon getrennt und in ADR-0026 zu M5.4
+geführt.
 
 ---
 
@@ -619,6 +672,39 @@ Schemaänderungen zur Laufzeit.
 
 **Zielzustand:** Trennung zwischen Migrationsrolle (Schemaänderung) und Laufzeitrolle
 (nur Datenzugriff). Damit kann eine kompromittierte Anwendung das Schema nicht verändern.
+
+#### PROD-057 — Migration 0011 ist auf eine Tabelle mit Inhalt nicht anwendbar
+**Schwere:** Mittel · **Status:** Offen · **Betrifft:** §14, §19.4 · **Verweis:** [ADR-0026](../adr/0026-wirksamer-mandant-und-stufung-der-konfiguration.md) Punkt 3 · **Fundstelle:** `services/requirement/drizzle/0011_stale_weapon_omega.sql`, Zeilen 9–10
+
+```sql
+ALTER TABLE "requirement" ADD COLUMN "tenant" text NOT NULL;
+```
+
+Ohne `DEFAULT` und ohne Rückfüllung. PostgreSQL weist das auf einer Tabelle mit Zeilen ab
+(*column "tenant" contains null values*). Die Migration setzt eine leere Tabelle voraus.
+
+**Bemerkt wurde es nicht**, weil beide Umgebungen, in denen sie bisher lief, diese
+Voraussetzung erfüllen: die Entwicklungsdatenbank war leer, und die CI setzt je Lauf eine
+frische auf. Eine Migration, die nur gegen leere Datenbanken erprobt wird, sagt nichts
+darüber aus, ob sie einen Bestand überlebt – und das gilt für **jede** Migration in diesem
+Verzeichnis, nicht nur für diese.
+
+**Ein ehrlicher Rückfüllwert existiert nicht.** ADR-0026 Punkt 3 verwirft einen
+Vorgabewert ausdrücklich: „Ein Wert wie ‚standard' wäre ein erfundener Mandant, und die
+erste Frage nach Mandantenfähigkeit hätte eine falsche Antwort." Diese Begründung gilt für
+die Rückfüllung unverändert. Die Migration ist damit fachlich richtig und auf gefüllten
+Daten unbrauchbar – ein Widerspruch, der sich nicht im Schema auflösen lässt, sondern nur
+durch eine Entscheidung darüber, welchem Mandanten Altbestand zugerechnet wird.
+
+**Zielzustand:** Zwei Punkte, und der zweite wiegt schwerer.
+
+1. Für diese Migration eine Zuordnungsregel für Altbestand, bevor die erste Umgebung
+   Daten führt, die ein Deployment überleben müssen. Ohne Altbestand ist nichts zu tun –
+   die Frage stellt sich erst mit ihm.
+2. **Migrationen gegen einen gefüllten Stand prüfen, nicht nur gegen eine leere
+   Datenbank.** Ein Testlauf, der einen Bestand anlegt, dann die Migration fährt, deckt
+   diese Klasse von Fehlern auf. Ohne ihn fällt sie erst bei der Bereitstellung auf, und
+   dann in der Umgebung, in der sie am teuersten ist.
 
 ---
 
@@ -1232,6 +1318,32 @@ gar keines: Es erzeugt Vertrauen für den Bereich, den es nicht prüft.
 > Damit hat die Prüfliste eine dritte Art von Änderung: **verschärfte Berechtigungen.** Sie
 > sind besonders unauffällig, weil sie weder im Schema noch im Code des Aufrufers sichtbar
 > werden – der bekommt eines Tages 403 und weiß nicht, warum.
+
+> **Fünfter Fall am 2026-08-13 mit M5.1 – und erstmals eine Lockerung.**
+> [ADR-0026](../adr/0026-wirksamer-mandant-und-stufung-der-konfiguration.md) Punkt 5 legt
+> fest, dass je Schlüssel genau eine Attributdefinition gilt – die spezifischste. Bisher
+> liefen **alle** gelieferten Definitionen durch die Prüfung. Wer denselben Schlüssel
+> einmal allgemein und einmal je Anforderungstyp gepflegt hatte, bekam beide Prüfungen;
+> künftig nur noch eine.
+>
+> Am Contract ändert sich nichts – die Definitionen sind Fachdaten, das Schema kennt sie
+> ohnehin nicht. `oasdiff` blieb grün.
+>
+> **Der Unterschied zu den vier Fällen davor: Diese Änderung meldet sich nicht.** Eine
+> Verschärfung äußert sich als 400 an einer Stelle, an der vorher keine war – unangenehm,
+> aber sichtbar, und der Aufrufer weiß sofort, dass etwas anders ist. Eine Lockerung äußert
+> sich gar nicht: Eine Pflichtangabe, die bisher erzwungen wurde, wird stillschweigend
+> nicht mehr erzwungen, und der Datensatz geht durch. Auffallen kann das erst dort, wo das
+> Feld gebraucht wird – in einer Auswertung, einer Kapazitätsrechnung, einer Bestellung.
+>
+> Die Prüfliste aus dem Zielzustand braucht deshalb eine vierte Art von Änderung:
+> **entfallene Laufzeitprüfungen.** Sie sind die einzige der vier, für die es beim
+> Aufrufer überhaupt kein Signal gibt.
+>
+> Die Änderung ist hier bewusst und begründet – zwei Definitionen für denselben Schlüssel
+> konnten bislang eine unerfüllbare Verbindung ergeben, ohne dass irgendwo ein Fehler
+> entstand. Für den Entwicklungsbestand ist sie folgenlos, weil dort kein Schlüssel doppelt
+> gepflegt ist. Sie steht hier als Vorgang, nicht als Fehler.
 
 **Zielzustand:** Verschärfungen der Laufzeitprüfung gelten als inkompatible Änderung und
 sind wie Schemaänderungen zu behandeln – angekündigt, versioniert, im Änderungsprotokoll

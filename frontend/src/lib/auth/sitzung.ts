@@ -30,6 +30,15 @@ export interface Sitzungsinhalt {
    * Service gegen das Token - nie hier. Der BFF ist kein Berechtigungspunkt (§8).
    */
   rollen?: string[];
+
+  /**
+   * Mandanten, denen der Anwender angehoert (ADR-0026 Punkt 6).
+   *
+   * Wie `rollen` ausschliesslich zur Darstellung: Das Anlegeformular braucht eine Auswahl,
+   * und die Zugehoerigkeiten stehen im Token, das der Browser nie sieht. Durchgesetzt wird
+   * gegen das Token im Service - die Vorwahl hier kann nichts freigeben (ADR-0026 Punkt 2).
+   */
+  mandanten?: string[];
 }
 
 export const SITZUNGSDAUER_SEKUNDEN = 60 * 60 * 8;

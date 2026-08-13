@@ -192,10 +192,11 @@ nacheinander. Die Begründung steht in
 | **M2** | Frontend-Durchstich: Anmeldung, Liste, Anlegen, generierter API-Client | abgeschlossen |
 | **M3** | Dynamisches Attributmodell (§6) und Datenhoheit (§19.3) | abgeschlossen |
 | **M4** | Workflow-Engine (§7) | abgeschlossen |
-| **M5** | Feingranulares Berechtigungsmodell (§8), Identity & Access Service | offen |
-| **M6** | Infrastructure Service, Bereitstellungskategorien und Service-Katalog (§17, §18) | offen |
-| **M7** | Capacity Service, Overhead-Berechnung und Forecasting (§9, §18) | offen |
-| **M8** | Audit Service als eigenständiger Dienst, Reporting (§10), Visualisierung (§11) | offen |
+| **M5** | Feingranulares Berechtigungsmodell (§8) im Requirement Service | offen |
+| **M6** | Identity & Access Service als eigener Dienst (§5) – Mandanten, Service Accounts, Rollenverwaltung | offen |
+| **M7** | Infrastructure Service, Bereitstellungskategorien und Service-Katalog (§17, §18) | offen |
+| **M8** | Capacity Service, Overhead-Berechnung und Forecasting (§9, §18) | offen |
+| **M9** | Audit Service als eigenständiger Dienst, Reporting (§10), Visualisierung (§11) | offen |
 
 ### M1 im Detail
 
@@ -324,6 +325,52 @@ die es zu ihrer Zeit nicht gab.
 **Die seit [ADR-0001](../adr/0001-backend-sprache-und-framework.md) vertagte Wahl der
 Regel-Engine** fällt in M4.3 – nicht früher. Ob es überhaupt eine braucht, zeigt sich erst
 an den tatsächlich benötigten Bedingungen.
+
+### M5 im Detail
+
+M5 setzt §8 um – RBAC als Basis, ABAC für Objekt-, Feld- und Aktionsebene.
+
+**Der Meilenstein wurde geteilt.** Er hieß ursprünglich „Berechtigungsmodell **und**
+Identity & Access Service". Das sind zwei Vorhaben: §8 lässt sich im Requirement Service
+umsetzen, mit einer Policy-Engine daneben. Ein zweiter Dienst zieht dagegen sofort den
+Messaging-Backbone nach (Kafka gegen NATS), mTLS zwischen Diensten, eine zweite Datenbank
+und einen zweiten Contract – Infrastrukturarbeit, die mit §8 wenig zu tun hat. Sie ist
+jetzt M6; die übrigen Meilensteine rücken um eins.
+
+| | Inhalt | Beweist | Stand |
+|---|---|---|---|
+| **M5.1** | Der wirksame Mandant: Begriff, Herkunft, Zuschnitt am Datensatz | Eine Abfrage weiß, in wessen Namen sie läuft | abgeschlossen |
+| **M5.2** | Policy-Engine: Wahl, Anbindung, Regeln als versionierte Artefakte | Eine Berechtigung ist prüfbar und auditierbar, nicht verstreut | offen |
+| **M5.3** | Objektbezug: Zuständigkeit je Projekt, Kostenstelle, Mandant | Die Rolle am Workflow-Übergang gilt nicht mehr überall (`PROD-017`) | offen |
+| **M5.4** | Feldebene: Sichtbarkeit und Schreibbarkeit je Feld und Rolle (§6, §8) | Ein Feld ist für den einen sichtbar und für den anderen nicht | offen |
+| **M5.5** | Attributdatentyp „Person" | `identitaet` aus ADR-0024 wird benutzbar | offen |
+
+**M5.1 umfasst auch die Stufung der Konfiguration** ([ADR-0026](../adr/0026-wirksamer-mandant-und-stufung-der-konfiguration.md)
+Punkt 4 und 5): Attributdefinitionen, Hoheitsregeln und Workflows tragen einen Mandanten,
+und je Schlüssel gilt die spezifischste Definition. Die Auswahl liegt in
+`src/gemeinsam/spezifitaet.ts` – an einer Stelle, weil drei Bereiche sie brauchen.
+
+Der Zuschnitt am Datensatz hängt an genau zwei Stellen: `ausHerkunft` und `ausKennung` in
+`requirements.service.ts` sind die einzigen Punkte, an denen ein Datensatz nachgeschlagen
+wird. Beide prüfen die Zugehörigkeit und antworten für einen fremden Mandanten mit **404,
+nicht 403** – dass ein Datensatz existiert, ist selbst eine Auskunft.
+
+**Was daran offen bleibt: Die zweite Stufe ist über keine Schnittstelle anlegbar**
+(`PROD-056`). Nicht nur die Verwaltungsoberfläche hat kein Feld dafür – auch die Anlege-
+und Änderungs-DTOs der drei Konfigurationsobjekte reichen keinen Mandanten durch. `tenant`
+kommt in allen drei Diensten ausschließlich auf dem Lesepfad vor. Mandantenspezifische
+Definitionen entstehen heute nur per direktem SQL, wie es die Testhelfer tun. Das gehört
+vor den Abschluss von M5 behoben – vorher gilt die Zusicherung aus ADR-0026 Punkt 4 nur
+für das Lesen.
+
+**M5.1 steht am Anfang und nicht M5.2.** Der Mandantenbegriff bestimmt mit, was die Engine
+auswerten muss – nicht umgekehrt. [ADR-0017](../adr/0017-regelvokabular-der-datenhoheit-und-mandantenbegriff.md)
+Teil C hält fest, dass ein Anwender mehreren Mandanten angehören kann, und vertagt die
+Auflösung ausdrücklich. Ohne sie ist „Mandantenzuschnitt" nicht umsetzbar.
+
+**M5.4 berührt §12 unmittelbar.** Wenn ein Aufrufer manche Felder nicht sehen darf, fehlen
+sie in der Antwort – ein Vertrag, der sie als Pflichtfelder ausweist, wäre dann falsch. Die
+Frage, wie Feldebene und Contract zusammengehen, fällt dort und nicht früher.
 
 ### Warum diese Reihenfolge
 

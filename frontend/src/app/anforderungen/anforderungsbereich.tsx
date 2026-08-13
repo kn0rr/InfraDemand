@@ -8,6 +8,7 @@ import {
   Group,
   Loader,
   Paper,
+  Select,
   Stack,
   Table,
   Text,
@@ -34,9 +35,11 @@ function pflichtfeld(wert: string): string | null {
 export function Anforderungsbereich({
   benutzer,
   istAdmin,
+  mandanten,
 }: {
   benutzer: string;
   istAdmin: boolean;
+  mandanten: string[];
 }) {
   const anforderungen = useAnforderungen();
   const anlegen = useAnforderungAnlegen();
@@ -46,6 +49,7 @@ export function Anforderungsbereich({
   const formular = useForm<Formularwerte>({
     mode: "uncontrolled",
     initialValues: {
+      tenant: mandanten[0] ?? "",
       projectId: "",
       requirementType: "feature",
       owner: benutzer,
@@ -56,6 +60,7 @@ export function Anforderungsbereich({
     // werden hier bewusst **nicht** geprueft: Ihre Regeln stehen in den Definitionen, und
     // sie zweimal auszuformulieren hiesse, zwei Fassungen davon zu pflegen.
     validate: {
+      tenant: pflichtfeld,
       projectId: (wert) => (UUID_MUSTER.test(wert) ? null : "Keine gueltige UUID"),
       requirementType: pflichtfeld,
       owner: pflichtfeld,
@@ -133,6 +138,15 @@ export function Anforderungsbereich({
               </Title>
 
               <Group grow align="flex-start">
+                <Select
+                  label="Mandant"
+                  description="Wem die Anforderung gehoert"
+                  data={mandanten}
+                  allowDeselect={false}
+                  disabled={mandanten.length <= 1}
+                  key={formular.key("tenant")}
+                  {...formular.getInputProps("tenant")}
+                />
                 <TextInput
                   label="Projekt"
                   placeholder="11111111-1111-4111-8111-111111111111"

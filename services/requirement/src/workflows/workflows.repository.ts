@@ -4,7 +4,7 @@ import { DATABASE, type Database } from "../database/database.tokens";
 import { istEindeutigkeitsverletzung } from "../database/fehler";
 import {
   requirements,
-  WORKFLOW_REQUIREMENT_TYPE_CONSTRAINT,
+  WORKFLOW_TENANT_REQUIREMENT_TYPE_CONSTRAINT,
   type WorkflowDefinitionHistoryRow,
   type WorkflowDefinitionRow,
   workflowDefinitionHistory,
@@ -73,38 +73,26 @@ export class WorkflowsRepository {
   }
 
   /**
-   * Der fuer einen Anforderungstyp geltende Workflow: der typbezogene, sonst der
-   * allgemeine (`requirement_type IS NULL`). `NULLS LAST` sorgt dafuer, dass der
-   * typbezogene gewinnt.
+   * Alle Kandidaten fuer diesen Mandanten und diese Anforderungsart - plattformweite wie
+   * mandantenspezifische. **Die Auswahl trifft der Service** ueber `spezifischste`.
    *
-   * **Ohne Filter auf `active`, und das ist Absicht.** Wuerde hier gefiltert, fiele ein
-   * ausser Kraft gesetzter typbezogener Workflow lautlos auf den allgemeinen zurueck -
-   * die Anforderungen dieses Typs liefen ab dem Moment durch einen **anderen Graphen**,
-   * ohne dass jemand das angeordnet haette. Die Entscheidung, was ein inaktiver Workflow
-   * bedeutet, gehoert deshalb in die Service-Schicht, wo sie sichtbar ist.
-   *
-   * Unterscheidet damit anders als `findForRequirementType` bei den Attributdefinitionen,
-   * wo typbezogene und allgemeine Definitionen **beide** gelten. Hier gilt genau eine:
-   * Zwei Graphen fuer denselben Typ waeren nicht entscheidbar.
+   * Ohne Filter auf `active`, und das ist Absicht: Wuerde hier gefiltert, fiele ein ausser
+   * Kraft gesetzter Workflow lautlos auf einen anderen zurueck.
    */
-  async findForRequirementType(
-    requirementType: string,
-  ): Promise<WorkflowDefinitionRow | undefined> {
-    const [zeile] = await this.db
+  findKandidaten(tenant: string, requirementType: string): Promise<WorkflowDefinitionRow[]> {
+    return this.db
       .select()
       .from(workflowDefinitions)
       .where(
-        or(
-          eq(workflowDefinitions.requirementType, requirementType),
-          isNull(workflowDefinitions.requirementType),
+        and(
+          or(eq(workflowDefinitions.tenant, tenant), isNull(workflowDefinitions.tenant)),
+          or(
+            eq(workflowDefinitions.requirementType, requirementType),
+            isNull(workflowDefinitions.requirementType),
+          ),
         ),
-      )
-      .orderBy(sql`${workflowDefinitions.requirementType} nulls last`)
-      .limit(1);
-
-    return zeile;
+      );
   }
-
   /** Alle Versionen einer Definition, aelteste zuerst. */
   findVersions(id: string): Promise<WorkflowDefinitionHistoryRow[]> {
     return this.db
@@ -193,7 +181,7 @@ export class WorkflowsRepository {
         return zeile;
       });
     } catch (fehler) {
-      if (istEindeutigkeitsverletzung(fehler, WORKFLOW_REQUIREMENT_TYPE_CONSTRAINT)) {
+      if (istEindeutigkeitsverletzung(fehler, WORKFLOW_TENANT_REQUIREMENT_TYPE_CONSTRAINT)) {
         throw new DuplicateWorkflowRequirementTypeError(eingabe.requirementType);
       }
       throw fehler;

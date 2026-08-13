@@ -69,10 +69,11 @@ jobs:
             echo "Kein Vorgaengerstand im Zielbranch - Pruefung entfaellt."
             exit 0
           fi
+          cp .github/oasdiff-ausnahmen.txt /tmp/oasdiff/ausnahmen.txt
           docker run --rm \
             -v /tmp/oasdiff:/base:ro \
             -v "$PWD/docs/api:/rev:ro" \
-            tufin/oasdiff:v1.27.0@sha256:279f71b494c578f8c7038ce4f9bf5e876f6a4661c4793537a773a00184c79454 breaking /base/vorher.yaml /rev/requirement.openapi.yaml --fail-on ERR
+                 tufin/oasdiff:v1.27.0@sha256:279f71b494c578f8c7038ce4f9bf5e876f6a4661c4793537a773a00184c79454 breaking /base/vorher.yaml /rev/requirement.openapi.yaml --err-ignore /base/ausnahmen.txt --fail-on ERR
 
   realm:
     name: Keycloak-Realm validieren

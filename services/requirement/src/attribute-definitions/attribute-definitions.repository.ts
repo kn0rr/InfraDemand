@@ -3,7 +3,7 @@ import { and, asc, eq, isNull, or, sql } from "drizzle-orm";
 import { DATABASE, type Database } from "../database/database.tokens";
 import { istEindeutigkeitsverletzung } from "../database/fehler";
 import {
-  ATTRIBUTE_DEFINITION_KEY_TYPE_CONSTRAINT,
+  ATTRIBUTE_DEFINITION_TENANT_KEY_TYPE_CONSTRAINT,
   type AttributeDefinitionHistoryRow,
   type AttributeDefinitionRow,
   attributeDefinitionHistory,
@@ -52,16 +52,28 @@ export class AttributeDefinitionsRepository {
   }
 
   /**
-   * Die fuer einen Anforderungstyp geltenden Definitionen: die typbezogenen **und** die
-   * allgemeinen. Genau diese Menge braucht die Laufzeitpruefung in M3.3.
+   * Alle Kandidaten fuer diesen Mandanten und diese Anforderungsart - plattformweite wie
+   * mandantenspezifische, typbezogene wie allgemeine.
+   *
+   * **Die Auswahl trifft der Service** ueber `spezifischsteJe`: Je Schluessel gilt genau
+   * eine Definition, die spezifischste (ADR-0026 Punkt 5). Hier wird nur gefiltert.
    */
-  findForRequirementType(requirementType: string): Promise<AttributeDefinitionRow[]> {
+  findKandidaten(
+    tenant: string | null,
+    requirementType: string,
+  ): Promise<AttributeDefinitionRow[]> {
     return this.db
       .select()
       .from(attributeDefinitions)
       .where(
         and(
           eq(attributeDefinitions.active, true),
+          // Ohne Mandanten nur die plattformweiten: Ein plattformweiter Workflow darf
+          // kein Feld nennen, das nur ein Mandant hat - fuer alle uebrigen waere die
+          // Bedingung nicht auswertbar und der Uebergang gesperrt (ADR-0024 Punkt 7).
+          tenant === null
+            ? isNull(attributeDefinitions.tenant)
+            : or(eq(attributeDefinitions.tenant, tenant), isNull(attributeDefinitions.tenant)),
           or(
             eq(attributeDefinitions.requirementType, requirementType),
             isNull(attributeDefinitions.requirementType),
@@ -113,7 +125,7 @@ export class AttributeDefinitionsRepository {
         return zeile;
       });
     } catch (fehler) {
-      if (istEindeutigkeitsverletzung(fehler, ATTRIBUTE_DEFINITION_KEY_TYPE_CONSTRAINT)) {
+      if (istEindeutigkeitsverletzung(fehler, ATTRIBUTE_DEFINITION_TENANT_KEY_TYPE_CONSTRAINT)) {
         throw new DuplicateAttributeKeyError(eingabe.key, eingabe.requirementType);
       }
       throw fehler;

@@ -1,5 +1,5 @@
 import { Inject, Injectable } from "@nestjs/common";
-import { and, asc, eq, gt, isNull, lte, ne, or, sql } from "drizzle-orm";
+import { and, asc, eq, gt, inArray, isNull, lte, ne, or, sql } from "drizzle-orm";
 import { DATABASE, type Database } from "../database/database.tokens";
 import { istEindeutigkeitsverletzung } from "../database/fehler";
 import {
@@ -17,6 +17,11 @@ import { DuplicateExternalIdError, RequirementNotFoundError } from "./requiremen
 export interface RequirementCreateInput {
   projectId: string;
   requirementType: string;
+  /**
+   * Mandant, dem die Anforderung gehoert (ADR-0026 Punkt 3). Ermittelt der Service aus
+   * der Auswahl des Anwenders, geprueft gegen seine Zugehoerigkeiten im Token.
+   */
+  tenant: string;
   status: string;
   owner: string;
   sourceSystem: string;
@@ -70,10 +75,24 @@ export interface AbweisungsZusammenfassung {
 export class RequirementsRepository {
   constructor(@Inject(DATABASE) private readonly db: Database) {}
 
-  findAll(): Promise<RequirementRow[]> {
-    return this.db.select().from(requirements).orderBy(asc(requirements.createdAt));
-  }
+  /**
+   * Der aktuelle Bestand, beschraenkt auf die Mandanten des Aufrufers (ADR-0026 Punkt 1).
+   *
+   * Ohne Zugehoerigkeit eine leere Liste - nicht der gesamte Bestand. `inArray` mit leerer
+   * Liste ist in SQL keine sinnvolle Bedingung, und „kein Filter" waere hier die
+   * gefaehrlichste aller Auslegungen.
+   */
+  findAll(tenants: readonly string[]): Promise<RequirementRow[]> {
+    if (tenants.length === 0) {
+      return Promise.resolve([]);
+    }
 
+    return this.db
+      .select()
+      .from(requirements)
+      .where(inArray(requirements.tenant, [...tenants]))
+      .orderBy(asc(requirements.createdAt));
+  }
   /**
    * Bestand zu einem Stichtag. Genau eine Version je Datensatz erfuellt die Bedingung,
    * weil sich die Gueltigkeitszeitraeume nicht ueberlappen.
@@ -81,7 +100,10 @@ export class RequirementsRepository {
    * Geloeschte Datensaetze werden ausgeschlossen: Deren letzte Version traegt
    * operation = "delete" und beschreibt den Zustand "nicht mehr vorhanden".
    */
-  findAsOf(zeitpunkt: Date): Promise<RequirementHistoryRow[]> {
+  findAsOf(zeitpunkt: Date, tenants: readonly string[]): Promise<RequirementHistoryRow[]> {
+    if (tenants.length === 0) {
+      return Promise.resolve([]);
+    }
     return this.db
       .select()
       .from(requirementHistory)
@@ -89,6 +111,7 @@ export class RequirementsRepository {
         and(
           lte(requirementHistory.validFrom, zeitpunkt),
           or(gt(requirementHistory.validTo, zeitpunkt), isNull(requirementHistory.validTo)),
+          inArray(requirementHistory.tenant, [...tenants]),
           ne(requirementHistory.operation, "delete"),
         ),
       )
@@ -166,6 +189,7 @@ export class RequirementsRepository {
           .values({
             projectId: eingabe.projectId,
             requirementType: eingabe.requirementType,
+            tenant: eingabe.tenant,
             status: eingabe.status,
             owner: eingabe.owner,
             sourceSystem: eingabe.sourceSystem,
@@ -184,6 +208,7 @@ export class RequirementsRepository {
           id: zeile.id,
           projectId: zeile.projectId,
           requirementType: zeile.requirementType,
+          tenant: zeile.tenant,
           status: zeile.status,
           owner: zeile.owner,
           sourceSystem: zeile.sourceSystem,
@@ -299,6 +324,7 @@ export class RequirementsRepository {
         id: zeile.id,
         projectId: zeile.projectId,
         requirementType: zeile.requirementType,
+        tenant: zeile.tenant,
         status: zeile.status,
         owner: zeile.owner,
         sourceSystem: zeile.sourceSystem,

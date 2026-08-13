@@ -7,6 +7,7 @@ import {
 import { AttributeDefinitionsService } from "../attribute-definitions/attribute-definitions.service";
 import type { AuthenticatedUser } from "../auth/jwt.strategy";
 import type { WorkflowDefinitionHistoryRow, WorkflowDefinitionRow } from "../database/schema";
+import { spezifischste } from "../gemeinsam/spezifitaet";
 import { KERNFELDER } from "../requirements/feldherkunft";
 import type { CreateWorkflowDefinitionDto } from "./create-workflow-definition.dto";
 import { genannteFelder, pruefeGraph, unerreichbareZustaende } from "./graph-pruefung";
@@ -47,8 +48,8 @@ export class WorkflowsService {
   }
 
   /**
-   * Der Workflow, gegen den ein Statuswechsel dieses Anforderungstyps zu pruefen ist.
-   *
+   * Der Workflow, gegen den ein Statuswechsel zu pruefen ist - der spezifischste fuer
+   * diesen Mandanten und diese Anforderungsart (ADR-0026 Punkt 5).
    * **Ein ausser Kraft gesetzter Workflow bedeutet "keiner", nicht "der allgemeine".**
    * Das Repository liefert bewusst auch inaktive Zeilen; hier faellt die Entscheidung.
    * Wuerde stattdessen auf den allgemeinen zurueckgefallen, liefen die Anforderungen
@@ -57,8 +58,11 @@ export class WorkflowsService {
    *
    * Was ein fehlender Workflow fuer den Statuswechsel heisst, entscheidet M4.2.
    */
-  async geltenderWorkflow(requirementType: string): Promise<GeltenderWorkflow | undefined> {
-    const zeile = await this.repository.findForRequirementType(requirementType);
+  async geltenderWorkflow(
+    tenant: string,
+    requirementType: string,
+  ): Promise<GeltenderWorkflow | undefined> {
+    const zeile = spezifischste(await this.repository.findKandidaten(tenant, requirementType));
 
     if (zeile === undefined || !zeile.active) {
       return undefined;
@@ -92,6 +96,7 @@ export class WorkflowsService {
     // die allgemeinen Definitionen. Das ist fuer einen allgemeinen Workflow das
     // Richtige, und "" kann kein echter Typ sein (MinLength(1) im DTO).
     const definitionen = await this.attributeDefinitions.geltendeDefinitionen(
+      null,
       requirementType ?? "",
     );
 

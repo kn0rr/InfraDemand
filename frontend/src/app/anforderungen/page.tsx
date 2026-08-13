@@ -19,6 +19,7 @@ export default async function AnforderungenSeite() {
     <Anforderungsbereich
       benutzer={sitzung.benutzername ?? ""}
       istAdmin={(sitzung.rollen ?? []).includes("platform-admin")}
+      mandanten={sitzung.mandanten ?? []}
     />
   );
 }

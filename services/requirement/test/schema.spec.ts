@@ -19,6 +19,7 @@ describe("Eindeutigkeit von Herkunft und externem Bezeichner", () => {
   const basis = () => ({
     projectId: "11111111-1111-4111-8111-111111111111",
     requirementType: "feature",
+    tenant: "t-eins",
     status: "neu",
     owner: "test.author",
     workflowDefinitionId: workflow.id,

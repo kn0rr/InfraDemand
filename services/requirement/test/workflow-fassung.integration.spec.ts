@@ -19,6 +19,7 @@ describe("Gebundene Workflow-Fassung (ADR-0025)", () => {
 
   const anlage = {
     projectId: "11111111-1111-4111-8111-111111111111",
+    tenant: "t-eins",
     requirementType: "feature",
     owner: "M. Weber",
     sourceSystem: "sap",
@@ -43,11 +44,12 @@ describe("Gebundene Workflow-Fassung (ADR-0025)", () => {
     process.env["KEYCLOAK_AUDIENCE"] = "requirement-api";
     process.env["DATABASE_URL"] = database.connectionString;
 
-    alsMensch = jwks.sign({ sub: "benutzer-1", azp: "frontend" });
+    alsMensch = jwks.sign({ sub: "benutzer-1", azp: "frontend", tenants: ["t-eins"] });
     alsAdmin = jwks.sign({
       sub: "admin-1",
       azp: "frontend",
       realm_access: { roles: ["platform-admin"] },
+      tenants: ["t-eins"],
     });
 
     pool = new Pool({ connectionString: database.connectionString });

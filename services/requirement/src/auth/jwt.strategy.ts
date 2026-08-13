@@ -9,6 +9,7 @@ export interface JwtPayload {
   azp?: string;
   preferred_username?: string;
   realm_access?: { roles?: string[] };
+  tenants?: string[];
 }
 
 export interface AuthenticatedUser {
@@ -17,6 +18,13 @@ export interface AuthenticatedUser {
   /** Client, der das Token angefordert hat (azp). Grundlage von change_source. */
   clientId: string;
   roles: string[];
+  /**
+   * Mandanten, denen dieser Anwender angehoert (ADR-0017 C2, ADR-0026 Punkt 6).
+   *
+   * Nur ein Anspruch aus dem Token - es gibt keine Liste gueltiger Mandanten, gegen die
+   * geprueft werden koennte. Woher der Anspruch stammt, entscheidet M6.
+   */
+  tenants: string[];
 }
 
 @Injectable()
@@ -49,6 +57,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       username: payload.preferred_username ?? payload.sub,
       clientId: payload.azp ?? "unbekannt",
       roles: payload.realm_access?.roles ?? [],
+      tenants: payload.tenants ?? [],
     };
   }
 }

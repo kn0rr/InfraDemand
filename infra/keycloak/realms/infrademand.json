@@ -51,6 +51,19 @@
             "access.token.claim": "true",
             "id.token.claim": "false"
           }
+        },
+        {
+          "name": "tenants",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "config": {
+            "user.attribute": "tenants",
+            "claim.name": "tenants",
+            "jsonType.label": "String",
+            "multivalued": "true",
+            "access.token.claim": "true",
+            "id.token.claim": "false"
+          }
         }
       ]
     },
@@ -73,6 +86,19 @@
             "access.token.claim": "true",
             "id.token.claim": "false"
           }
+        },
+        {
+          "name": "tenants",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "config": {
+            "user.attribute": "tenants",
+            "claim.name": "tenants",
+            "jsonType.label": "String",
+            "multivalued": "true",
+            "access.token.claim": "true",
+            "id.token.claim": "false"
+          }
         }
       ]
     }
@@ -87,7 +113,8 @@
       "lastName": "Author",
       "email": "test.author@example.local",
       "credentials": [{ "type": "password", "value": "test", "temporary": false }],
-      "realmRoles": ["requirement-author"]
+      "realmRoles": ["requirement-author"],
+      "attributes": { "tenants": ["t-eins", "t-zwei"] }
     },
     {
       "username": "test.admin",
@@ -103,7 +130,8 @@
           "temporary": false
         }
       ],
-      "realmRoles": ["platform-admin"]
+      "realmRoles": ["platform-admin"],
+      "attributes": { "tenants": ["t-eins", "t-zwei"] }
     }
   ]
 }

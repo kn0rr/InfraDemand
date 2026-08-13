@@ -28,6 +28,7 @@ export interface Workflowvorgabe {
   initialState: string;
   states: unknown[];
   transitions: unknown[];
+  tenant: string | null;
 }
 
 export async function registriereWorkflow(
@@ -38,6 +39,7 @@ export async function registriereWorkflow(
   const vorgabe: Workflowvorgabe = {
     mode: "internal",
     initialState: "neu",
+    tenant: null,
     states: [
       { key: "neu", label: "Neu" },
       { key: "in_pruefung", label: "In Pruefung" },
@@ -52,13 +54,14 @@ export async function registriereWorkflow(
 
   const { rows } = await pool.query<{ id: string; version: number }>(
     `INSERT INTO workflow_definition
-       (label, requirement_type, mode, initial_state, states, transitions)
-     VALUES ($1, $2, $3, $4, $5::jsonb, $6::jsonb)
-     ON CONFLICT ON CONSTRAINT workflow_definition_requirement_type_uq
+       (label, tenant, requirement_type, mode, initial_state, states, transitions)
+     VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7::jsonb)
+      ON CONFLICT ON CONSTRAINT workflow_definition_tenant_requirement_type_uq
        DO UPDATE SET label = EXCLUDED.label
      RETURNING id, version`,
     [
       requirementType === null ? "Allgemeiner Ablauf" : `Ablauf ${requirementType}`,
+      vorgabe.tenant,
       requirementType,
       vorgabe.mode,
       vorgabe.initialState,
@@ -77,10 +80,10 @@ export async function registriereWorkflow(
   // Historie nicht von dem abweichen, was tatsaechlich gespeichert wurde.
   await pool.query(
     `INSERT INTO workflow_definition_history
-       (id, label, requirement_type, mode, initial_state, states, transitions, active,
+      (id, label, tenant, requirement_type, mode, initial_state, states, transitions, active,
         created_at, updated_at, version, valid_from, valid_to, operation,
         changed_by, change_source)
-     SELECT id, label, requirement_type, mode, initial_state, states, transitions, active,
+          SELECT id, label, tenant, requirement_type, mode, initial_state, states, transitions, active,
             created_at, updated_at, version, updated_at, NULL, 'insert',
             'test-fixture', 'test-fixture'
        FROM workflow_definition

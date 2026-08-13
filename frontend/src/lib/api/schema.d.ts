@@ -158,7 +158,7 @@ export interface paths {
         };
         /**
          * Anforderungen auflisten
-         * @description Ohne asOf der aktuelle Bestand, mit asOf der Zustand zum Stichtag (§19.4).
+         * @description Ohne asOf der aktuelle Bestand, mit asOf der Zustand zum Stichtag (§19.4). Liefert ausschliesslich Anforderungen der eigenen Mandanten (§15, ADR-0026).
          */
         get: operations["RequirementsController_findAll_v1"];
         put?: never;
@@ -641,6 +641,11 @@ export interface components {
              * @example sap
              */
             sourceSystem?: string;
+            /**
+             * @description Mandant, dem die Anforderung gehoert (§15). Muss einer der eigenen sein - er bestimmt, wer sie spaeter sehen und aendern darf (ADR-0026).
+             * @example t-eins
+             */
+            tenant: string;
         };
         CreateWorkflowDefinitionDto: {
             /** @example neu */
@@ -787,6 +792,11 @@ export interface components {
              * @example neu
              */
             status: string;
+            /**
+             * @description Mandant, dem die Anforderung gehoert (§15). Er entscheidet, wer sie sehen und aendern darf (ADR-0026).
+             * @example t-eins
+             */
+            tenant: string;
             /** Format: date-time */
             updatedAt: string;
             /** @example 1 */
@@ -830,6 +840,11 @@ export interface components {
              * @example neu
              */
             status: string;
+            /**
+             * @description Mandant, dem die Anforderung gehoert (§15). Er entscheidet, wer sie sehen und aendern darf (ADR-0026).
+             * @example t-eins
+             */
+            tenant: string;
             /** Format: date-time */
             updatedAt: string;
             /** Format: date-time */
@@ -2051,6 +2066,13 @@ export interface operations {
             };
             /** @description Kein oder ungueltiges Token */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Anforderung existiert nicht oder gehoert einem fremden Mandanten - beides sieht gleich aus. Dass ein Datensatz existiert, waere bereits eine Auskunft ueber den anderen Mandanten (ADR-0026). */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
