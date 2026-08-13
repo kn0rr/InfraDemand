@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
@@ -97,10 +98,7 @@ export class RequirementsService {
     eingabe: PatchRequirementDto,
     benutzer: AuthenticatedUser,
   ): Promise<RequirementResponse> {
-    const bestand = await this.repository.findBySource(sourceSystem, externalId);
-    if (bestand === undefined) {
-      throw new NotFoundException(new RequirementNotFoundError(sourceSystem, externalId).message);
-    }
+    const bestand = await this.ausHerkunft(sourceSystem, externalId, benutzer);
 
     const klasse = await this.schreibendeKlasse(benutzer);
     const bisher = feldwerte(bestand);
@@ -160,7 +158,10 @@ export class RequirementsService {
 
     // Geprueft wird der Zustand **nach** Zusammenfuehrung und Festhaltung, nicht der
     // Rumpf. Sonst faellt ein Pflichtfeld nicht auf, das im Bestand fehlt.
-    const definitionen = await this.attributeDefinitions.geltendeDefinitionen(kern.requirementType);
+    const definitionen = await this.attributeDefinitions.geltendeDefinitionen(
+      bestand.tenant,
+      kern.requirementType,
+    );
     const pruefung = pruefeDynamischeAttribute(alsDynamisch(gewuenscht), definitionen);
 
     if (pruefung.fehler.length > 0) {
@@ -172,7 +173,7 @@ export class RequirementsService {
       });
     }
 
-    const regeln = await this.mastership.regeln();
+    const regeln = await this.mastership.regeln(bestand.tenant);
     const quellen = await this.sourceSystems.klassenkarte();
     const versionen = await this.repository.findVersions(bestand.id);
     const staende = versionen.map((version) => ({
@@ -208,7 +209,7 @@ export class RequirementsService {
     const workflowBindung =
       kern.requirementType === bestand.requirementType
         ? undefined
-        : await this.bindungFuer(kern.requirementType);
+        : await this.bindungFuer(bestand.tenant, kern.requirementType);
 
     const zeile = await this.repository.update(bestand.id, {
       ...kern,
@@ -229,17 +230,27 @@ export class RequirementsService {
    * der Historie. Beide Wege muessen fuer "jetzt" dasselbe Ergebnis liefern - das prueft
    * der Test "Stichtag jetzt entspricht dem aktuellen Bestand".
    */
-  async findAll(stichtag?: string): Promise<RequirementResponse[]> {
+  async findAll(
+    stichtag: string | undefined,
+    benutzer: AuthenticatedUser,
+  ): Promise<RequirementResponse[]> {
     const zeilen =
       stichtag === undefined
-        ? await this.repository.findAll()
-        : await this.repository.findAsOf(new Date(stichtag));
+        ? await this.repository.findAll(benutzer.tenants)
+        : await this.repository.findAsOf(new Date(stichtag), benutzer.tenants);
 
     return zeilen.map(RequirementsService.toResponse);
   }
 
-  async findVersions(id: string): Promise<RequirementVersionResponse[]> {
-    const versionen = await this.repository.findVersions(id);
+  async findVersions(
+    id: string,
+    benutzer: AuthenticatedUser,
+  ): Promise<RequirementVersionResponse[]> {
+    // Ueber den Aufloeser, nicht unmittelbar: Sonst waere die Historie der Weg, an der
+    // Mandantenpruefung vorbei den Inhalt eines fremden Datensatzes zu lesen.
+    const bestand = await this.ausKennung(id, benutzer);
+    const versionen = await this.repository.findVersions(bestand.id);
+
     return versionen.map(RequirementsService.toVersionResponse);
   }
 
@@ -250,13 +261,23 @@ export class RequirementsService {
     const herkunft = eingabe.sourceSystem ?? "infrademand";
 
     try {
+      // ADR-0026 Punkt 3: Der Mandant kommt vom Aufrufer, aber er kann nur einen der
+      // eigenen waehlen. Die Auswahl schraenkt ein, sie gibt nichts frei.
+      if (!benutzer.tenants.includes(eingabe.tenant)) {
+        // 403 und nicht 400: Der Rumpf ist wohlgeformt, es fehlt die Zugehoerigkeit.
+        throw new ForbiddenException(`Sie gehoeren dem Mandanten "${eingabe.tenant}" nicht an`);
+      }
+
       // ADR-0017 A4: Wessen Klasse unbekannt ist, darf nicht schreiben.
       await this.sourceSystems.pruefeSchreibquelle(herkunft);
 
       // ADR-0022 Punkt 2: Ohne gueltigen Workflow entsteht keine Anforderung. Sonst
       // hiesse "nicht konfiguriert" zugleich "nicht gesteuert" - und ein ungesteuerter
       // Typ saehe in der Oberflaeche aus wie ein gesteuerter.
-      const workflow = await this.workflows.geltenderWorkflow(eingabe.requirementType);
+      const workflow = await this.workflows.geltenderWorkflow(
+        eingabe.tenant,
+        eingabe.requirementType,
+      );
 
       if (workflow === undefined) {
         throw new BadRequestException(
@@ -268,6 +289,7 @@ export class RequirementsService {
       // §6: gegen die **aktuell** gueltigen Definitionen, nicht gegen die bei Anlage
       // des Datensatzes geltenden. §19.2: derselbe Pruefpfad fuer jeden Eingangsweg.
       const definitionen = await this.attributeDefinitions.geltendeDefinitionen(
+        eingabe.tenant,
         eingabe.requirementType,
       );
       const pruefung = pruefeDynamischeAttribute(eingabe.dynamicAttributes ?? {}, definitionen);
@@ -280,7 +302,7 @@ export class RequirementsService {
       // eine automatische Quelle halten koennte. Ein berechnetes Feld darf aber auch
       // beim Anlegen nicht von Hand gesetzt werden.
       const klasse = await this.schreibendeKlasse(benutzer);
-      const regeln = await this.mastership.regeln();
+      const regeln = await this.mastership.regeln(eingabe.tenant);
 
       const vorhaben: Feldvorhaben[] = Object.entries(
         feldwerte({
@@ -314,6 +336,7 @@ export class RequirementsService {
       const zeile = await this.repository.create({
         projectId: eingabe.projectId,
         requirementType: eingabe.requirementType,
+        tenant: eingabe.tenant,
         status: workflow.initialState,
         owner: eingabe.owner,
         sourceSystem: herkunft,
@@ -619,13 +642,20 @@ export class RequirementsService {
   }
 
   /**
-   * Loest einen Datensatz ueber die Herkunft auf (ADR-0010) - der Weg fuer Vorsysteme,
-   * die unsere Kennungen nicht kennen.
+   * Loest einen Datensatz ueber die Herkunft auf (ADR-0010) und prueft die Zugehoerigkeit.
+   *
+   * **Ein fremder Mandant liefert 404, nicht 403.** Dass ein Datensatz existiert, ist
+   * bereits eine Auskunft ueber den anderen Mandanten - wer mit 403 antwortet, verraet
+   * seine Existenz. Beide Faelle sehen deshalb gleich aus.
    */
-  private async ausHerkunft(sourceSystem: string, externalId: string): Promise<RequirementRow> {
+  private async ausHerkunft(
+    sourceSystem: string,
+    externalId: string,
+    benutzer: AuthenticatedUser,
+  ): Promise<RequirementRow> {
     const bestand = await this.repository.findBySource(sourceSystem, externalId);
 
-    if (bestand === undefined) {
+    if (bestand === undefined || !benutzer.tenants.includes(bestand.tenant)) {
       throw new NotFoundException(new RequirementNotFoundError(sourceSystem, externalId).message);
     }
 
@@ -633,26 +663,21 @@ export class RequirementsService {
   }
 
   /**
-   * Loest einen Datensatz ueber die interne Kennung auf - der Weg der eigenen Oberflaeche.
+   * Loest einen Datensatz ueber die interne Kennung auf und prueft die Zugehoerigkeit.
    *
-   * **Notwendig, weil eigene Erfassung keinen externen Bezeichner hat.** `externalId` ist
-   * dort bewusst leer; ein erfundener Wert waere eine Behauptung. Ueber `by-source` sind
-   * diese Datensaetze damit nicht erreichbar.
-   *
-   * Kein Widerspruch zu ADR-0010: Dessen Regel gilt der Grenze zwischen
-   * Anforderungsaufnahme und Kapazitaetsberechnung (§19.1), nicht der eigenen Oberflaeche.
-   * `GET /v1/requirements/{id}/versions` geht diesen Weg seit M1.
+   * Notwendig, weil eigene Erfassung keinen externen Bezeichner hat (§19.1). Kein
+   * Widerspruch zu ADR-0010: Dessen Regel gilt der Grenze zur Kapazitaetsberechnung, nicht
+   * der eigenen Oberflaeche.
    */
-  private async ausKennung(id: string): Promise<RequirementRow> {
+  private async ausKennung(id: string, benutzer: AuthenticatedUser): Promise<RequirementRow> {
     const bestand = await this.repository.findById(id);
 
-    if (bestand === undefined) {
+    if (bestand === undefined || !benutzer.tenants.includes(bestand.tenant)) {
       throw new NotFoundException(`Anforderung ${id} existiert nicht`);
     }
 
     return bestand;
   }
-
   /**
    * Die Bindung, die fuer diese Anforderungsart gilt (ADR-0022 Punkt 2, ADR-0023).
    *
@@ -660,9 +685,10 @@ export class RequirementsService {
    * Art. Das gilt beim Anlegen wie beim Wechsel der Art.
    */
   private async bindungFuer(
+    tenant: string,
     requirementType: string,
   ): Promise<{ definitionId: string; version: number }> {
-    const workflow = await this.workflows.geltenderWorkflow(requirementType);
+    const workflow = await this.workflows.geltenderWorkflow(tenant, requirementType);
 
     if (workflow === undefined) {
       throw new BadRequestException(
@@ -716,7 +742,7 @@ export class RequirementsService {
     benutzer: AuthenticatedUser,
   ): Promise<void> {
     const klasse = await this.schreibendeKlasse(benutzer);
-    const regeln = await this.mastership.regeln();
+    const regeln = await this.mastership.regeln(bestand.tenant);
     const quellen = await this.sourceSystems.klassenkarte();
 
     const quelle = letzteQuelleFuerFeld(
@@ -812,14 +838,12 @@ export class RequirementsService {
     reason: string,
     benutzer: AuthenticatedUser,
   ): Promise<RequirementResponse> {
-    const bestand = await this.repository.findBySource(sourceSystem, externalId);
-    if (bestand === undefined) {
-      throw new NotFoundException(new RequirementNotFoundError(sourceSystem, externalId).message);
-    }
+    const bestand = await this.ausHerkunft(sourceSystem, externalId, benutzer);
 
     // Ein festgehaltenes Feld, das es nicht gibt, wirkt nie - sieht aber aus, als taete
     // es das. Derselbe Gedanke wie bei den Hoheitsregeln.
     const definitionen = await this.attributeDefinitions.geltendeDefinitionen(
+      bestand.tenant,
       bestand.requirementType,
     );
     const bekannt =
@@ -849,10 +873,7 @@ export class RequirementsService {
     field: string,
     benutzer: AuthenticatedUser,
   ): Promise<RequirementResponse> {
-    const bestand = await this.repository.findBySource(sourceSystem, externalId);
-    if (bestand === undefined) {
-      throw new NotFoundException(new RequirementNotFoundError(sourceSystem, externalId).message);
-    }
+    const bestand = await this.ausHerkunft(sourceSystem, externalId, benutzer);
 
     if (bestand.heldFields[field] === undefined) {
       throw new NotFoundException(`"${field}" ist an diesem Datensatz nicht festgehalten`);
@@ -895,6 +916,7 @@ export class RequirementsService {
       id: row.id,
       projectId: row.projectId,
       requirementType: row.requirementType,
+      tenant: row.tenant,
       status: row.status,
       owner: row.owner,
       workflow: { id: row.workflowDefinitionId, version: row.workflowVersion },
@@ -927,7 +949,7 @@ export class RequirementsService {
     benutzer: AuthenticatedUser,
   ): Promise<RequirementResponse> {
     return this.wechsleZustand(
-      await this.ausHerkunft(sourceSystem, externalId),
+      await this.ausHerkunft(sourceSystem, externalId, benutzer),
       zielzustand,
       begruendung,
       benutzer,
@@ -940,7 +962,12 @@ export class RequirementsService {
     begruendung: string | undefined,
     benutzer: AuthenticatedUser,
   ): Promise<RequirementResponse> {
-    return this.wechsleZustand(await this.ausKennung(id), zielzustand, begruendung, benutzer);
+    return this.wechsleZustand(
+      await this.ausKennung(id, benutzer),
+      zielzustand,
+      begruendung,
+      benutzer,
+    );
   }
 
   async uebergaengeUeberHerkunft(
@@ -948,14 +975,17 @@ export class RequirementsService {
     externalId: string,
     benutzer: AuthenticatedUser,
   ): Promise<UebergangsauskunftResponse> {
-    return this.zulaessigeUebergaenge(await this.ausHerkunft(sourceSystem, externalId), benutzer);
+    return this.zulaessigeUebergaenge(
+      await this.ausHerkunft(sourceSystem, externalId, benutzer),
+      benutzer,
+    );
   }
 
   async uebergaengeUeberKennung(
     id: string,
     benutzer: AuthenticatedUser,
   ): Promise<UebergangsauskunftResponse> {
-    return this.zulaessigeUebergaenge(await this.ausKennung(id), benutzer);
+    return this.zulaessigeUebergaenge(await this.ausKennung(id, benutzer), benutzer);
   }
 
   async ordneZustandZuUeberHerkunft(
@@ -966,7 +996,7 @@ export class RequirementsService {
     benutzer: AuthenticatedUser,
   ): Promise<RequirementResponse> {
     return this.ordneZustandZu(
-      await this.ausHerkunft(sourceSystem, externalId),
+      await this.ausHerkunft(sourceSystem, externalId, benutzer),
       zustand,
       reason,
       benutzer,
@@ -979,7 +1009,7 @@ export class RequirementsService {
     reason: string,
     benutzer: AuthenticatedUser,
   ): Promise<RequirementResponse> {
-    return this.ordneZustandZu(await this.ausKennung(id), zustand, reason, benutzer);
+    return this.ordneZustandZu(await this.ausKennung(id, benutzer), zustand, reason, benutzer);
   }
 
   async hebeFassungUeberHerkunft(
@@ -988,7 +1018,11 @@ export class RequirementsService {
     reason: string,
     benutzer: AuthenticatedUser,
   ): Promise<RequirementResponse> {
-    return this.hebeFassung(await this.ausHerkunft(sourceSystem, externalId), reason, benutzer);
+    return this.hebeFassung(
+      await this.ausHerkunft(sourceSystem, externalId, benutzer),
+      reason,
+      benutzer,
+    );
   }
 
   async hebeFassungUeberKennung(
@@ -996,6 +1030,6 @@ export class RequirementsService {
     reason: string,
     benutzer: AuthenticatedUser,
   ): Promise<RequirementResponse> {
-    return this.hebeFassung(await this.ausKennung(id), reason, benutzer);
+    return this.hebeFassung(await this.ausKennung(id, benutzer), reason, benutzer);
   }
 }

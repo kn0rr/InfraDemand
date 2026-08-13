@@ -22,6 +22,7 @@ describe("Festhaltung von Feldern", () => {
     projectId: "11111111-1111-4111-8111-111111111111",
     requirementType: "feature",
     owner: "M. Weber",
+    tenant: "t-eins",
   };
 
   const GRUND = "Von SAP falsch gepflegt, Korrektur dort beantragt";
@@ -34,12 +35,13 @@ describe("Festhaltung von Feldern", () => {
     process.env["KEYCLOAK_AUDIENCE"] = "requirement-api";
     process.env["DATABASE_URL"] = database.connectionString;
 
-    alsVorsystem = jwks.sign({ sub: "dienst-1", azp: "sap" });
-    alsMensch = jwks.sign({ sub: "benutzer-1", azp: "frontend" });
+    alsVorsystem = jwks.sign({ sub: "dienst-1", azp: "sap", tenants: ["t-eins"] });
+    alsMensch = jwks.sign({ sub: "benutzer-1", azp: "frontend", tenants: ["t-eins"] });
     alsAdmin = jwks.sign({
       sub: "admin-1",
       azp: "frontend",
       realm_access: { roles: ["platform-admin"] },
+      tenants: ["t-eins"],
     });
 
     pool = new Pool({ connectionString: database.connectionString });

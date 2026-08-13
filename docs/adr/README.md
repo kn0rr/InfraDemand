@@ -62,6 +62,8 @@ Zulässige Status: `Vorgeschlagen`, `Angenommen`, `Abgelehnt`, `Ersetzt durch AD
 | [0023](0023-workflow-bindung-beim-typwechsel.md) | Workflow-Bindung beim Wechsel der Anforderungsart | Angenommen | 2026-08-11 |
 | [0024](0024-bedingungen-an-workflow-uebergaengen.md) | Bedingungen an Workflow-Übergängen: benanntes Vokabular statt Regel-Engine | Angenommen | 2026-08-11 |
 | [0025](0025-umgang-mit-der-gebundenen-workflow-fassung.md) | Umgang mit der gebundenen Workflow-Fassung | Angenommen | 2026-08-11 |
+| [0026](0026-wirksamer-mandant-und-stufung-der-konfiguration.md) | Wirksamer Mandant und Stufung der Konfiguration | Angenommen | 2026-08-12 |
+| [0027](0027-ausnahmen-von-der-kompatibilitaetsgarantie.md) | Ausnahmen von der Kompatibilitätsgarantie | Angenommen | 2026-08-13 |
 
 ## Offene, bewusst vertagte Entscheidungen
 
@@ -71,22 +73,23 @@ Zeitpunkt als eigenes ADR nachgezogen.
 | Thema | Vertagt bis | Referenz |
 |---|---|---|
 | Audit-Ereignisschema und Schreibpfad | Meilenstein M1.4 | [ADR-0009](0009-orm-und-migrationswerkzeug.md) |
-| Wahl des wirksamen Mandanten bei Mehrfachzugehörigkeit | Meilenstein M5 | [ADR-0017](0017-regelvokabular-der-datenhoheit-und-mandantenbegriff.md) |
+| Woher die Mandantenzugehörigkeiten im Token stammen – Keycloak-Organizations oder Gruppen | Meilenstein M6 | [ADR-0026](0026-wirksamer-mandant-und-stufung-der-konfiguration.md) |
 | Rückmeldung abgewiesener Felder an einen Import | Mit dem Dateiimport | [ADR-0019](0019-verhalten-bei-abgewiesener-schreiboperation.md) |
-| Ab wann die Kompatibilitätsgarantie aus §12 gilt – und wie eine begründete Ausnahme davor aussieht | **Vor dem ersten Produktivgang** | CLAUDE.md §12, `PROD-049` |
+| Änderungsprotokoll für den Contract – Form und Ablage | Mit dem ersten Konsumenten außerhalb dieses Repositories | [ADR-0027](0027-ausnahmen-von-der-kompatibilitaetsgarantie.md) |
+| Versionierungsschema der Schnittstelle: Pfad, Kopffeld oder Medientyp | Wenn eine Ausnahme nach ADR-0027 nicht mehr zulässig ist | [ADR-0027](0027-ausnahmen-von-der-kompatibilitaetsgarantie.md) |
 | Befristung von Festhaltungen – verfällt eine Festhaltung von selbst? | Wenn Erfahrung aus dem Betrieb vorliegt | [ADR-0017](0017-regelvokabular-der-datenhoheit-und-mandantenbegriff.md) Teil B |
 | Ablage der Sitzung: Cookie oder serverseitiger Speicher – und welcher, ohne ADR-0002 zu verletzen | Vor Meilenstein M3 | [ADR-0014](0014-frontend-authentifizierung-ueber-bff.md), `PROD-045` |
-| Policy-Engine für Feldebene (OPA vs. OpenFGA) | Meilenstein M5 | [ADR-0004](0004-authentifizierung-und-autorisierung.md) |
+| Policy-Engine (OPA vs. OpenFGA) | Meilenstein M5.2 | [ADR-0004](0004-authentifizierung-und-autorisierung.md) |
 | Regel-Engine für Workflow-Übergänge (JSONLogic vs. json-rules-engine) – **vorerst verneint**, siehe ADR-0024 Punkt 9 | Sobald eine Regel entsteht, die für sich gelesen keinen Satz ergibt | [ADR-0001](0001-backend-sprache-und-framework.md), [ADR-0024](0024-bedingungen-an-workflow-uebergaengen.md) |
-| Bereitstellungskategorie als zweite Schlüsseldimension der Workflows | Meilenstein M6 mit §17 | [ADR-0024](0024-bedingungen-an-workflow-uebergaengen.md) |
+| Bereitstellungskategorie als zweite Schlüsseldimension der Workflows | Meilenstein M7 mit §17 | [ADR-0024](0024-bedingungen-an-workflow-uebergaengen.md) |
 | Abbildung der Workflow-Zustände auf das stabile Statusvokabular des Vertrags | Wenn der Capacity Service angebunden wird | [ADR-0010](0010-entkopplung-anforderung-und-kapazitaet.md), [ADR-0022](0022-statuswechsel-als-eigener-vorgang.md) |
-| Ist „abgeschlossen" der erreichte Endzustand oder ein eigenes Merkmal der Anforderung? | Meilenstein M4.3 | [ADR-0022](0022-statuswechsel-als-eigener-vorgang.md) |
-| Gültigkeitszeit als zweite Zeitachse – durch [ADR-0020](0020-lebenszyklus-der-infrastruktur.md) von optional zu **erforderlich** geworden | Vor Meilenstein M6 | [ADR-0012](0012-vollstaendige-versionierung-mit-zeitbezug.md) Punkt 7 |
-| Zustandsnamen der Bestandsobjekte: Fachdaten oder Code | Meilenstein M6 | [ADR-0020](0020-lebenszyklus-der-infrastruktur.md) |
-| Speicherung von Szenarien: Auswahl von Maßnahmen oder eigene, nicht genehmigte Maßnahmen | Meilenstein M7 | [ADR-0020](0020-lebenszyklus-der-infrastruktur.md) |
-| Workflow-Maschine als geteiltes Paket unter `packages/` | Sobald der Infrastructure Service sie braucht (M6) | CLAUDE.md §5, §7 |
-| Zuordnung eingehender Rueckmeldungen zum wartenden Vorgang | Meilenstein M4.3 | [ADR-0021](0021-anbindung-externer-workflows.md) |
+| Ist „abgeschlossen" der erreichte Endzustand oder ein eigenes Merkmal der Anforderung? – **Frist M4.3 verstrichen**, ohne dass die Frage auftrat | Wenn eine Auswertung zwischen „im Endzustand" und „abgeschlossen" unterscheiden muss (§10) | [ADR-0022](0022-statuswechsel-als-eigener-vorgang.md) |
+| Gültigkeitszeit als zweite Zeitachse – durch [ADR-0020](0020-lebenszyklus-der-infrastruktur.md) von optional zu **erforderlich** geworden | Vor Meilenstein M7 | [ADR-0012](0012-vollstaendige-versionierung-mit-zeitbezug.md) Punkt 7 |
+| Zustandsnamen der Bestandsobjekte: Fachdaten oder Code | Meilenstein M7 | [ADR-0020](0020-lebenszyklus-der-infrastruktur.md) |
+| Speicherung von Szenarien: Auswahl von Maßnahmen oder eigene, nicht genehmigte Maßnahmen | Meilenstein M8 | [ADR-0020](0020-lebenszyklus-der-infrastruktur.md) |
+| Workflow-Maschine als geteiltes Paket unter `packages/` | Sobald der Infrastructure Service sie braucht (M7) | CLAUDE.md §5, §7 |
+| Zuordnung eingehender Rueckmeldungen zum wartenden Vorgang – **Frist M4.3 verstrichen**, weil kein Rueckrufweg entstanden ist | Mit dem ersten Rueckrufendpunkt | [ADR-0021](0021-anbindung-externer-workflows.md) |
 | Abgleich fremdgefuehrter Vorgaenge, falls Rueckmeldungen ausbleiben | Wenn die erste Fremdanbindung steht | [ADR-0021](0021-anbindung-externer-workflows.md) |
-| Messaging-Backbone (Kafka vs. NATS) | Sobald der zweite Service existiert | CLAUDE.md §12 |
+| Messaging-Backbone (Kafka vs. NATS) | Meilenstein M6, mit dem Identity & Access Service | CLAUDE.md §12 |
 | Diagrammbibliothek (Recharts vs. ECharts) | Mit dem ersten Dashboard | [ADR-0016](0016-ui-grundlage-und-datenzugriff-im-frontend.md) |
 | Umstieg auf TypeScript 7 (nativer Compiler) | Nach M1, wenn das NestJS-Tooling nachgezogen hat | [ADR-0006](0006-typescript-version-und-modulsemantik.md) |

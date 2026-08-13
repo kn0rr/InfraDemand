@@ -6,6 +6,7 @@ import {
 } from "@nestjs/common";
 import type { AuthenticatedUser } from "../auth/jwt.strategy";
 import type { AttributeDefinitionHistoryRow, AttributeDefinitionRow } from "../database/schema";
+import { spezifischsteJe } from "../gemeinsam/spezifitaet";
 import { REGELBARE_KERNFELDER } from "../mastership/mastership.dto";
 import type { GeltendeDefinition } from "./attribut-pruefung";
 import {
@@ -32,18 +33,29 @@ export class AttributeDefinitionsService {
     const zeilen =
       requirementType === undefined
         ? await this.repository.findAll()
-        : await this.repository.findForRequirementType(requirementType);
+        : await this.repository.findKandidaten(null, requirementType);
 
     return zeilen.map(AttributeDefinitionsService.toResponse);
   }
 
   /**
-   * Die fuer einen Anforderungstyp geltenden Definitionen, zugeschnitten auf das, was
-   * die Pruefung braucht. Die Zuordnung ist ausgeschrieben und nicht durchgereicht -
-   * dadurch verlaesst keine Datenbankzeile den Bereich.
+   * Die geltenden Definitionen fuer diesen Mandanten und diese Anforderungsart,
+   * zugeschnitten auf das, was die Pruefung braucht.
+   *
+   * Je Schluessel genau eine - die spezifischste (ADR-0026 Punkt 5). Ein leerer Mandant
+   * liefert nur die plattformweiten.
+   *
+   * Die Zuordnung ist ausgeschrieben und nicht durchgereicht - dadurch verlaesst keine
+   * Datenbankzeile den Bereich.
    */
-  async geltendeDefinitionen(requirementType: string): Promise<GeltendeDefinition[]> {
-    const zeilen = await this.repository.findForRequirementType(requirementType);
+  async geltendeDefinitionen(
+    tenant: string | null,
+    requirementType: string,
+  ): Promise<GeltendeDefinition[]> {
+    const zeilen = spezifischsteJe(
+      await this.repository.findKandidaten(tenant, requirementType),
+      (definition) => definition.key,
+    );
 
     return zeilen.map((zeile) => ({
       key: zeile.key,

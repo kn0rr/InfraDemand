@@ -23,6 +23,7 @@ describe("Datenhoheit im Schreibpfad", () => {
   const basis = {
     projectId: "11111111-1111-4111-8111-111111111111",
     requirementType: "feature",
+    tenant: "t-eins",
   };
 
   beforeAll(async () => {
@@ -35,12 +36,12 @@ describe("Datenhoheit im Schreibpfad", () => {
 
     // Die Klasse folgt aus dem Token, nicht aus dem Rumpf (ADR-0017 A4). Ein anderer
     // Client ist damit eine andere Quellenklasse - mehr braucht der Test nicht.
-    alsVorsystem = jwks.sign({ sub: "dienst-1", azp: "sap" });
-    alsMensch = jwks.sign({ sub: "benutzer-1", azp: "frontend" });
+    alsVorsystem = jwks.sign({ sub: "dienst-1", azp: "sap", tenants: ["t-eins"] });
+    alsMensch = jwks.sign({ sub: "benutzer-1", azp: "frontend", tenants: ["t-eins"] });
     alsAdmin = jwks.sign({
       sub: "admin-1",
       azp: "frontend",
-      realm_access: { roles: ["platform-admin"] },
+      realm_access: { roles: ["platform-admin"], tenants: ["t-eins"] },
     });
 
     pool = new Pool({ connectionString: database.connectionString });

@@ -1,9 +1,9 @@
 import { Inject, Injectable } from "@nestjs/common";
-import { and, asc, eq, isNull, sql } from "drizzle-orm";
+import { and, asc, eq, isNull, or, sql } from "drizzle-orm";
 import { DATABASE, type Database } from "../database/database.tokens";
 import { istEindeutigkeitsverletzung } from "../database/fehler";
 import {
-  MASTERSHIP_RULE_FIELD_BINDINGS_CONSTRAINT,
+  MASTERSHIP_RULE_TENANT_FIELD_BINDINGS_CONSTRAINT,
   type MastershipRuleHistoryRow,
   type MastershipRuleRow,
   mastershipRuleHistory,
@@ -24,6 +24,14 @@ export class MastershipRepository {
 
   findAll(): Promise<MastershipRuleRow[]> {
     return this.db.select().from(mastershipRules).orderBy(asc(mastershipRules.field));
+  }
+
+  /** Kandidaten fuer diesen Mandanten: die eigenen und die plattformweiten. */
+  findKandidaten(tenant: string): Promise<MastershipRuleRow[]> {
+    return this.db
+      .select()
+      .from(mastershipRules)
+      .where(or(eq(mastershipRules.tenant, tenant), isNull(mastershipRules.tenant)));
   }
 
   findVersions(id: string): Promise<MastershipRuleHistoryRow[]> {
@@ -59,7 +67,7 @@ export class MastershipRepository {
         return zeile;
       });
     } catch (fehler) {
-      if (istEindeutigkeitsverletzung(fehler, MASTERSHIP_RULE_FIELD_BINDINGS_CONSTRAINT)) {
+      if (istEindeutigkeitsverletzung(fehler, MASTERSHIP_RULE_TENANT_FIELD_BINDINGS_CONSTRAINT)) {
         throw new DuplicateMastershipRuleError(eingabe.field);
       }
       throw fehler;

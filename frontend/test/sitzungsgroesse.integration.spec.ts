@@ -52,6 +52,7 @@ describe("Groesse des Sitzungscookies", () => {
       benutzername: "test.author",
       anzeigename: "Test Author",
       rollen: ["requirement-author"],
+      mandanten: ["t-eins"],
     };
 
     const optionen = sitzungsOptionen();

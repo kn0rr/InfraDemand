@@ -7,6 +7,7 @@ import {
 import { AttributeDefinitionsRepository } from "../attribute-definitions/attribute-definitions.repository";
 import type { AuthenticatedUser } from "../auth/jwt.strategy";
 import type { MastershipRuleHistoryRow, MastershipRuleRow } from "../database/schema";
+import { spezifischsteJe } from "../gemeinsam/spezifitaet";
 import type {
   CreateMastershipRuleDto,
   MastershipRuleResponse,
@@ -108,9 +109,19 @@ export class MastershipService {
     throw new BadRequestException(new UnknownFieldError(field).message);
   }
 
-  /** Die geltenden Regeln als Nachschlagewerk, Feld auf Modus. */
-  async regeln(): Promise<Map<string, MastershipRuleRow["mode"]>> {
-    const zeilen = await this.repository.findAll();
+  /**
+   * Die fuer diesen Mandanten geltenden Regeln als Nachschlagewerk, Feld auf Modus.
+   *
+   * Je Feld genau eine Regel - die mandantenspezifische schlaegt die plattformweite
+   * (ADR-0026 Punkt 5). Haetten beide Bestand, staenden zwei Antworten auf dieselbe Frage
+   * in derselben Karte, und welche gewinnt, entschiede die Reihenfolge der Zeilen.
+   */
+  async regeln(tenant: string): Promise<Map<string, MastershipRuleRow["mode"]>> {
+    const zeilen = spezifischsteJe(
+      await this.repository.findKandidaten(tenant),
+      (regel) => regel.field,
+    );
+
     return new Map(zeilen.map((zeile) => [zeile.field, zeile.mode]));
   }
 

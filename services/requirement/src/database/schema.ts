@@ -16,8 +16,9 @@ import { WORKFLOW_MODES, type WorkflowState, type WorkflowTransition } from "../
 /** Name der Eindeutigkeit aus §19.1. Wird beim Abfangen des Konflikts gebraucht. */
 export const REQUIREMENT_SOURCE_EXTERNAL_CONSTRAINT = "requirement_source_external_uq";
 
-/** Name der Eindeutigkeit je Schluessel und Anforderungstyp (§6). */
-export const ATTRIBUTE_DEFINITION_KEY_TYPE_CONSTRAINT = "attribute_definition_key_type_uq";
+/** Name der Eindeutigkeit je Mandant, Schluessel und Anforderungstyp (§6, ADR-0026). */
+export const ATTRIBUTE_DEFINITION_TENANT_KEY_TYPE_CONSTRAINT =
+  "attribute_definition_tenant_key_type_uq";
 /** Art der Änderung in der Versionshistorie (ADR-0012). */
 export const historyOperation = pgEnum("history_operation", ["insert", "update", "delete"]);
 
@@ -142,6 +143,19 @@ export const requirements = pgTable(
     id: uuid("id").primaryKey().defaultRandom(),
     projectId: uuid("project_id").notNull(),
     requirementType: text("requirement_type").notNull(),
+    /**
+     * Mandant, dem diese Anforderung gehoert (§15, ADR-0026 Punkt 3).
+     *
+     * **Massgeblich fuer die Berechtigung.** Die Frage lautet nie „welcher Mandant ist
+     * gerade wirksam", sondern „gehoert der Handelnde dem Mandanten dieses Datensatzes
+     * an". Damit braucht die Pruefung keinen Sitzungszustand.
+     *
+     * Kein Vorgabewert: „standard" waere ein erfundener Mandant, und die erste Frage nach
+     * Mandantenfaehigkeit haette eine falsche Antwort. Bis M6 ist der Wert ein Bezeichner
+     * aus dem Token, kein Fremdschluessel - die Entitaet fuehrt erst der Identity & Access
+     * Service (ADR-0017 C1).
+     */
+    tenant: text("tenant").notNull(),
     status: text("status").notNull(),
     owner: text("owner").notNull(),
 
@@ -199,6 +213,8 @@ export const requirements = pgTable(
     index("requirement_project_idx").on(table.projectId),
     index("requirement_status_idx").on(table.status),
     index("requirement_dynamic_attributes_idx").using("gin", table.dynamicAttributes),
+    // Zugriffspfad jeder Liste: Sie zeigt nur, was den Mandanten des Anwenders gehoert.
+    index("requirement_tenant_idx").on(table.tenant),
     // Zugriffspfad der Uebersicht aus ADR-0017 B14. Teilindex, weil der ueberwiegende
     // Teil der Datensaetze nichts festhaelt - ein voller Index waere fast leer und
     // trotzdem bei jedem Schreibvorgang zu pflegen.
@@ -230,6 +246,7 @@ export const requirementHistory = pgTable(
     id: uuid("id").notNull(),
     projectId: uuid("project_id").notNull(),
     requirementType: text("requirement_type").notNull(),
+    tenant: text("tenant").notNull(),
     status: text("status").notNull(),
     owner: text("owner").notNull(),
     workflowDefinitionId: uuid("workflow_definition_id").notNull(),
@@ -296,6 +313,12 @@ export const attributeDefinitions = pgTable(
     id: uuid("id").primaryKey().defaultRandom(),
     /** Schluessel im JSONB-Feld `dynamic_attributes` der Anforderung. */
     key: text("key").notNull(),
+    /**
+     * Mandant, fuer den die Definition gilt. **Leer bedeutet: fuer alle** - dieselbe
+     * Bedeutung, die ein leerer `requirementType` eine Zeile darunter hat (ADR-0026
+     * Punkt 4).
+     */
+    tenant: text("tenant"),
     /** Anforderungstyp, fuer den die Definition gilt. NULL bedeutet: fuer alle. */
     requirementType: text("requirement_type"),
     label: text("label").notNull(),
@@ -321,10 +344,10 @@ export const attributeDefinitions = pgTable(
      * behandelt PostgreSQL zwei NULL-Werte als verschieden, und es koennte mehrere
      * allgemeingueltige Definitionen desselben Schluessels geben.
      */
-    unique(ATTRIBUTE_DEFINITION_KEY_TYPE_CONSTRAINT)
-      .on(table.key, table.requirementType)
+    unique(ATTRIBUTE_DEFINITION_TENANT_KEY_TYPE_CONSTRAINT)
+      .on(table.tenant, table.key, table.requirementType)
       .nullsNotDistinct(),
-    index("attribute_definition_type_idx").on(table.requirementType),
+    index("attribute_definition_scope_idx").on(table.tenant, table.requirementType),
   ],
 );
 
@@ -337,6 +360,7 @@ export const attributeDefinitionHistory = pgTable(
     // --- fachlicher Zeilenzustand, Kopie der Fachtabelle ---
     id: uuid("id").notNull(),
     key: text("key").notNull(),
+    tenant: text("tenant"),
     requirementType: text("requirement_type"),
     label: text("label").notNull(),
     dataType: attributeDataType("data_type").notNull(),
@@ -362,7 +386,8 @@ export const mastershipMode = pgEnum("mastership_mode", [
 ]);
 
 /** Name der Eindeutigkeit je Feld und Geltungsbereich. */
-export const MASTERSHIP_RULE_FIELD_BINDINGS_CONSTRAINT = "mastership_rule_field_bindings_uq";
+export const MASTERSHIP_RULE_TENANT_FIELD_BINDINGS_CONSTRAINT =
+  "mastership_rule_tenant_field_bindings_uq";
 
 /**
  * Hoheitsregel nach §19.3 und [ADR-0017](../../../../docs/adr/0017-regelvokabular-der-datenhoheit-und-mandantenbegriff.md).
@@ -379,6 +404,8 @@ export const mastershipRules = pgTable(
   "mastership_rule",
   {
     id: uuid("id").primaryKey().defaultRandom(),
+    /** Mandant, fuer den die Regel gilt. Leer bedeutet: fuer alle (ADR-0026 Punkt 4). */
+    tenant: text("tenant"),
     /**
      * Feld, fuer das die Regel gilt - ein Kernfeld wie `owner` oder der Schluessel eines
      * dynamischen Attributs. Bewusst ohne Fremdschluessel auf `attribute_definition`:
@@ -399,7 +426,9 @@ export const mastershipRules = pgTable(
   (table) => [
     // jsonb normalisiert die Schluesselreihenfolge - {"a":1,"b":2} und {"b":2,"a":1}
     // gelten als derselbe Geltungsbereich. Genau das ist gewollt.
-    unique(MASTERSHIP_RULE_FIELD_BINDINGS_CONSTRAINT).on(table.field, table.bindings),
+    unique(MASTERSHIP_RULE_TENANT_FIELD_BINDINGS_CONSTRAINT)
+      .on(table.tenant, table.field, table.bindings)
+      .nullsNotDistinct(),
   ],
 );
 
@@ -410,6 +439,7 @@ export const mastershipRuleHistory = pgTable(
     historyId: uuid("history_id").primaryKey().defaultRandom(),
 
     id: uuid("id").notNull(),
+    tenant: text("tenant"),
     field: text("field").notNull(),
     mode: mastershipMode("mode").notNull(),
     bindings: jsonb("bindings").$type<Record<string, string>>().notNull(),
@@ -479,8 +509,9 @@ export type { WorkflowState, WorkflowTransition };
 /** Betriebsart eines Workflows - Begruendung bei `WORKFLOW_MODES` in `../workflows/typen`. */
 export const workflowMode = pgEnum("workflow_mode", WORKFLOW_MODES);
 
-/** Name der Eindeutigkeit je Anforderungstyp. */
-export const WORKFLOW_REQUIREMENT_TYPE_CONSTRAINT = "workflow_definition_requirement_type_uq";
+/** Name der Eindeutigkeit je Mandant und Anforderungstyp. */
+export const WORKFLOW_TENANT_REQUIREMENT_TYPE_CONSTRAINT =
+  "workflow_definition_tenant_requirement_type_uq";
 
 /**
  * Workflow-Definition nach §7 - Fachdaten, versioniert, ohne Redeploy aenderbar.
@@ -495,6 +526,8 @@ export const workflowDefinitions = pgTable(
   {
     id: uuid("id").primaryKey().defaultRandom(),
     label: text("label").notNull(),
+    /** Mandant, fuer den der Workflow gilt. Leer bedeutet: fuer alle (ADR-0026 Punkt 4). */
+    tenant: text("tenant"),
     /**
      * Anforderungstyp, fuer den der Workflow gilt. NULL bedeutet: fuer alle, die keinen
      * eigenen haben. Genau ein Workflow je Typ - sonst waere nicht entscheidbar, welcher
@@ -512,7 +545,9 @@ export const workflowDefinitions = pgTable(
     version: integer("version").notNull().default(1),
   },
   (table) => [
-    unique(WORKFLOW_REQUIREMENT_TYPE_CONSTRAINT).on(table.requirementType).nullsNotDistinct(),
+    unique(WORKFLOW_TENANT_REQUIREMENT_TYPE_CONSTRAINT)
+      .on(table.tenant, table.requirementType)
+      .nullsNotDistinct(),
   ],
 );
 
@@ -524,6 +559,7 @@ export const workflowDefinitionHistory = pgTable(
 
     id: uuid("id").notNull(),
     label: text("label").notNull(),
+    tenant: text("tenant"),
     requirementType: text("requirement_type"),
     mode: workflowMode("mode").notNull().default("internal"),
     initialState: text("initial_state").notNull(),

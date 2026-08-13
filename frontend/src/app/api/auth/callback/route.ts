@@ -1,18 +1,10 @@
 import { decodeJwt } from "jose";
 import * as client from "openid-client";
+import { mandanten, realmRollen, type Tokeninhalt } from "@/lib/auth/anspruch";
 import { holeKonfiguration, loeseQuelleAuf } from "@/lib/auth/identitaetsquellen";
 import { verwerfeAnmeldezustand } from "@/lib/auth/sitzung";
 import { holeSitzung } from "@/lib/auth/sitzung.server";
 import { anwendungsBasisUrl } from "@/lib/auth/umgebung";
-
-/** Rollen stehen bei Keycloak im Zugriffstoken, nicht im ID-Token. */
-function realmRollen(zugriffstoken: string): string[] {
-  const inhalt = decodeJwt(zugriffstoken) as {
-    realm_access?: { roles?: unknown };
-  };
-  const rollen = inhalt.realm_access?.roles;
-  return Array.isArray(rollen) ? rollen.filter((r) => typeof r === "string") : [];
-}
 
 export async function GET(anfrage: Request): Promise<Response> {
   const sitzung = await holeSitzung();
@@ -53,6 +45,9 @@ export async function GET(anfrage: Request): Promise<Response> {
 
   verwerfeAnmeldezustand(sitzung);
   sitzung.zugriffstoken = token.access_token;
+  const tokeninhalt = decodeJwt(token.access_token) as Tokeninhalt;
+  sitzung.rollen = realmRollen(tokeninhalt);
+  sitzung.mandanten = mandanten(tokeninhalt);
   sitzung.erneuerungstoken = token.refresh_token;
   sitzung.gueltigBis = gueltigkeit === undefined ? undefined : Date.now() + gueltigkeit * 1000;
   sitzung.subjekt = anspruch?.sub;
@@ -61,7 +56,6 @@ export async function GET(anfrage: Request): Promise<Response> {
       ? anspruch["preferred_username"]
       : undefined;
   sitzung.anzeigename = typeof anspruch?.["name"] === "string" ? anspruch["name"] : undefined;
-  sitzung.rollen = realmRollen(token.access_token);
   await sitzung.save();
 
   return Response.redirect(`${anwendungsBasisUrl()}${rueckkehrZiel}`, 302);

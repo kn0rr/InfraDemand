@@ -23,7 +23,7 @@ describe("Anforderungen anlegen", () => {
   const gueltig = {
     projectId: "11111111-1111-4111-8111-111111111111",
     requirementType: "feature",
-
+    tenant: "t-eins",
     owner: "test.author",
   };
 
@@ -35,7 +35,12 @@ describe("Anforderungen anlegen", () => {
     process.env["KEYCLOAK_AUDIENCE"] = "requirement-api";
     process.env["DATABASE_URL"] = database.connectionString;
 
-    token = jwks.sign({ sub: "benutzer-1", azp: "frontend", preferred_username: "test.author" });
+    token = jwks.sign({
+      sub: "benutzer-1",
+      azp: "frontend",
+      preferred_username: "test.author",
+      tenants: ["t-eins"],
+    });
     pool = new Pool({ connectionString: database.connectionString });
 
     await registriereQuelle(pool, "sap");

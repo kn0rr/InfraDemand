@@ -26,7 +26,7 @@ describe("Anforderungen lesen", () => {
     process.env["KEYCLOAK_AUDIENCE"] = "requirement-api";
     process.env["DATABASE_URL"] = database.connectionString;
 
-    token = jwks.sign({ sub: "u1", preferred_username: "test.author" });
+    token = jwks.sign({ sub: "u1", preferred_username: "test.author", tenants: ["t-eins"] });
     pool = new Pool({ connectionString: database.connectionString });
     workflow = await registriereWorkflow(pool);
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -69,6 +69,7 @@ describe("Anforderungen lesen", () => {
         workflowVersion: workflow.version,
         projectId: projektId,
         requirementType: "feature",
+        tenant: "t-eins",
         status: "neu",
         owner: "test.author",
         dynamicAttributes: { kostenstelle: "K-4711" },
@@ -95,6 +96,7 @@ describe("Anforderungen lesen", () => {
       workflowVersion: workflow.version,
       projectId: "22222222-2222-4222-8222-222222222222",
       requirementType: "bug",
+      tenant: "t-eins",
       status: "neu",
       owner: "test.author",
     });
@@ -112,6 +114,7 @@ describe("Anforderungen lesen", () => {
       "requirementType",
       "sourceSystem",
       "status",
+      "tenant",
       "updatedAt",
       "version",
       "workflow",

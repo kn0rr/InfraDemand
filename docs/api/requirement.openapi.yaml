@@ -304,10 +304,18 @@ components:
           example: sap
           maxLength: 100
           type: string
+        tenant:
+          description: >-
+            Mandant, dem die Anforderung gehoert (§15). Muss einer der eigenen sein - er bestimmt,
+            wer sie spaeter sehen und aendern darf (ADR-0026).
+          example: t-eins
+          maxLength: 100
+          type: string
       required:
         - projectId
         - requirementType
         - owner
+        - tenant
       type: object
     CreateWorkflowDefinitionDto:
       properties:
@@ -588,6 +596,12 @@ components:
             CLAUDE.md §19.1 - die Abbildung folgt mit der Workflow-Engine in M4.
           example: neu
           type: string
+        tenant:
+          description: >-
+            Mandant, dem die Anforderung gehoert (§15). Er entscheidet, wer sie sehen und aendern
+            darf (ADR-0026).
+          example: t-eins
+          type: string
         updatedAt:
           format: date-time
           type: string
@@ -602,6 +616,7 @@ components:
         - id
         - projectId
         - requirementType
+        - tenant
         - workflow
         - status
         - owner
@@ -668,6 +683,12 @@ components:
             CLAUDE.md §19.1 - die Abbildung folgt mit der Workflow-Engine in M4.
           example: neu
           type: string
+        tenant:
+          description: >-
+            Mandant, dem die Anforderung gehoert (§15). Er entscheidet, wer sie sehen und aendern
+            darf (ADR-0026).
+          example: t-eins
+          type: string
         updatedAt:
           format: date-time
           type: string
@@ -691,6 +712,7 @@ components:
         - id
         - projectId
         - requirementType
+        - tenant
         - workflow
         - status
         - owner
@@ -1525,7 +1547,9 @@ paths:
         - Datenhoheit
   /v1/requirements:
     get:
-      description: Ohne asOf der aktuelle Bestand, mit asOf der Zustand zum Stichtag (§19.4).
+      description: >-
+        Ohne asOf der aktuelle Bestand, mit asOf der Zustand zum Stichtag (§19.4). Liefert
+        ausschliesslich Anforderungen der eigenen Mandanten (§15, ADR-0026).
       operationId: RequirementsController_findAll_v1
       parameters:
         - description: >-
@@ -2078,6 +2102,11 @@ paths:
           description: Unlesbare Kennung
         '401':
           description: Kein oder ungueltiges Token
+        '404':
+          description: >-
+            Anforderung existiert nicht oder gehoert einem fremden Mandanten - beides sieht gleich
+            aus. Dass ein Datensatz existiert, waere bereits eine Auskunft ueber den anderen
+            Mandanten (ADR-0026).
       security:
         - bearer: []
       summary: Versionshistorie einer Anforderung

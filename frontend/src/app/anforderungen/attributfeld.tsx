@@ -12,6 +12,7 @@ import type { Attributdefinition } from "@/lib/api/attributdefinitionen";
  * abweisen.
  */
 export interface Formularwerte {
+  tenant: string;
   projectId: string;
   requirementType: string;
   owner: string;
