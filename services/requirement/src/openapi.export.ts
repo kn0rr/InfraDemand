@@ -15,6 +15,7 @@ import { createOpenApiDocument } from "./openapi";
 process.env["DATABASE_URL"] ??= "postgresql://unused:unused@127.0.0.1:1/unused";
 process.env["KEYCLOAK_ISSUER_URL"] ??= "http://127.0.0.1:1/realms/export";
 process.env["KEYCLOAK_AUDIENCE"] ??= "requirement-api";
+process.env["OPA_URL"] ??= "http://127.0.0.1:1";
 
 const ZIEL = resolve(process.cwd(), "../../docs/api/requirement.openapi.yaml");
 
