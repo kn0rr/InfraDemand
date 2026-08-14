@@ -340,7 +340,7 @@ jetzt M6; die übrigen Meilensteine rücken um eins.
 | | Inhalt | Beweist | Stand |
 |---|---|---|---|
 | **M5.1** | Der wirksame Mandant: Begriff, Herkunft, Zuschnitt am Datensatz | Eine Abfrage weiß, in wessen Namen sie läuft | abgeschlossen |
-| **M5.2** | Policy-Engine: Wahl, Anbindung, Regeln als versionierte Artefakte | Eine Berechtigung ist prüfbar und auditierbar, nicht verstreut | offen |
+| **M5.2** | Policy-Engine: Wahl, Anbindung, Regeln als versionierte Artefakte | Eine Berechtigung ist prüfbar und auditierbar, nicht verstreut | abgeschlossen ([ADR-0028](../adr/0028-policy-engine-opa-als-sidecar.md)) |
 | **M5.3** | Objektbezug: Zuständigkeit je Projekt, Kostenstelle, Mandant | Die Rolle am Workflow-Übergang gilt nicht mehr überall (`PROD-017`) | offen |
 | **M5.4** | Feldebene: Sichtbarkeit und Schreibbarkeit je Feld und Rolle (§6, §8) | Ein Feld ist für den einen sichtbar und für den anderen nicht | offen |
 | **M5.5** | Attributdatentyp „Person" | `identitaet` aus ADR-0024 wird benutzbar | offen |
@@ -362,6 +362,71 @@ kommt in allen drei Diensten ausschließlich auf dem Lesepfad vor. Mandantenspez
 Definitionen entstehen heute nur per direktem SQL, wie es die Testhelfer tun. Das gehört
 vor den Abschluss von M5 behoben – vorher gilt die Zusicherung aus ADR-0026 Punkt 4 nur
 für das Lesen.
+
+**M5.2 – was vor der Umsetzung geprüft wurde.**
+[ADR-0028](../adr/0028-policy-engine-opa-als-sidecar.md) macht die partielle Auswertung zur
+Grundlage gefilterter Listen. Ob sie im **Upstream**-OPA verfügbar ist oder nur im
+kommerziellen Enterprise OPA, war offen – und Open Source First ist harte Anforderung ohne
+Ausnahme für Kernkomponenten. Geprüft am 2026-08-13 gegen `openpolicyagent/opa:1.19.0`
+(Abbildmarkierung `org.opencontainers.image.source` verweist auf `open-policy-agent/opa`,
+Lizenz Apache-2.0):
+
+| Frage | Befund |
+|---|---|
+| Partielle Auswertung im Upstream | ja – `opa eval --partial` liefert `input.requirement.tenant in ["t-eins", "t-zwei"]` |
+| Bedingung aus der Compile-API | ja – `POST /v1/compile/requirements/include` |
+| SQL-Zieldialekt | `{"query":"WHERE requirement.tenant IN (E't-eins', E't-zwei')"}` |
+| UCAST-Zieldialekt | `{"field":"requirement.tenant","operator":"in","type":"field","value":["t-eins","t-zwei"]}` |
+
+**Das Zielformat ist UCAST, nicht SQL** – und das ist eine Festlegung, keine Geschmacksfrage.
+Die SQL-Variante liefert eine Zeichenkette mit **eingesetzten Werten**. Sie zu benutzen
+hieße, erzeugtes SQL in eine Abfrage einzusetzen und die Maskierung der Engine als
+Schutzmaßnahme zu übernehmen – die Parameterbindung von Drizzle entfiele genau dort, wo
+Werte aus einem Token stammen. UCAST liefert stattdessen eine Struktur, aus der sich eine
+**parametrisierte** Bedingung bauen lässt. Wer das später zur SQL-Variante vereinfacht,
+tauscht eine gebundene Abfrage gegen eine zusammengesetzte.
+
+Folge für den Zuschnitt: Ein Übersetzer vom Rego-Syntaxbaum ist **nicht** nötig. Es bleibt
+eine kleine Abbildung von UCAST auf Drizzle-Bedingungen, begrenzt auf die Vergleichsformen,
+die unsere Richtlinien tatsächlich benutzen.
+
+**Der Antwortvertrag der Compile-API – die gefährlichste Stelle der Anbindung.** Die
+Teilauswertung kennt drei Ergebnisse, und **alle drei kommen mit HTTP 200**:
+
+| Fall | Antwort | Bedeutung |
+|---|---|---|
+| Bedingung | `{"result":{"query":{"field":…,"operator":…,"value":…}}}` | Filter anwenden |
+| Unbedingtes Ja | `{"result":{"query":{}}}` | kein Filter, alles sichtbar |
+| Unbedingtes **Nein** | `{}` | nichts sichtbar |
+
+Die beiden entgegengesetzten Bedeutungen unterscheiden sich allein dadurch, **ob `result`
+vorhanden ist**. Ein Client, der `result?.query` liest und bei `undefined` „kein Filter"
+annimmt, liefert bei unbedingtem Nein den gesamten Bestand.
+
+Dieselbe Falle ein zweites Mal, anders verkleidet: Bei einem Anwender **ohne jede
+Zugehörigkeit** fehlt die Bedingung nicht – sie kommt als leere Menge,
+`{"operator":"in","value":[]}`. Wer leere Wertelisten als „nichts zu filtern" überspringt,
+öffnet denselben Bestand. Es gibt also **zwei Schreibweisen für „nichts"** und eine für
+„alles", und keine davon ist am Statuscode zu erkennen.
+
+Beide Fälle gehören in die Tests der Anbindung, bevor die erste Zeile Filterlogik
+entsteht. Erhoben am 2026-08-13 gegen OPA 1.19.0.
+
+**Was M5.2 belegt hat.** `test/berechtigung.integration.spec.ts` vergleicht die aus der
+Richtlinie erzeugte Bedingung gegen `GET /v1/requirements` – also gegen das ausgelieferte
+Verhalten und nicht gegen eine nachgebaute Abfrage. Beide Seiten lösen den leeren Fall
+verschieden (Kurzschluss im Repository, `false` im Übersetzer), und genau deshalb sagt die
+Übereinstimmung etwas aus. Damit ist die tragende Annahme aus ADR-0028 kein Zutrauen mehr,
+sondern ein Testlauf.
+
+**Der Zuschnitt der Übersetzung ist absichtlich eng.** `ucast.ts` kennt ein Feld und einen
+Vergleich; alles andere wirft. Die Regel dahinter: **Eine Übersetzung, die im Zweifel
+nichts hinzufügt, öffnet den Bestand.** Ein Fehler ist sichtbar, eine weggelassene
+Bedingung nicht. Deshalb ist die Feldliste ausgeschrieben und kein Nachschlagen über den
+Spaltennamen.
+
+Was nach M5.2 **nicht** gilt: dass die Engine wirkt. Der Lesezuschnitt läuft weiter über
+den SQL-Filter aus M5.1; die Engine ist angebunden und unbenutzt (`PROD-059`).
 
 **M5.1 steht am Anfang und nicht M5.2.** Der Mandantenbegriff bestimmt mit, was die Engine
 auswerten muss – nicht umgekehrt. [ADR-0017](../adr/0017-regelvokabular-der-datenhoheit-und-mandantenbegriff.md)

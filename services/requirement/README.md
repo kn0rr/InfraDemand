@@ -70,6 +70,24 @@ Die Abweichung fällt nicht beim Übersetzen auf, sondern erst im Abgleichsschri
 mit einem Diff über hunderte Zeilen, der nach einem inhaltlichen Problem aussieht und
 keines ist.
 
+### Richtlinien prüfen – über Docker, nicht über pnpm
+
+```
+docker run --rm -v "%CD%\services\requirement:/w:ro" openpolicyagent/opa:1.19.0 test /w/policies /w/test/policies -v
+```
+
+Aus dem Repository-Wurzelverzeichnis, in `cmd`. In PowerShell steht statt `%CD%` das
+`${PWD}`; Docker verlangt einen absoluten Pfad und löst nichts selbst auf. Die Richtlinien liegen in `policies/`, ihre Tests in
+`test/policies/` – **getrennt mit Absicht:** Ein OPA-Server, der ein Verzeichnis lädt,
+bedient auch die dort liegenden Testregeln und gibt ihren Quelltext über `/v1/policies`
+heraus. Durch die Trennung ist der Einhängepunkt des Sidecars von sich aus richtig,
+statt richtig zu sein, solange jemand an `opa build` denkt.
+
+Es gibt bewusst **kein pnpm-Skript** dafür. Ein Aufruf mit `$PWD` läuft unter Windows
+nicht, `%CD%` nicht unter Linux, und ein Skript, das auf einem der beiden Systeme
+stillschweigend den falschen Pfad einhängt, ist schlechter als ein Befehl, der hier steht.
+Verbindlich ist ohnehin die CI: Schritt „Richtlinien pruefen" im Job `test`.
+
 ---
 
 ## Projektstruktur

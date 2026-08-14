@@ -64,6 +64,7 @@ Zulässige Status: `Vorgeschlagen`, `Angenommen`, `Abgelehnt`, `Ersetzt durch AD
 | [0025](0025-umgang-mit-der-gebundenen-workflow-fassung.md) | Umgang mit der gebundenen Workflow-Fassung | Angenommen | 2026-08-11 |
 | [0026](0026-wirksamer-mandant-und-stufung-der-konfiguration.md) | Wirksamer Mandant und Stufung der Konfiguration | Angenommen | 2026-08-12 |
 | [0027](0027-ausnahmen-von-der-kompatibilitaetsgarantie.md) | Ausnahmen von der Kompatibilitätsgarantie | Angenommen | 2026-08-13 |
+| [0028](0028-policy-engine-opa-als-sidecar.md) | Policy-Engine OPA als Sidecar | Angenommen | 2026-08-13 |
 
 ## Offene, bewusst vertagte Entscheidungen
 
@@ -79,7 +80,8 @@ Zeitpunkt als eigenes ADR nachgezogen.
 | Versionierungsschema der Schnittstelle: Pfad, Kopffeld oder Medientyp | Wenn eine Ausnahme nach ADR-0027 nicht mehr zulässig ist | [ADR-0027](0027-ausnahmen-von-der-kompatibilitaetsgarantie.md) |
 | Befristung von Festhaltungen – verfällt eine Festhaltung von selbst? | Wenn Erfahrung aus dem Betrieb vorliegt | [ADR-0017](0017-regelvokabular-der-datenhoheit-und-mandantenbegriff.md) Teil B |
 | Ablage der Sitzung: Cookie oder serverseitiger Speicher – und welcher, ohne ADR-0002 zu verletzen | Vor Meilenstein M3 | [ADR-0014](0014-frontend-authentifizierung-ueber-bff.md), `PROD-045` |
-| Policy-Engine (OPA vs. OpenFGA) | Meilenstein M5.2 | [ADR-0004](0004-authentifizierung-und-autorisierung.md) |
+| Verteilung der Richtlinien an den Sidecar – Bundle-Server, OCI-Artefakt oder ins Abbild gebacken | Mit der ersten nicht-lokalen Umgebung | [ADR-0028](0028-policy-engine-opa-als-sidecar.md) |
+| Ob OpenFGA doch gebraucht wird | Sobald eine Zuständigkeitsfrage nicht mehr durch ein Prädikat über Spalten der Zeile zu beantworten ist | [ADR-0028](0028-policy-engine-opa-als-sidecar.md) |
 | Regel-Engine für Workflow-Übergänge (JSONLogic vs. json-rules-engine) – **vorerst verneint**, siehe ADR-0024 Punkt 9 | Sobald eine Regel entsteht, die für sich gelesen keinen Satz ergibt | [ADR-0001](0001-backend-sprache-und-framework.md), [ADR-0024](0024-bedingungen-an-workflow-uebergaengen.md) |
 | Bereitstellungskategorie als zweite Schlüsseldimension der Workflows | Meilenstein M7 mit §17 | [ADR-0024](0024-bedingungen-an-workflow-uebergaengen.md) |
 | Abbildung der Workflow-Zustände auf das stabile Statusvokabular des Vertrags | Wenn der Capacity Service angebunden wird | [ADR-0010](0010-entkopplung-anforderung-und-kapazitaet.md), [ADR-0022](0022-statuswechsel-als-eigener-vorgang.md) |

@@ -50,12 +50,12 @@ Das gilt für alle Beteiligten, einschließlich der KI in ihrer Beraterrolle
 | A – Transportverschlüsselung und Netzwerk | 7 | 5 | – |
 | *davon Voraussetzung für ADR-0013:* | `PROD-006`, `PROD-007`, `PROD-032` | | |
 | B – Geheimnisse und Zugangsdaten | 5 | 4 | **1** |
-| C – Identität und Zugriff | 12 | 2 | – |
+| C – Identität und Zugriff | 14 | 3 | – |
 | D – Daten | 7 | 3 | – |
 | E – Container und Lieferkette | 9 | 1 | **2** |
 | F – Betrieb und Verfügbarkeit | 6 | 1 | – |
 | G – Anwendungssicherheit | 10 | 1 | **3** |
-| **Gesamt** | **56** | **17** | **6** |
+| **Gesamt** | **58** | **18** | **6** |
 
 > **Nummern werden nicht neu vergeben.** `PROD-026` ist unbesetzt. Eine Lücke ist kein
 > Fehler – eine wiederverwendete Nummer wäre einer, weil Verweise aus ADRs, Commits und
@@ -251,6 +251,135 @@ Versionsgeschichte veröffentlichtes Geheimnis auszutauschen.
 ---
 
 ## C – Identität und Zugriff
+
+#### PROD-058 — Die Verwaltungs-API von OPA ist unauthentifiziert und erlaubt das Ersetzen der Richtlinie
+**Schwere:** Kritisch · **Status:** Offen · **Betrifft:** §8, §13 · **Verweis:** [ADR-0028](../adr/0028-policy-engine-opa-als-sidecar.md) · **Fundstelle:** `infra/local/compose.yaml`, Dienst `opa`
+
+OPA startet ohne Zugriffsschutz auf seiner HTTP-Schnittstelle. Wer Port 8181 erreicht,
+kann die Richtlinie **ersetzen** – nicht nur lesen. Nachgestellt am 2026-08-13 gegen
+`openpolicyagent/opa:1.19.0`:
+
+```
+PUT /v1/policies/sichtbarkeit.rego     →  {} [HTTP 200]
+```
+
+Danach lieferte die Teilauswertung für einen Anwender **ohne jede Mandantenzugehörigkeit**
+`{"result":{"query":{}}}` – unbedingtes Ja, also den gesamten Bestand. Ein HTTP-Aufruf
+ohne Anmeldung hebt damit die vollständige Berechtigungsprüfung auf.
+
+**Der schreibgeschützte Einhängepunkt schützt nicht.** `:ro` füttert OPA beim Start;
+gehalten werden die Richtlinien im Speicher, und die API schreibt dorthin. Wer aus dem
+`ro` einen Schutz abliest, liegt falsch – das ist der eigentliche Grund für diesen
+Eintrag, denn die Konfiguration *sieht* abgesichert aus.
+
+Zusätzlich gibt `GET /v1/policies` den vollständigen Quelltext aller geladenen Richtlinien
+heraus. Für sich genommen weniger schwerwiegend, aber es legt die Genehmigungsstruktur
+offen – dieselbe Erwägung wie bei `PROD-055`.
+
+**Heute begrenzt**, weil OPA nur in der lokalen Umgebung läuft und der Port auf dem Rechner
+des Entwicklers liegt. Der Eintrag steht hier, weil die Bewertung sich mit der ersten
+gemeinsam genutzten Umgebung schlagartig ändert und die Voreinstellung dann unverändert
+wäre.
+
+### Behebung – nachgestellt und belegt
+
+**Der wirksame Hebel ist `--authorization=basic` mit einer `system.authz`-Richtlinie.** Er
+braucht kein Geheimnis, kein Netzwerkkonzept und keine nicht-lokale Umgebung – er ist
+sofort setzbar. Gemessen am 2026-08-13 gegen `openpolicyagent/opa:1.19.0`, dieselben
+Aufrufe wie oben:
+
+| Aufruf | ohne authz | mit authz |
+|---|---|---|
+| `PUT /v1/policies/…` – Richtlinie ersetzen | 200, wirksam | **401** |
+| `GET /v1/policies` – Quelltext aller Richtlinien | 200 | **401** |
+| `PUT /v1/data/x` – Datendokument schreiben | 200 | **401** |
+| `POST /v1/compile/anforderungen/sichtbarkeit/sichtbar` | 200 | **200**, Bedingung unverändert |
+| `POST /v1/compile/grenzfaelle/alles` – nicht freigegeben | 200 | **401** |
+
+Die letzte Zeile ist der Zugewinn über das Schließen der Lücke hinaus: Freigegeben ist
+**ein** Auswertungspfad, nicht „Auswertung allgemein". Jede weitere Richtlinie muss
+ausdrücklich aufgenommen werden.
+
+**Bei fehlender authz-Richtlinie antwortet OPA auf allen Pfaden mit 500.** Also
+fail-closed, aber mit einer irreführenden Fehlerklasse: Wer die Datei löscht, sieht keinen
+Zugriffsfehler, sondern einen Serverfehler. Das ist die richtige Richtung und eine
+schlechte Meldung.
+
+Die Richtlinie steht in `services/requirement/policies/authz.rego`, wird also mit demselben
+Einhängepunkt geladen und mit `opa test` geprüft wie die Fachrichtlinie. Sie kann sich nicht
+selbst aushebeln – der Pfad zur Richtlinienverwaltung ist der erste, den sie abweist.
+
+### Verbleibendes Risiko
+
+Vier Punkte, die das geschlossene Tor **nicht** abdeckt:
+
+1. **Die Freigabeliste kann verwässern.** Wer eine 401 als Störung empfindet und die Regel
+   zu „alles unter `compile`" verbreitert, öffnet sämtliche Auswertungspfade.
+   `test_fremder_auswertungspfad_ist_verboten` bricht genau dann – abgedeckt, aber nur
+   deswegen.
+2. **Es ist Pfadfilterung, keine Authentifizierung.** Wer den Port erreicht, darf den
+   freigegebenen Pfad auswerten. Heute verrät das wenig. Ab M5.3 nimmt die Richtlinie
+   Rollen, Projekte und Kostenstellen als Eingabe – dann ist der Endpunkt ein
+   Auskunftsdienst über die Berechtigungslogik.
+3. **Die irreführende Fehlermeldung** (500 statt 401) legt die falsche Reparatur nahe:
+   `--authorization=basic` entfernen statt die Datei wiederherstellen. Danach funktioniert
+   alles wieder – mit offener Lücke.
+4. **Ein Austausch wäre nicht nachweisbar.** Es gibt keine Möglichkeit zu belegen, dass die
+   laufende Richtlinie die aus dem Repository ist. Kein Einbruchs-, sondern ein
+   Nachweisrisiko (§19.4). Die Antwort sind signierte Bundles, und die hängt an der
+   vertagten Frage der Richtlinienverteilung.
+
+### Frist – korrigiert am 2026-08-13
+
+Ursprünglich stand hier „erst mit der ersten nicht-lokalen Umgebung". **Das ist die falsche
+Marke.** Heute stehen die Guards aus M3.2 neben der Engine (ADR-0028 Punkt 6); eine
+ausgetauschte Richtlinie wäre eine von zwei Prüfungen. Ab **M5.3** weichen die Guards, und
+dann ist OPA die einzige. Das Risikoprofil dieser Komponente verschlechtert sich im Verlauf
+des Meilensteins.
+
+Maßgeblich ist deshalb, **was zuerst eintritt: die gemeinsam genutzte Umgebung oder der
+Moment, in dem die Engine alleine trägt.**
+
+**Zwei weitere Maßnahmen bleiben, fällig zum oben genannten Zeitpunkt:**
+
+1. Der Sidecar hört auf `127.0.0.1` statt `0.0.0.0`. Im Pod erreicht der Dienst ihn über
+   den geteilten Netzwerknamensraum; von außerhalb ist er dann nicht ansprechbar. **Lokal
+   nicht möglich**, weil der Dienst dort außerhalb von Compose läuft und den Sidecar über
+   den veröffentlichten Port erreicht – ein Container, der nur auf seiner Rückschleife
+   hört, ist von außen nicht erreichbar. Deshalb lokal stattdessen die Portbindung an
+   `127.0.0.1` auf der Wirtsseite.
+2. Ein gemeinsames Merkmal zwischen Dienst und Sidecar, damit nicht jeder Nachbar im
+   Netzwerknamensraum auswerten darf. Erst sinnvoll, wenn es eine Geheimnisverwaltung gibt
+   (§13, Vault).
+
+#### PROD-059 — Die Policy-Engine ist angebunden und entscheidet nichts
+**Schwere:** Mittel · **Status:** Offen · **Betrifft:** §8 · **Verweis:** [ADR-0028](../adr/0028-policy-engine-opa-als-sidecar.md) Punkt 6 · **Fundstelle:** `services/requirement/src/berechtigung/`, `infra/local/compose.yaml`
+
+Nach M5.2 steht der Rahmen: OPA läuft als Sidecar, die Richtlinie ist geschrieben und
+getestet, der Client übersetzt ihre Auskunft in eine Abfragebedingung, und ein
+Integrationstest belegt, dass diese dieselbe Menge liefert wie der Filter aus M5.1.
+
+**Im Anwendungspfad ruft niemand den Client auf.** Gefiltert wird weiterhin in SQL. Die
+Berechtigung entscheiden die Guards aus M3.2 und die Zugehörigkeitsprüfung aus M5.1 – die
+Engine entscheidet nichts.
+
+Das ist der geplante Zwischenzustand und kein Fehler. Der Eintrag steht hier wegen seiner
+**Erscheinungsform**, demselben Muster wie `PROD-052`, `PROD-017` und `PROD-056`: Ein
+Container in jeder Umgebung, eine Pflichtvariable `OPA_URL` ohne die der Dienst nicht
+startet, ein angenommenes ADR und grüne Tests. Alles daran sieht nach vorhandener
+richtlinienbasierter Autorisierung aus. Wer den Compose-Eintrag liest, hat keinen Anlass zu
+vermuten, dass die Engine im Leerlauf läuft.
+
+Hinzu kommt eine kleinere, konkrete Folge: `OPA_URL` wird im Konstruktor mit `getOrThrow`
+gelesen. **Jede Umgebung muss einen Sidecar konfigurieren, der nichts tut** – fehlt der
+Wert, startet der Dienst nicht.
+
+**Zielzustand:** Mit M5.3 übernimmt die Engine den Lesezuschnitt, und der SQL-Filter aus
+M5.1 entfällt. Bis dahin ist dieser Eintrag die einzige Stelle, an der steht, dass die
+Engine nicht wirkt.
+
+**Woran es auffiele, wenn es länger dauert:** an nichts. Ein unbenutzter Client verursacht
+keine Fehler. Genau deshalb steht er in dieser Liste und nicht nur im ADR.
 
 #### PROD-013 — Passwort-Grant am Frontend-Client aktiviert
 **Schwere:** Kritisch · **Status:** Offen · **Fundstelle:** `infra/keycloak/realms/infrademand.json`, `directAccessGrantsEnabled: true`
