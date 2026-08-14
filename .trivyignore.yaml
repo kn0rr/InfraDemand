@@ -74,6 +74,36 @@ vulnerabilities:
     paths: ["usr/local/bin/gosu"]
     statement: "mime in gosu nicht erreichbar."
     expired_at: 2026-11-04
+  - id: CVE-2026-39821
+    paths: ["usr/local/bin/gosu"]
+    statement: "net/http idna in gosu nicht erreichbar."
+    expired_at: 2026-11-04
+  - id: CVE-2026-46600
+    paths: ["usr/local/bin/gosu"]
+    statement: "dns/dnsmessage in gosu nicht erreichbar."
+    expired_at:
+      2026-11-04
+
+      # --- openpolicyagent/opa 1.19.0, Go-Standardbibliothek 1.26.5 -------------
+  # RISIKO AKZEPTIERT, UPSTREAM AUSSTEHEND. Behoben in Go 1.26.6. Es gibt kein
+  # OPA-Abbild damit: Auch der Entwicklungsstand 1.20.0-dev vom 2026-08-13 ist
+  # mit go1.26.5 gebaut. Heben ist nicht moeglich, auch nicht auf einen
+  # Vorabstand - und ein Vorabstand waere fuer die Komponente, die Berechtigungen
+  # entscheidet, ohnehin die schlechtere Wahl.
+  #
+  # Mindernd, aber ausdruecklich KEIN Unerreichbarkeitsnachweis: Der Sidecar laedt
+  # seine Richtlinien aus Dateien - kein Bundle-Server, keine Uebertragung der
+  # Entscheidungsprotokolle, kein http.send in einer Richtlinie. In dieser
+  # Konfiguration entstehen keine ausgehenden HTTP- oder DNS-Aufrufe. Das ist
+  # Konfiguration und kein Beweis, dieselbe Unterscheidung wie bei micrometer-core.
+  - id: CVE-2026-39821
+    paths: ["opa"]
+    statement: "RISIKO AKZEPTIERT, UPSTREAM AUSSTEHEND. golang.org/x/net/idna in net/http. NEU BEWERTEN, sobald ein Bundle-Server, eine Protokolluebertragung oder http.send hinzukommt - siehe ADR-0028, Folgeentscheidung zur Richtlinienverteilung."
+    expired_at: 2026-09-30
+  - id: CVE-2026-46600
+    paths: ["opa"]
+    statement: "RISIKO AKZEPTIERT, UPSTREAM AUSSTEHEND. golang.org/x/net/dns/dnsmessage. NEU BEWERTEN wie beim vorigen Eintrag."
+    expired_at: 2026-09-30
 
   # --- Keycloak 26.7.1: gebuendelte Bibliotheken ----------------------------
   # Keycloak 26.7.1 ist die neueste Fassung. Ein Update ist nicht moeglich -
@@ -103,6 +133,7 @@ vulnerabilities:
     expired_at: 2026-09-15
 
   # Risiko akzeptiert, Upstream ausstehend - NICHT als unerreichbar dokumentiert
+
   - id: CVE-2026-54512
     statement: "RISIKO AKZEPTIERT, UPSTREAM AUSSTEHEND. jackson-databind, Codeausfuehrung ueber PolymorphicTypeValidator-Umgehung. Erreichbarkeit nicht ausschliessbar. Keycloak 26.7.0 buendelt 2.21.2, Fix in 2.21.4."
     expired_at: 2026-09-15

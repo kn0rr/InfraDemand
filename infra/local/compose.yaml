@@ -73,5 +73,24 @@ services:
     volumes:
       - ../keycloak/realms:/config:ro
 
+  opa:
+    image: openpolicyagent/opa:1.19.0@sha256:8523599954435a3659954ad51ee0304d22bd97576f16cdb02e5e39f38ff3962a
+    container_name: id-opa
+    command:
+      - "run"
+      - "--server"
+      - "--addr=0.0.0.0:8181"
+      - "--authorization=basic"
+      - "--set=decision_logs.console=true"
+      - "/policies"
+    ports:
+      # Ausdruecklich nur an die Rueckschleife gebunden: Die Verwaltungs-API von OPA ist
+      # unauthentifiziert und erlaubt das Ersetzen der Richtlinie (PROD-058).
+      - "127.0.0.1:8181:8181"
+    volumes:
+      # Nur die Richtlinien, nicht die Tests - sonst bedient der Server auch die
+      # Testregeln und gibt ihren Quelltext ueber /v1/policies heraus.
+      - ../../services/requirement/policies:/policies:ro
+
 volumes:
   postgres-data:

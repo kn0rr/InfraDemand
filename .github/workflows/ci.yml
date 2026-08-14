@@ -199,5 +199,11 @@ jobs:
       - name: Tests
         run: pnpm test
 
+      - name: Richtlinien pruefen
+        run: |
+          docker run --rm -v "$PWD/services/requirement:/w:ro" \
+            openpolicyagent/opa:1.19.0@sha256:8523599954435a3659954ad51ee0304d22bd97576f16cdb02e5e39f38ff3962a \
+            test /w/policies /w/test/policies
+
       - name: Build
         run: pnpm -r build
