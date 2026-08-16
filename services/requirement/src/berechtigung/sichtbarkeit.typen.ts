@@ -14,6 +14,15 @@ export interface UcastFeld {
   readonly value: unknown;
 }
 
+/** Ein Verbundknoten - entsteht, sobald eine Regel mehr als eine Bedingung hat. */
+export interface UcastVerbund {
+  readonly type: "compound";
+  readonly operator: string;
+  readonly value: readonly unknown[];
+}
+
+export type UcastKnoten = UcastFeld | UcastVerbund;
+
 /**
  * Die drei Antworten der Teilauswertung - als Aufzaehlung, nicht als Nullwert.
  *
@@ -24,8 +33,9 @@ export interface UcastFeld {
  * den gesamten Bestand heraus. Diese Aufzaehlung laesst das nicht zu: Wer `art` nicht
  * vollstaendig behandelt, uebersetzt gar nicht.
  */
+
 export type Sichtbarkeit =
-  | { readonly art: "bedingung"; readonly bedingung: UcastFeld }
+  | { readonly art: "bedingung"; readonly bedingung: UcastKnoten }
   | { readonly art: "alles" }
   | { readonly art: "nichts" };
 
@@ -70,9 +80,12 @@ export function deuteAntwort(rumpf: unknown): Sichtbarkeit {
     return { art: "alles" };
   }
 
-  if (abfrage["type"] !== "field" || typeof abfrage["field"] !== "string") {
+  const istFeld = abfrage["type"] === "field" && typeof abfrage["field"] === "string";
+  const istVerbund = abfrage["type"] === "compound" && Array.isArray(abfrage["value"]);
+
+  if (!istFeld && !istVerbund) {
     throw new Error(`Unbekannte Bedingungsform: ${JSON.stringify(abfrage)}`);
   }
 
-  return { art: "bedingung", bedingung: abfrage as unknown as UcastFeld };
+  return { art: "bedingung", bedingung: abfrage as unknown as UcastKnoten };
 }

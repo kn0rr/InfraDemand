@@ -631,7 +631,8 @@ export interface components {
              * @example A-4711
              */
             externalId?: string;
-            owner: string;
+            /** @description Verantwortlich. Ohne Angabe der angemeldete Aufrufer - er soll die eigene Anforderung wiederfinden (§1, ADR-0029). */
+            owner?: string;
             /** Format: uuid */
             projectId: string;
             /** @example feature */

@@ -17,6 +17,8 @@ describe("Mandantenzuschnitt (ADR-0026)", () => {
   let pool: Pool;
   let alsEins: string;
   let alsZwei: string;
+  let alsEinsZweiter: string;
+  let alsBetreiber: string;
   let alsBeide: string;
   let ohneZugehoerigkeit: string;
   let alsQuelleEins: string;
@@ -25,7 +27,6 @@ describe("Mandantenzuschnitt (ADR-0026)", () => {
   const anlage = {
     projectId: "11111111-1111-4111-8111-111111111111",
     requirementType: "feature",
-    owner: "M. Weber",
   };
 
   beforeAll(async () => {
@@ -41,6 +42,13 @@ describe("Mandantenzuschnitt (ADR-0026)", () => {
     alsBeide = jwks.sign({ sub: "b-3", azp: "frontend", tenants: ["t-eins", "t-zwei"] });
     alsQuelleEins = jwks.sign({ sub: "d-1", azp: "sap", tenants: ["t-eins"] });
     alsQuelleZwei = jwks.sign({ sub: "d-2", azp: "sap", tenants: ["t-zwei"] });
+    alsEinsZweiter = jwks.sign({ sub: "b-5", azp: "frontend", tenants: ["t-eins"] });
+    alsBetreiber = jwks.sign({
+      sub: "b-6",
+      azp: "frontend",
+      tenants: ["t-eins"],
+      realm_access: { roles: ["platform-admin"] },
+    });
     // Kein `tenants`-Anspruch: der Fall, den ein Realm ohne Mapper erzeugt.
     ohneZugehoerigkeit = jwks.sign({ sub: "b-4", azp: "frontend" });
 
@@ -140,8 +148,10 @@ describe("Mandantenzuschnitt (ADR-0026)", () => {
 
     it("zeigt bei Mehrfachzugehoerigkeit beide", async () => {
       // ADR-0017 C3 haelt diesen Fall ausdruecklich fest - hier ist er nachgewiesen.
-      await anlegen(alsEins, "t-eins");
-      await anlegen(alsZwei, "t-zwei");
+      // Angelegt vom selben Anwender, damit der Test die Zugehoerigkeit prueft und nicht
+      // die Eigentuemerschaft (ADR-0029).
+      await anlegen(alsBeide, "t-eins");
+      await anlegen(alsBeide, "t-zwei");
 
       const antwort = await mit(alsBeide)("get", "/v1/requirements").expect(200);
 
@@ -169,6 +179,23 @@ describe("Mandantenzuschnitt (ADR-0026)", () => {
       ).expect(200);
 
       expect(antwort.body).toEqual([]);
+    });
+
+    it("zeigt eine fremde Anforderung desselben Mandanten nicht", async () => {
+      // Die Korrektur aus ADR-0029: Die Mandantengrenze allein genuegt nicht mehr.
+      await anlegen(alsEins, "t-eins");
+
+      const antwort = await mit(alsEinsZweiter)("get", "/v1/requirements").expect(200);
+
+      expect(antwort.body).toEqual([]);
+    });
+
+    it("zeigt dem Betreiber den ganzen Mandanten", async () => {
+      await anlegen(alsEins, "t-eins");
+
+      const antwort = await mit(alsBetreiber)("get", "/v1/requirements").expect(200);
+
+      expect(antwort.body).toHaveLength(1);
     });
   });
 

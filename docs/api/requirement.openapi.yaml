@@ -290,6 +290,9 @@ components:
           maxLength: 200
           type: string
         owner:
+          description: >-
+            Verantwortlich. Ohne Angabe der angemeldete Aufrufer - er soll die eigene Anforderung
+            wiederfinden (§1, ADR-0029).
           maxLength: 200
           type: string
         projectId:
@@ -314,7 +317,6 @@ components:
       required:
         - projectId
         - requirementType
-        - owner
         - tenant
       type: object
     CreateWorkflowDefinitionDto:

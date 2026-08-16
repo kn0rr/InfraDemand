@@ -10,30 +10,30 @@ import data.anforderungen.sichtbarkeit.sichtbar
 
 test_eigener_mandant_ist_sichtbar if {
 	sichtbar with input as {
-		"benutzer": {"mandanten": ["t-eins"]},
-		"requirement": {"tenant": "t-eins"},
+		"benutzer": {"mandanten": ["t-eins"], "kennung": "anna", "rollen": []},
+		"requirement": {"tenant": "t-eins", "owner": "anna"},
 	}
 }
 
 test_fremder_mandant_ist_nicht_sichtbar if {
 	not sichtbar with input as {
-		"benutzer": {"mandanten": ["t-eins"]},
-		"requirement": {"tenant": "t-zwei"},
+		"benutzer": {"mandanten": ["t-eins"], "kennung": "anna", "rollen": []},
+		"requirement": {"tenant": "t-zwei", "owner": "anna"},
 	}
 }
 
 test_mehrfachzugehoerigkeit_sieht_beide if {
 	sichtbar with input as {
-		"benutzer": {"mandanten": ["t-eins", "t-zwei"]},
-		"requirement": {"tenant": "t-zwei"},
+		"benutzer": {"mandanten": ["t-eins", "t-zwei"], "kennung": "anna", "rollen": []},
+		"requirement": {"tenant": "t-zwei", "owner": "anna"},
 	}
 }
 
 # Der Fall, den ein Realm ohne Mapper erzeugt (ADR-0026 Punkt 6).
 test_ohne_zugehoerigkeit_ist_nichts_sichtbar if {
 	not sichtbar with input as {
-		"benutzer": {"mandanten": []},
-		"requirement": {"tenant": "t-eins"},
+		"benutzer": {"mandanten": [], "kennung": "anna", "rollen": []},
+		"requirement": {"tenant": "t-eins", "owner": "anna"},
 	}
 }
 
@@ -51,5 +51,25 @@ test_anforderung_ohne_mandant_ist_nicht_sichtbar if {
 	not sichtbar with input as {
 		"benutzer": {"mandanten": ["t-eins"]},
 		"requirement": {},
+	}
+}
+test_fremde_anforderung_ist_nicht_sichtbar if {
+	not sichtbar with input as {
+		"benutzer": {"mandanten": ["t-eins"], "kennung": "anna", "rollen": []},
+		"requirement": {"tenant": "t-eins", "owner": "bodo"},
+	}
+}
+
+test_betreiber_sieht_den_ganzen_mandanten if {
+	sichtbar with input as {
+		"benutzer": {"mandanten": ["t-eins"], "kennung": "a.admin", "rollen": ["platform-admin"]},
+		"requirement": {"tenant": "t-eins", "owner": "bodo"},
+	}
+}
+
+test_betreiber_sieht_fremden_mandanten_nicht if {
+	not sichtbar with input as {
+		"benutzer": {"mandanten": ["t-eins"], "kennung": "a.admin", "rollen": ["platform-admin"]},
+		"requirement": {"tenant": "t-zwei", "owner": "bodo"},
 	}
 }
