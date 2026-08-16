@@ -52,10 +52,10 @@ Das gilt für alle Beteiligten, einschließlich der KI in ihrer Beraterrolle
 | B – Geheimnisse und Zugangsdaten | 5 | 4 | **1** |
 | C – Identität und Zugriff | 15 | 3 | **1** |
 | D – Daten | 7 | 3 | – |
-| E – Container und Lieferkette | 9 | 1 | **2** |
+| E – Container und Lieferkette | 10 | 1 | **2** |
 | F – Betrieb und Verfügbarkeit | 6 | 1 | – |
 | G – Anwendungssicherheit | 10 | 1 | **3** |
-| **Gesamt** | **59** | **18** | **7** |
+| **Gesamt** | **60** | **18** | **7** |
 
 > **Nummern werden nicht neu vergeben.** `PROD-026` ist unbesetzt. Eine Lücke ist kein
 > Fehler – eine wiederverwendete Nummer wäre einer, weil Verweise aus ADRs, Commits und
@@ -1016,6 +1016,49 @@ Lösung, keine dauerhafte Bewertung.
 `--show-suppressed` ist damit auch das Mittel der Wahl, um bei künftigen Einträgen zu
 prüfen, ob sie tatsächlich greifen – eine Unterdrückung, die ins Leere läuft, sieht im
 Bericht genauso aus wie ein Befund, den es nicht gibt.
+
+#### PROD-061 — Die Ignorierliste wächst schneller, als sie gelesen wird
+**Schwere:** Mittel · **Status:** Offen · **Betrifft:** §13 · **Verweis:** `PROD-037` · **Fundstelle:** `.trivyignore.yaml`
+
+Die Liste ist innerhalb von drei Tagen von 15 auf 39 Einträge gewachsen:
+
+| Datum | Anlass | Neue Einträge |
+|---|---|---|
+| 2026-08-13 | OPA kommt als Laufzeit-Image dazu (M5.2) | 3 |
+| 2026-08-14 | zwei Go-Lücken veröffentlicht | 3 |
+| 2026-08-16 | sechs Go-Lücken veröffentlicht | 12 |
+
+**Der überwiegende Teil beschreibt kein Risiko unserer Software.** Er beschreibt das Alter
+der Go-Fassung, mit der fremde Abbilder gebaut sind – `gosu` mit go1.24.6, OPA mit
+go1.26.5. Jede neue Lücke in der Standardbibliothek erzeugt Einträge in **jedem** Abbild,
+das ein Go-Programm enthält, und zwar je Kennung und je Pfad einzeln.
+
+**Das Verfahren ist richtig, die Frequenz sprengt es.** Die Regeln aus `PROD-037` –
+Begründung je Eintrag, Frist, engstmögliche Eingrenzung – sind genau die, die eine
+Unterdrückung überprüfbar halten. Sie setzen aber voraus, dass Einträge einzeln entstehen
+und einzeln gelesen werden. Bei zwölf auf einmal, alle mit derselben Ursache, geschieht
+zweierlei: Die Begründungen werden mechanisch, und die Liste wird zu lang, um im Review
+tatsächlich gelesen zu werden.
+
+**Woran es auffiele, dass die Erosion eingetreten ist:** an nichts. Ein Tor, dessen
+Ausnahmeliste niemand mehr liest, ist grün wie eines ohne Ausnahmen. Genau deshalb steht
+dieser Eintrag hier und nicht als Anmerkung in der Datei.
+
+**Zielzustand – zwei Teile, und der erste ist der wichtigere:**
+
+1. **Befunde der Go-Standardbibliothek werden nach ihrer Ursache behandelt, nicht einzeln.**
+   Sinnvoll wäre eine Gruppierung je Abbild und Go-Fassung mit **einer** Begründung und
+   **einer** Frist, statt je Kennung. Ob `.trivyignore.yaml` das ausdrücken kann, ist zu
+   prüfen; falls nicht, ist ein erzeugter Abschnitt mit gemeinsamer Kopfzeile die
+   nächstbeste Form. Die Unterscheidung aus `PROD-037` – erreichbar oder nicht – bleibt
+   dabei unangetastet, sie wird nur einmal je Gruppe getroffen statt einmal je Kennung.
+2. **Ein Blick auf die Gesamtzahl gehört ins Review.** Wächst die Liste zwischen zwei
+   Ständen um mehr als eine Handvoll, ist die Ursache zu benennen, bevor die Einträge
+   übernommen werden.
+
+**Nicht gemeint ist eine Lockerung.** Die Frist bleibt Pflicht, die Eingrenzung über
+`paths` bleibt Pflicht, und „wir sind nur nicht aktuell" bleibt kein Grund. Es geht allein
+darum, dass eine Liste, die niemand mehr liest, ihre Aufgabe nicht mehr erfüllt.
 
 ### Verfahren für Unterdrückungen
 

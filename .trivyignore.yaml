@@ -81,8 +81,39 @@ vulnerabilities:
   - id: CVE-2026-46600
     paths: ["usr/local/bin/gosu"]
     statement: "dns/dnsmessage in gosu nicht erreichbar."
+    expired_at: 2026-11-04
+    # Nachtrag 2026-08-16: sechs weitere Lücken derselben Go-Fassung. Geprueft: Auch
+  # `openpolicyagent/opa:edge` (1.20.0-dev) ist weiterhin mit go1.26.5 gebaut - es gibt
+  # kein Abbild mit dem Fix. Die Erwaegungen des Blocks oben gelten unveraendert.
+  #
+  # Bewusst NICHT je Paket als unerreichbar gefuehrt: OPA *ist* ein HTTP-Server, und
+  # net/http sowie net/url liegen damit im Bedienpfad. Dass unser Sidecar kein TLS spricht
+  # und keine Vorlagen rendert, ist Konfiguration und kein Beweis.
+  - id: CVE-2026-33818
+    paths: ["opa"]
+    statement: "RISIKO AKZEPTIERT, UPSTREAM AUSSTEHEND. encoding/asn1, DoS ueber Rekursion in Unmarshal."
+    expired_at: 2026-09-30
+  - id: CVE-2026-56853
+    paths: ["opa"]
+    statement: "RISIKO AKZEPTIERT, UPSTREAM AUSSTEHEND. net/http, DoS ueber unverschluesselte HTTP/2-Verbindungen. Im Bedienpfad des Sidecars."
+    expired_at: 2026-09-30
+  - id: CVE-2026-56858
+    paths: ["opa"]
+    statement: "RISIKO AKZEPTIERT, UPSTREAM AUSSTEHEND. html/template, XSS. OPA rendert in unserer Konfiguration keine Vorlagen - Konfiguration, kein Beweis."
+    expired_at: 2026-09-30
+  - id: CVE-2026-56859
+    paths: ["opa"]
+    statement: "RISIKO AKZEPTIERT, UPSTREAM AUSSTEHEND. encoding/xml, DoS ueber Rekursionstiefe."
+    expired_at: 2026-09-30
+  - id: CVE-2026-56860
+    paths: ["opa"]
+    statement: "RISIKO AKZEPTIERT, UPSTREAM AUSSTEHEND. net/url, quadratische Laufzeit bei der Pfadzerlegung. Im Bedienpfad des Sidecars."
+    expired_at: 2026-09-30
+  - id: CVE-2026-56862
+    paths: ["opa"]
+    statement: "RISIKO AKZEPTIERT, UPSTREAM AUSSTEHEND. crypto/tls, DoS ueber KeyUpdate. Der Sidecar spricht kein TLS - Konfiguration, kein Beweis."
     expired_at:
-      2026-11-04
+      2026-09-30
 
       # --- openpolicyagent/opa 1.19.0, Go-Standardbibliothek 1.26.5 -------------
   # RISIKO AKZEPTIERT, UPSTREAM AUSSTEHEND. Behoben in Go 1.26.6. Es gibt kein
@@ -103,6 +134,37 @@ vulnerabilities:
   - id: CVE-2026-46600
     paths: ["opa"]
     statement: "RISIKO AKZEPTIERT, UPSTREAM AUSSTEHEND. golang.org/x/net/dns/dnsmessage. NEU BEWERTEN wie beim vorigen Eintrag."
+    expired_at: 2026-09-30
+    # Nachtrag 2026-08-16: sechs weitere Lücken derselben Go-Fassung. Geprueft: Auch
+  # `openpolicyagent/opa:edge` (1.20.0-dev) ist weiterhin mit go1.26.5 gebaut - es gibt
+  # kein Abbild mit dem Fix. Die Erwaegungen des Blocks oben gelten unveraendert.
+  #
+  # Bewusst NICHT je Paket als unerreichbar gefuehrt: OPA *ist* ein HTTP-Server, und
+  # net/http sowie net/url liegen damit im Bedienpfad. Dass unser Sidecar kein TLS spricht
+  # und keine Vorlagen rendert, ist Konfiguration und kein Beweis.
+  - id: CVE-2026-33818
+    paths: ["opa"]
+    statement: "RISIKO AKZEPTIERT, UPSTREAM AUSSTEHEND. encoding/asn1, DoS ueber Rekursion in Unmarshal."
+    expired_at: 2026-09-30
+  - id: CVE-2026-56853
+    paths: ["opa"]
+    statement: "RISIKO AKZEPTIERT, UPSTREAM AUSSTEHEND. net/http, DoS ueber unverschluesselte HTTP/2-Verbindungen. Im Bedienpfad des Sidecars."
+    expired_at: 2026-09-30
+  - id: CVE-2026-56858
+    paths: ["opa"]
+    statement: "RISIKO AKZEPTIERT, UPSTREAM AUSSTEHEND. html/template, XSS. OPA rendert in unserer Konfiguration keine Vorlagen - Konfiguration, kein Beweis."
+    expired_at: 2026-09-30
+  - id: CVE-2026-56859
+    paths: ["opa"]
+    statement: "RISIKO AKZEPTIERT, UPSTREAM AUSSTEHEND. encoding/xml, DoS ueber Rekursionstiefe."
+    expired_at: 2026-09-30
+  - id: CVE-2026-56860
+    paths: ["opa"]
+    statement: "RISIKO AKZEPTIERT, UPSTREAM AUSSTEHEND. net/url, quadratische Laufzeit bei der Pfadzerlegung. Im Bedienpfad des Sidecars."
+    expired_at: 2026-09-30
+  - id: CVE-2026-56862
+    paths: ["opa"]
+    statement: "RISIKO AKZEPTIERT, UPSTREAM AUSSTEHEND. crypto/tls, DoS ueber KeyUpdate. Der Sidecar spricht kein TLS - Konfiguration, kein Beweis."
     expired_at: 2026-09-30
 
   # --- Keycloak 26.7.1: gebuendelte Bibliotheken ----------------------------
