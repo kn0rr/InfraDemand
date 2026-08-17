@@ -41,7 +41,8 @@ describe("Datenhoheit im Schreibpfad", () => {
     alsAdmin = jwks.sign({
       sub: "admin-1",
       azp: "frontend",
-      realm_access: { roles: ["platform-admin"], tenants: ["t-eins"] },
+      tenants: ["t-eins"],
+      realm_access: { roles: ["platform-admin"] },
     });
 
     pool = new Pool({ connectionString: database.connectionString });
@@ -126,7 +127,7 @@ describe("Datenhoheit im Schreibpfad", () => {
         .send({ owner: "T. Schmidt", requirementType: "bug" })
         .expect(409);
 
-      const liste = await mit(alsMensch)("get", "/v1/requirements").expect(200);
+      const liste = await mit(alsAdmin)("get", "/v1/requirements").expect(200);
 
       // ADR-0019 Punkt 1: alles oder nichts.
       expect(liste.body[0]).toMatchObject({

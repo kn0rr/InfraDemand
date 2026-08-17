@@ -1,12 +1,28 @@
 import { PgDialect } from "drizzle-orm/pg-core";
 import { describe, expect, it } from "vitest";
 import { deuteAntwort, type Sichtbarkeit } from "../src/berechtigung/sichtbarkeit.typen";
-import { alsBedingung } from "../src/berechtigung/ucast";
+
+import {
+  alsBedingung,
+  FELDER_BESTAND,
+  FELDER_HISTORIE,
+  type Feldabbildung,
+} from "../src/berechtigung/ucast";
 
 const dialekt = new PgDialect();
 
 /** Uebersetzt bis zur fertigen Abfrage - `JSON.stringify` scheitert am Spaltenverweis. */
-const uebersetzt = (rumpf: unknown) => dialekt.sqlToQuery(alsBedingung(deuteAntwort(rumpf)));
+const uebersetzt = (rumpf: unknown, felder: Feldabbildung = FELDER_BESTAND) =>
+  dialekt.sqlToQuery(alsBedingung(deuteAntwort(rumpf), felder));
+
+const feld = (field: string, operator: string, value: unknown) => ({
+  type: "field",
+  field,
+  operator,
+  value,
+});
+const verbund = (operator: string, ...value: unknown[]) => ({ type: "compound", operator, value });
+const rumpf = (query: unknown) => ({ result: { query } });
 
 describe("deuteAntwort", () => {
   it("deutet einen leeren Rumpf als „nichts", () => {
@@ -76,14 +92,16 @@ describe("alsBedingung", () => {
     const nichts: Sichtbarkeit = { art: "nichts" };
     const alles: Sichtbarkeit = { art: "alles" };
 
-    expect(dialekt.sqlToQuery(alsBedingung(nichts)).sql).toBe("false");
-    expect(dialekt.sqlToQuery(alsBedingung(alles)).sql).toBe("true");
+    expect(dialekt.sqlToQuery(alsBedingung(nichts, FELDER_BESTAND)).sql).toBe("false");
+    expect(dialekt.sqlToQuery(alsBedingung(alles, FELDER_BESTAND)).sql).toBe("true");
   });
 
   it("wirft bei einem unbekannten Feld", () => {
+    // `status` ist eine echte Spalte, steht aber nicht in der Abbildung. Genau darum
+    // geht es: Zugelassen ist, was ausgeschrieben ist - nicht, was es im Schema gibt.
     const rumpf = {
       result: {
-        query: { type: "field", field: "requirement.owner", operator: "in", value: ["x"] },
+        query: { type: "field", field: "requirement.status", operator: "eq", value: "neu" },
       },
     };
 

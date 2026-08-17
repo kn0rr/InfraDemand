@@ -22,11 +22,16 @@ export class CreateRequirementDto {
   @MaxLength(100)
   requirementType!: string;
 
-  @ApiProperty({ maxLength: 200 })
+  @ApiPropertyOptional({
+    maxLength: 200,
+    description:
+      "Verantwortlich. Ohne Angabe der angemeldete Aufrufer - er soll die eigene Anforderung wiederfinden (§1, ADR-0029).",
+  })
+  @IsOptional()
   @IsString()
   @MinLength(1)
   @MaxLength(200)
-  owner!: string;
+  owner?: string;
 
   @ApiPropertyOptional({
     example: "sap",

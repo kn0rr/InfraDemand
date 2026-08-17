@@ -9,7 +9,7 @@ import { AppModule } from "../src/app.module";
 import { configureApp } from "../src/app.setup";
 import type { AuthenticatedUser } from "../src/auth/jwt.strategy";
 import { OpaClient } from "../src/berechtigung/opa.client";
-import { alsBedingung } from "../src/berechtigung/ucast";
+import { alsBedingung, FELDER_BESTAND } from "../src/berechtigung/ucast";
 import { requirements } from "../src/database/schema";
 import { type JwksTestServer, startJwksTestServer } from "./support/jwks-test-server";
 import { startTestOpa, type TestOpa } from "./support/opa";
@@ -17,13 +17,14 @@ import { startTestDatabase, type TestDatabase } from "./support/test-database";
 import { registriereWorkflow } from "./support/workflows";
 
 /**
- * Der Nachweis fuer M5.2 (ADR-0028 Punkt 4): Die aus der Richtlinie erzeugte Bedingung
- * liefert dieselbe Menge wie der handgeschriebene Filter aus M5.1.
+ * Prueft den Weg Richtlinie → Bedingung → Abfrage unmittelbar gegen die Datenbank.
  *
- * Die Referenz ist bewusst der Endpunkt und nicht eine nachgebaute Abfrage - verglichen
- * wird gegen das ausgelieferte Verhalten. Dass beide Seiten den leeren Fall
- * unterschiedlich loesen (Kurzschluss gegen `false`), ist der Grund, warum der Vergleich
- * ueberhaupt etwas aussagt.
+ * Bis M5.2 verglich dieser Spec die erzeugte Bedingung mit `GET /v1/requirements`. Seit
+ * die Richtlinie nach Eigentuemer zuschneidet (ADR-0029), laufen beide absichtlich
+ * auseinander, und nach der Umstellung des Lesepfads waere der Vergleich ohnehin ein
+ * Kreisschluss - der Endpunkt *ist* dann die Richtlinie. Geprueft wird deshalb gegen
+ * ausgeschriebene Erwartungen; das ausgelieferte Verhalten prueft
+ * `mandant.integration.spec.ts`.
  */
 describe("Sichtbarkeit ueber die Richtlinie (M5.2)", () => {
   let app: NestFastifyApplication;
@@ -40,11 +41,15 @@ describe("Sichtbarkeit ueber die Richtlinie (M5.2)", () => {
     owner: "M. Weber",
   };
 
-  const alsBenutzer = (tenants: string[]): AuthenticatedUser => ({
-    userId: "u-1",
-    username: "test.author",
+  const alsBenutzer = (
+    tenants: string[],
+    kennung: string,
+    rollen: string[] = [],
+  ): AuthenticatedUser => ({
+    userId: kennung,
+    username: kennung,
     clientId: "frontend",
-    roles: [],
+    roles: rollen,
     tenants,
   });
 
@@ -73,16 +78,21 @@ describe("Sichtbarkeit ueber die Richtlinie (M5.2)", () => {
 
     // Bestand ueber den echten Anlageweg, damit die Referenz nicht auf
     // Testvorbereitung beruht.
-    for (const [tenant, anzahl] of [
-      ["t-eins", 2],
-      ["t-zwei", 3],
+    for (const [tenant, owner, anzahl] of [
+      ["t-eins", "anna", 2],
+      ["t-zwei", "bodo", 3],
     ] as const) {
-      const token = jwks.sign({ sub: "u-1", azp: "frontend", tenants: [tenant] });
+      const token = jwks.sign({
+        sub: owner,
+        azp: "frontend",
+        preferred_username: owner,
+        tenants: [tenant],
+      });
       for (let i = 0; i < anzahl; i += 1) {
         await request(app.getHttpServer())
           .post("/v1/requirements")
           .set("Authorization", `Bearer ${token}`)
-          .send({ ...anlage, tenant })
+          .send({ ...anlage, tenant, owner })
           .expect(201);
       }
     }
@@ -95,55 +105,48 @@ describe("Sichtbarkeit ueber die Richtlinie (M5.2)", () => {
     await Promise.all([database?.stop(), opa?.stop()]);
   });
 
-  /** Die ausgelieferte Antwort - die Referenz. */
-  async function ueberDenEndpunkt(tenants: string[]): Promise<string[]> {
-    const token = jwks.sign({ sub: "u-1", azp: "frontend", tenants });
-    const antwort = await request(app.getHttpServer())
-      .get("/v1/requirements")
-      .set("Authorization", `Bearer ${token}`)
-      .expect(200);
-
-    return (antwort.body as { id: string }[]).map((e) => e.id);
-  }
-
   /** Derselbe Bestand ueber die Richtlinie - der Kandidat. */
-  async function ueberDieRichtlinie(tenants: string[]): Promise<string[]> {
-    const sichtbarkeit = await client.sichtbarkeit(alsBenutzer(tenants));
+  async function ueberDieRichtlinie(benutzer: AuthenticatedUser): Promise<string[]> {
+    const sichtbarkeit = await client.sichtbarkeit(benutzer);
     const zeilen = await db
       .select()
       .from(requirements)
-      .where(alsBedingung(sichtbarkeit))
+      .where(alsBedingung(sichtbarkeit, FELDER_BESTAND))
       .orderBy(asc(requirements.createdAt));
 
     return zeilen.map((z) => z.id);
   }
 
-  it("liefert fuer einen Mandanten dieselbe Menge", async () => {
-    const referenz = await ueberDenEndpunkt(["t-eins"]);
-
-    expect(referenz).toHaveLength(2);
-    expect(await ueberDieRichtlinie(["t-eins"])).toEqual(referenz);
+  it("zeigt einem Anwender seine eigenen Anforderungen", async () => {
+    expect(await ueberDieRichtlinie(alsBenutzer(["t-eins"], "anna"))).toHaveLength(2);
   });
 
-  it("liefert bei Mehrfachzugehoerigkeit dieselbe Menge", async () => {
-    const referenz = await ueberDenEndpunkt(["t-eins", "t-zwei"]);
-
-    // Damit der Vergleich oben nicht bloss zweimal „alles" ist.
-    expect(referenz).toHaveLength(5);
-    expect(await ueberDieRichtlinie(["t-eins", "t-zwei"])).toEqual(referenz);
+  it("zeigt eine fremde Anforderung desselben Mandanten nicht", async () => {
+    // Die eigentliche Korrektur aus ADR-0029: Mandantenzugehoerigkeit allein genuegt nicht.
+    expect(await ueberDieRichtlinie(alsBenutzer(["t-eins"], "bodo"))).toEqual([]);
   });
 
-  it("liefert ohne Zugehoerigkeit beidseitig nichts", async () => {
-    // Der gefaehrlichste Fall: Hier antwortet die Auswertung mit einer leeren
-    // `in`-Liste, und ein nachlaessiger Uebersetzer wuerde daraus „kein Filter" machen.
-    expect(await ueberDenEndpunkt([])).toEqual([]);
-    expect(await ueberDieRichtlinie([])).toEqual([]);
+  it("zeigt dem Betreiber den gesamten Mandanten", async () => {
+    const sicht = await ueberDieRichtlinie(alsBenutzer(["t-eins"], "a.admin", ["platform-admin"]));
+
+    // Zwei fremde Anforderungen - der Betreiber besitzt keine davon.
+    expect(sicht).toHaveLength(2);
   });
 
-  it("liefert fuer einen Mandanten ohne Bestand beidseitig nichts", async () => {
-    // Unterscheidet „Filter greift" von „es ist nichts gespeichert".
-    expect(await ueberDenEndpunkt(["t-drei"])).toEqual([]);
-    expect(await ueberDieRichtlinie(["t-drei"])).toEqual([]);
+  it("zeigt auch dem Betreiber keinen fremden Mandanten", async () => {
+    const sicht = await ueberDieRichtlinie(alsBenutzer(["t-eins"], "a.admin", ["platform-admin"]));
+    const alle = await ueberDieRichtlinie(
+      alsBenutzer(["t-eins", "t-zwei"], "a.admin", ["platform-admin"]),
+    );
+
+    expect(sicht).toHaveLength(2);
+    expect(alle).toHaveLength(5);
+  });
+
+  it("zeigt ohne Zugehoerigkeit nichts", async () => {
+    // Hier antwortet die Auswertung mit einer leeren `in`-Liste, und ein nachlaessiger
+    // Uebersetzer machte daraus „kein Filter".
+    expect(await ueberDieRichtlinie(alsBenutzer([], "anna"))).toEqual([]);
   });
 
   it("die Auswertung laeuft gegen einen geschuetzten Server", async () => {

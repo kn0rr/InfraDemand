@@ -1,5 +1,7 @@
 import { Inject, Injectable } from "@nestjs/common";
-import { and, asc, eq, gt, inArray, isNull, lte, ne, or, sql } from "drizzle-orm";
+import { and, asc, eq, gt, isNull, lte, ne, or, sql } from "drizzle-orm";
+import type { Sichtbarkeit } from "../berechtigung/sichtbarkeit.typen";
+import { alsBedingung, FELDER_BESTAND, FELDER_HISTORIE } from "../berechtigung/ucast";
 import { DATABASE, type Database } from "../database/database.tokens";
 import { istEindeutigkeitsverletzung } from "../database/fehler";
 import {
@@ -76,21 +78,20 @@ export class RequirementsRepository {
   constructor(@Inject(DATABASE) private readonly db: Database) {}
 
   /**
-   * Der aktuelle Bestand, beschraenkt auf die Mandanten des Aufrufers (ADR-0026 Punkt 1).
+   * Der aktuelle Bestand, zugeschnitten durch die Richtlinie (ADR-0029 Punkt 4).
    *
-   * Ohne Zugehoerigkeit eine leere Liste - nicht der gesamte Bestand. `inArray` mit leerer
-   * Liste ist in SQL keine sinnvolle Bedingung, und „kein Filter" waere hier die
-   * gefaehrlichste aller Auslegungen.
+   * **Die Abbildung waehlt diese Stelle und nicht der Aufrufer.** Wer die Tabelle kennt,
+   * kennt auch die Spalten - kaeme beides von auszen, liesze sich die Bedingung des
+   * Bestands auf die Historie anwenden und umgekehrt.
+   *
+   * Der frueher hier stehende Kurzschluss fuer "keine Zugehoerigkeit" entfaellt: Die
+   * Uebersetzung liefert dafuer `false`. Eine Sonderbehandlung weniger.
    */
-  findAll(tenants: readonly string[]): Promise<RequirementRow[]> {
-    if (tenants.length === 0) {
-      return Promise.resolve([]);
-    }
-
+  findAll(sichtbarkeit: Sichtbarkeit): Promise<RequirementRow[]> {
     return this.db
       .select()
       .from(requirements)
-      .where(inArray(requirements.tenant, [...tenants]))
+      .where(alsBedingung(sichtbarkeit, FELDER_BESTAND))
       .orderBy(asc(requirements.createdAt));
   }
   /**
@@ -100,10 +101,7 @@ export class RequirementsRepository {
    * Geloeschte Datensaetze werden ausgeschlossen: Deren letzte Version traegt
    * operation = "delete" und beschreibt den Zustand "nicht mehr vorhanden".
    */
-  findAsOf(zeitpunkt: Date, tenants: readonly string[]): Promise<RequirementHistoryRow[]> {
-    if (tenants.length === 0) {
-      return Promise.resolve([]);
-    }
+  findAsOf(zeitpunkt: Date, sichtbarkeit: Sichtbarkeit): Promise<RequirementHistoryRow[]> {
     return this.db
       .select()
       .from(requirementHistory)
@@ -111,7 +109,8 @@ export class RequirementsRepository {
         and(
           lte(requirementHistory.validFrom, zeitpunkt),
           or(gt(requirementHistory.validTo, zeitpunkt), isNull(requirementHistory.validTo)),
-          inArray(requirementHistory.tenant, [...tenants]),
+          // Dieselbe Richtlinie, andere Tabelle - deshalb die zweite Abbildung.
+          alsBedingung(sichtbarkeit, FELDER_HISTORIE),
           ne(requirementHistory.operation, "delete"),
         ),
       )

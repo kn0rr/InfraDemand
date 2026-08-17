@@ -7,6 +7,7 @@ export const baseConfig = defineConfig({
     globals: true,
     environment: "node",
     setupFiles: ["./test/setup.ts"],
+    globalSetup: ["./test/globalSetup.opa.ts"],
     // Container-Starts brauchen Luft, insbesondere beim ersten Lauf ohne Abbild im Cache
     hookTimeout: 90_000,
     testTimeout: 30_000,

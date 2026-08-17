@@ -9,6 +9,7 @@ import { pruefeDynamischeAttribute } from "../attribute-definitions/attribut-pru
 import { DynamicAttributeValidationError } from "../attribute-definitions/attribute-definitions.errors";
 import { AttributeDefinitionsService } from "../attribute-definitions/attribute-definitions.service";
 import type { AuthenticatedUser } from "../auth/jwt.strategy";
+import { OpaClient } from "../berechtigung/opa.client";
 import type { Festhaltung, RequirementHistoryRow, RequirementRow } from "../database/schema";
 import { MastershipService } from "../mastership/mastership.service";
 import { UnknownSourceSystemError } from "../source-systems/source-systems.errors";
@@ -48,6 +49,7 @@ export class RequirementsService {
     private readonly attributeDefinitions: AttributeDefinitionsService,
     private readonly mastership: MastershipService,
     private readonly workflows: WorkflowsService,
+    private readonly opa: OpaClient,
   ) {}
   /**
    * Teilweise Aenderung ueber den fremden Bezeichner (ADR-0010, ADR-0018 Punkt 6).
@@ -234,10 +236,14 @@ export class RequirementsService {
     stichtag: string | undefined,
     benutzer: AuthenticatedUser,
   ): Promise<RequirementResponse[]> {
+    // Eine Auskunft fuer beide Wege: Die Richtlinie kennt keinen Stichtag, sie beschreibt,
+    // wer was sehen darf. Welche Tabelle das trifft, entscheidet das Repository.
+    const sichtbarkeit = await this.opa.sichtbarkeit(benutzer);
+
     const zeilen =
       stichtag === undefined
-        ? await this.repository.findAll(benutzer.tenants)
-        : await this.repository.findAsOf(new Date(stichtag), benutzer.tenants);
+        ? await this.repository.findAll(sichtbarkeit)
+        : await this.repository.findAsOf(new Date(stichtag), sichtbarkeit);
 
     return zeilen.map(RequirementsService.toResponse);
   }
@@ -303,13 +309,16 @@ export class RequirementsService {
       // beim Anlegen nicht von Hand gesetzt werden.
       const klasse = await this.schreibendeKlasse(benutzer);
       const regeln = await this.mastership.regeln(eingabe.tenant);
-
+      // Ohne Angabe ist der Aufrufer verantwortlich. Seit ADR-0029 haengt die
+      // Sichtbarkeit an diesem Feld - ein Vertipper kostete den Anwender sonst den
+      // Zugriff auf die eigene Anforderung, ohne dass irgendwo ein Fehler entstuende.
+      const verantwortlich = eingabe.owner ?? benutzer.username;
       const vorhaben: Feldvorhaben[] = Object.entries(
         feldwerte({
           projectId: eingabe.projectId,
           requirementType: eingabe.requirementType,
           status: workflow.initialState,
-          owner: eingabe.owner,
+          owner: verantwortlich,
           dynamicAttributes: pruefung.werte,
         }),
       )
@@ -338,7 +347,7 @@ export class RequirementsService {
         requirementType: eingabe.requirementType,
         tenant: eingabe.tenant,
         status: workflow.initialState,
-        owner: eingabe.owner,
+        owner: verantwortlich,
         sourceSystem: herkunft,
         externalId: eingabe.externalId ?? null,
         // Die geprueften Werte, nicht die eingereichten: Vorgabewerte sind ergaenzt,

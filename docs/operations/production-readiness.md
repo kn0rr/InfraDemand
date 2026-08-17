@@ -50,12 +50,12 @@ Das gilt für alle Beteiligten, einschließlich der KI in ihrer Beraterrolle
 | A – Transportverschlüsselung und Netzwerk | 7 | 5 | – |
 | *davon Voraussetzung für ADR-0013:* | `PROD-006`, `PROD-007`, `PROD-032` | | |
 | B – Geheimnisse und Zugangsdaten | 5 | 4 | **1** |
-| C – Identität und Zugriff | 14 | 3 | – |
+| C – Identität und Zugriff | 15 | 3 | **1** |
 | D – Daten | 7 | 3 | – |
-| E – Container und Lieferkette | 9 | 1 | **2** |
+| E – Container und Lieferkette | 10 | 1 | **2** |
 | F – Betrieb und Verfügbarkeit | 6 | 1 | – |
 | G – Anwendungssicherheit | 10 | 1 | **3** |
-| **Gesamt** | **58** | **18** | **6** |
+| **Gesamt** | **60** | **18** | **7** |
 
 > **Nummern werden nicht neu vergeben.** `PROD-026` ist unbesetzt. Eine Lücke ist kein
 > Fehler – eine wiederverwendete Nummer wäre einer, weil Verweise aus ADRs, Commits und
@@ -353,7 +353,17 @@ Moment, in dem die Engine alleine trägt.**
    (§13, Vault).
 
 #### PROD-059 — Die Policy-Engine ist angebunden und entscheidet nichts
-**Schwere:** Mittel · **Status:** Offen · **Betrifft:** §8 · **Verweis:** [ADR-0028](../adr/0028-policy-engine-opa-als-sidecar.md) Punkt 6 · **Fundstelle:** `services/requirement/src/berechtigung/`, `infra/local/compose.yaml`
+**Schwere:** Mittel · **Status:** **Erledigt mit M5.3 (2026-08-14)** · **Betrifft:** §8 · **Verweis:** [ADR-0028](../adr/0028-policy-engine-opa-als-sidecar.md) Punkt 6, [ADR-0029](../adr/0029-zuschnitt-der-zustaendigkeit.md) Punkt 4 · **Fundstelle:** `services/requirement/src/berechtigung/`, `infra/local/compose.yaml`
+
+> **Erledigt am 2026-08-14.** `findAll` und `findAsOf` fragen die Richtlinie; der
+> handgeschriebene Mandantenfilter ist entfallen. Die Engine entscheidet damit jeden
+> Lesevorgang über die Liste.
+>
+> **Nicht erledigt ist der direkte Zugriff über Kennung und Herkunft** – der läuft weiter
+> gegen die Mandantenzugehörigkeit allein. Das ist `PROD-060` und ausdrücklich ein eigener
+> Eintrag, damit dieser hier nicht als „Berechtigung ist umgestellt" gelesen wird.
+
+Der ursprüngliche Befund, zur Nachvollziehbarkeit:
 
 Nach M5.2 steht der Rahmen: OPA läuft als Sidecar, die Richtlinie ist geschrieben und
 getestet, der Client übersetzt ihre Auskunft in eine Abfragebedingung, und ein
@@ -380,6 +390,51 @@ Engine nicht wirkt.
 
 **Woran es auffiele, wenn es länger dauert:** an nichts. Ein unbenutzter Client verursacht
 keine Fehler. Genau deshalb steht er in dieser Liste und nicht nur im ADR.
+
+#### PROD-060 — Der Zuschnitt gilt für die Liste, nicht für den direkten Zugriff
+**Schwere:** Hoch · **Status:** Offen · **Betrifft:** §8 · **Verweis:** [ADR-0029](../adr/0029-zuschnitt-der-zustaendigkeit.md) Punkt 4 · **Fundstelle:** `requirements.service.ts`, `ausHerkunft` und `ausKennung`
+
+Seit M5.3 schneidet die Richtlinie den Lesepfad zu: Ein Anwender sieht in der Liste seine
+eigenen Anforderungen, ein Betreiber alle seines Mandanten.
+
+**Die Auflösung eines einzelnen Datensatzes prüft weiterhin nur die Mandantenzugehörigkeit.**
+`ausHerkunft` und `ausKennung` sind die beiden Stellen, an denen ein Datensatz nachgeschlagen
+wird; beide vergleichen `benutzer.tenants` gegen `bestand.tenant` und sonst nichts. Wer die
+Kennung oder die Herkunft eines fremden Datensatzes im selben Mandanten kennt, erreicht
+darüber weiterhin:
+
+- die Versionshistorie (`GET /{id}/versions`)
+- die zulässigen Übergänge und den Zustandswechsel
+- das Ändern über Kennung und über die Herkunft
+- Festhaltungen
+
+**Es ist keine Verschlechterung** – vor M5.3 durfte jedes Mitglied eines Mandanten ohnehin
+alles. Es ist eine **unvollständige Verengung**, und das ist die gefährlichere Sorte: Die
+Liste verbirgt, was der direkte Zugriff herausgibt. Wer das ADR liest oder die Oberfläche
+benutzt, schließt auf einen Zuschnitt, den es nur zur Hälfte gibt.
+
+**Zielzustand:** Dieselbe Bedingung auch dort. Weil sie bereits als SQL vorliegt, ist der
+Weg derselbe wie bei der Liste – die Abfrage nach Kennung bekommt sie zusätzlich, und ein
+nicht sichtbarer Datensatz liefert wie bisher **404 und nicht 403**. Damit bleibt es bei
+einem Mechanismus statt einer zweiten Prüfung neben der ersten.
+
+**Zu bedenken vor der Umsetzung:** Diese beiden Stellen tragen auch den Schreibpfad. Mit
+der Verengung kann eine Anforderung nur noch von ihrem Eigentümer und von Betreibern
+geändert werden – ein Abwesender nähme seine Vorgänge mit.
+
+**Auslöser für die Umsetzung – sachlich, nicht terminlich:** Sobald der Datensatz ein
+zweites zuständigkeitstragendes Merkmal trägt, das **mehr als eine Person erfüllen kann**.
+Konkret die Vertretung durch eine Gruppe, geführt als vertagte Entscheidung im ADR-Index
+und auf **M5.4** datiert. Sie ist schmal: eine Kernspalte an `requirement` und ein Anspruch
+im Token, dieselbe Mechanik wie der Mandant seit M5.1, und der Übersetzer beherrscht die
+nötige Form (`in` auf einer Kernspalte) bereits.
+
+Vorher zu schließen hieße, eine Anforderung an genau einen Menschen zu binden. **Beides
+gehört vor den Abschluss von M5**, und in dieser Reihenfolge.
+
+Eine Aufteilung nach Lesen und Schreiben ist ausdrücklich **kein** Zwischenweg:
+`ausKennung` bedient beide, und ein Schalter, der sagt „hier weniger prüfen", ist genau die
+Sorte Sonderfall, die der eine Auflösungspunkt vermeiden sollte.
 
 #### PROD-013 — Passwort-Grant am Frontend-Client aktiviert
 **Schwere:** Kritisch · **Status:** Offen · **Fundstelle:** `infra/keycloak/realms/infrademand.json`, `directAccessGrantsEnabled: true`
@@ -469,6 +524,17 @@ M5 vertagt. Ein Produktivgang vor M5 ist damit ausgeschlossen.
 >
 > Das Datum bleibt bei M5 nutzbar: Welche Zuständigkeit ein Übergang verlangt, ist in jeder
 > Variante Fachdatum. Was sich ändert, ist der Prüfer.
+
+> **Auf M6 datiert am 2026-08-14 mit [ADR-0029](../adr/0029-zuschnitt-der-zustaendigkeit.md).**
+> M5.3 sollte diesen Eintrag auflösen. Das ist nicht möglich: Eine zugeschnittene
+> Freigaberolle verlangt eine Zuständigkeit **je Bereich und Person**, und dafür gibt es vor
+> dem Identity & Access Service keine Quelle. Die geprüften Wege scheiden aus – Ansprüche im
+> Token an der gemessenen Grenze aus `PROD-045`, eine eigene Zuordnungstabelle an §5.
+>
+> M5.3 schneidet stattdessen nach Mandant und Eigentümer zu. **Das ist Objektbezug, aber der
+> schwächste denkbare**, und es löst diesen Eintrag ausdrücklich nicht auf. Wer nach M5.3
+> „Berechtigung am Objekt" liest und ihn für erledigt hält, liegt falsch – die Freigaberolle
+> gilt weiterhin überall.
 
 #### PROD-051 — Die Herkunftsregistratur ist ein Berechtigungsobjekt ohne Berechtigungsschutz
 **Schwere:** Hoch · **Status:** Offen · **Betrifft:** §8, §19.3 · **Verweis:** [ADR-0017](../adr/0017-regelvokabular-der-datenhoheit-und-mandantenbegriff.md) A4
@@ -950,6 +1016,49 @@ Lösung, keine dauerhafte Bewertung.
 `--show-suppressed` ist damit auch das Mittel der Wahl, um bei künftigen Einträgen zu
 prüfen, ob sie tatsächlich greifen – eine Unterdrückung, die ins Leere läuft, sieht im
 Bericht genauso aus wie ein Befund, den es nicht gibt.
+
+#### PROD-061 — Die Ignorierliste wächst schneller, als sie gelesen wird
+**Schwere:** Mittel · **Status:** Offen · **Betrifft:** §13 · **Verweis:** `PROD-037` · **Fundstelle:** `.trivyignore.yaml`
+
+Die Liste ist innerhalb von drei Tagen von 15 auf 39 Einträge gewachsen:
+
+| Datum | Anlass | Neue Einträge |
+|---|---|---|
+| 2026-08-13 | OPA kommt als Laufzeit-Image dazu (M5.2) | 3 |
+| 2026-08-14 | zwei Go-Lücken veröffentlicht | 3 |
+| 2026-08-16 | sechs Go-Lücken veröffentlicht | 12 |
+
+**Der überwiegende Teil beschreibt kein Risiko unserer Software.** Er beschreibt das Alter
+der Go-Fassung, mit der fremde Abbilder gebaut sind – `gosu` mit go1.24.6, OPA mit
+go1.26.5. Jede neue Lücke in der Standardbibliothek erzeugt Einträge in **jedem** Abbild,
+das ein Go-Programm enthält, und zwar je Kennung und je Pfad einzeln.
+
+**Das Verfahren ist richtig, die Frequenz sprengt es.** Die Regeln aus `PROD-037` –
+Begründung je Eintrag, Frist, engstmögliche Eingrenzung – sind genau die, die eine
+Unterdrückung überprüfbar halten. Sie setzen aber voraus, dass Einträge einzeln entstehen
+und einzeln gelesen werden. Bei zwölf auf einmal, alle mit derselben Ursache, geschieht
+zweierlei: Die Begründungen werden mechanisch, und die Liste wird zu lang, um im Review
+tatsächlich gelesen zu werden.
+
+**Woran es auffiele, dass die Erosion eingetreten ist:** an nichts. Ein Tor, dessen
+Ausnahmeliste niemand mehr liest, ist grün wie eines ohne Ausnahmen. Genau deshalb steht
+dieser Eintrag hier und nicht als Anmerkung in der Datei.
+
+**Zielzustand – zwei Teile, und der erste ist der wichtigere:**
+
+1. **Befunde der Go-Standardbibliothek werden nach ihrer Ursache behandelt, nicht einzeln.**
+   Sinnvoll wäre eine Gruppierung je Abbild und Go-Fassung mit **einer** Begründung und
+   **einer** Frist, statt je Kennung. Ob `.trivyignore.yaml` das ausdrücken kann, ist zu
+   prüfen; falls nicht, ist ein erzeugter Abschnitt mit gemeinsamer Kopfzeile die
+   nächstbeste Form. Die Unterscheidung aus `PROD-037` – erreichbar oder nicht – bleibt
+   dabei unangetastet, sie wird nur einmal je Gruppe getroffen statt einmal je Kennung.
+2. **Ein Blick auf die Gesamtzahl gehört ins Review.** Wächst die Liste zwischen zwei
+   Ständen um mehr als eine Handvoll, ist die Ursache zu benennen, bevor die Einträge
+   übernommen werden.
+
+**Nicht gemeint ist eine Lockerung.** Die Frist bleibt Pflicht, die Eingrenzung über
+`paths` bleibt Pflicht, und „wir sind nur nicht aktuell" bleibt kein Grund. Es geht allein
+darum, dass eine Liste, die niemand mehr liest, ihre Aufgabe nicht mehr erfüllt.
 
 ### Verfahren für Unterdrückungen
 

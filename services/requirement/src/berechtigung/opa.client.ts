@@ -35,7 +35,13 @@ export class OpaClient {
    */
   async sichtbarkeit(benutzer: AuthenticatedUser): Promise<Sichtbarkeit> {
     const eingabe = {
-      input: { benutzer: { mandanten: benutzer.tenants } },
+      input: {
+        benutzer: {
+          mandanten: benutzer.tenants,
+          kennung: benutzer.username,
+          rollen: benutzer.roles,
+        },
+      },
       unknowns: UNBEKANNT,
     };
 
