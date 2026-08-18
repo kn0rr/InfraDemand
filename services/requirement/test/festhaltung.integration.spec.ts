@@ -22,6 +22,7 @@ describe("Festhaltung von Feldern", () => {
     projectId: "11111111-1111-4111-8111-111111111111",
     requirementType: "feature",
     owner: "M. Weber",
+    responsibleGroup: "team-a",
     tenant: "t-eins",
   };
 
@@ -35,8 +36,18 @@ describe("Festhaltung von Feldern", () => {
     process.env["KEYCLOAK_AUDIENCE"] = "requirement-api";
     process.env["DATABASE_URL"] = database.connectionString;
 
-    alsVorsystem = jwks.sign({ sub: "dienst-1", azp: "sap", tenants: ["t-eins"] });
-    alsMensch = jwks.sign({ sub: "benutzer-1", azp: "frontend", tenants: ["t-eins"] });
+    alsVorsystem = jwks.sign({
+      sub: "dienst-1",
+      azp: "sap",
+      tenants: ["t-eins"],
+      groups: ["team-a"],
+    });
+    alsMensch = jwks.sign({
+      sub: "benutzer-1",
+      azp: "frontend",
+      tenants: ["t-eins"],
+      groups: ["team-a"],
+    });
     alsAdmin = jwks.sign({
       sub: "admin-1",
       azp: "frontend",

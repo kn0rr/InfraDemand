@@ -73,3 +73,17 @@ test_betreiber_sieht_fremden_mandanten_nicht if {
 		"requirement": {"tenant": "t-zwei", "owner": "bodo"},
 	}
 }
+
+test_gruppenmitglied_sieht_die_anforderung if {
+	sichtbar with input as {
+		"benutzer": {"mandanten": ["t-eins"], "kennung": "bodo", "rollen": [], "gruppen": ["team-a"]},
+		"requirement": {"tenant": "t-eins", "owner": "anna", "responsible_group": "team-a"},
+	}
+}
+
+test_ohne_gruppe_bleibt_es_beim_eigentuemer if {
+	not sichtbar with input as {
+		"benutzer": {"mandanten": ["t-eins"], "kennung": "bodo", "rollen": [], "gruppen": ["team-b"]},
+		"requirement": {"tenant": "t-eins", "owner": "anna", "responsible_group": "team-a"},
+	}
+}

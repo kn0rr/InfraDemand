@@ -112,6 +112,7 @@ describe("Anforderungen lesen", () => {
       "owner",
       "projectId",
       "requirementType",
+      "responsibleGroup",
       "sourceSystem",
       "status",
       "tenant",

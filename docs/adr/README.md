@@ -66,6 +66,7 @@ Zulässige Status: `Vorgeschlagen`, `Angenommen`, `Abgelehnt`, `Ersetzt durch AD
 | [0027](0027-ausnahmen-von-der-kompatibilitaetsgarantie.md) | Ausnahmen von der Kompatibilitätsgarantie | Angenommen | 2026-08-13 |
 | [0028](0028-policy-engine-opa-als-sidecar.md) | Policy-Engine OPA als Sidecar | Angenommen | 2026-08-13 |
 | [0029](0029-zuschnitt-der-zustaendigkeit.md) | Zuschnitt der Zuständigkeit und Grenzen des Objektbezugs | Angenommen | 2026-08-14 |
+| [0030](0030-feldebene-und-vertretung.md) | Feldebene und Vertretung | Angenommen | 2026-08-17 |
 
 ## Offene, bewusst vertagte Entscheidungen
 
@@ -77,9 +78,10 @@ Zeitpunkt als eigenes ADR nachgezogen.
 | Audit-Ereignisschema und Schreibpfad | Meilenstein M1.4 | [ADR-0009](0009-orm-und-migrationswerkzeug.md) |
 | Woher die Mandantenzugehörigkeiten im Token stammen – Keycloak-Organizations oder Gruppen | Meilenstein M6 | [ADR-0026](0026-wirksamer-mandant-und-stufung-der-konfiguration.md) |
 | Woher Zuständigkeit je Bereich und Person kommt – und damit `PROD-017` | Meilenstein M6 | [ADR-0029](0029-zuschnitt-der-zustaendigkeit.md) |
-| Vertretung: eine **Gruppe** an der Anforderung, damit nicht eine einzige Person allein zuständig ist – eine Kernspalte und ein Anspruch im Token, wie beim Mandanten seit M5.1 | Meilenstein M5.4, **vor** der Verengung des direkten Zugriffs (`PROD-060`) | [ADR-0029](0029-zuschnitt-der-zustaendigkeit.md) Punkt 1 |
 | Ob die Endpunktprüfungen in Richtlinien wandern | Meilenstein M5.4 | [ADR-0029](0029-zuschnitt-der-zustaendigkeit.md) |
-| Wie Feldmaskierung ohne Enterprise OPA gebaut wird, und was das für §12 bedeutet | Meilenstein M5.4 | [ADR-0029](0029-zuschnitt-der-zustaendigkeit.md) |
+| Form der Antwort bei verborgenen Feldern – fehlend, `null` oder eigenes Schema je Rolle – und die Folge für §12 | Mit der Umsetzung der Feldebene, **vor** der Contract-Erzeugung | [ADR-0030](0030-feldebene-und-vertretung.md) |
+| Ob Zuschnitt und Feldmenge in einem Aufruf gegen den Sidecar ermittelt werden | Wenn die Latenz gemessen ist | [ADR-0030](0030-feldebene-und-vertretung.md) |
+| Woher der Anspruch `gruppen` stammt – Keycloak-Gruppen oder Organizations | Meilenstein M6, gemeinsam mit den Mandantenzugehörigkeiten | [ADR-0030](0030-feldebene-und-vertretung.md) |
 | Rückmeldung abgewiesener Felder an einen Import | Mit dem Dateiimport | [ADR-0019](0019-verhalten-bei-abgewiesener-schreiboperation.md) |
 | Änderungsprotokoll für den Contract – Form und Ablage | Mit dem ersten Konsumenten außerhalb dieses Repositories | [ADR-0027](0027-ausnahmen-von-der-kompatibilitaetsgarantie.md) |
 | Versionierungsschema der Schnittstelle: Pfad, Kopffeld oder Medientyp | Wenn eine Ausnahme nach ADR-0027 nicht mehr zulässig ist | [ADR-0027](0027-ausnahmen-von-der-kompatibilitaetsgarantie.md) |

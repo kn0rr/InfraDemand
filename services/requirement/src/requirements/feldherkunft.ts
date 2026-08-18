@@ -65,6 +65,7 @@ export interface Datensatzstand {
   requirementType: string;
   status: string;
   owner: string;
+  responsibleGroup: string | null;
   dynamicAttributes: Record<string, unknown>;
 }
 
@@ -81,12 +82,19 @@ export function feldwerte(stand: Datensatzstand): Record<string, unknown> {
     requirementType: stand.requirementType,
     status: stand.status,
     owner: stand.owner,
+    responsibleGroup: stand.responsibleGroup,
     ...stand.dynamicAttributes,
   };
 }
 
 /** Kernfelder des Datensatzes. Alles Uebrige im flachen Feldraum ist dynamisch. */
-export const KERNFELDER = ["projectId", "requirementType", "status", "owner"] as const;
+export const KERNFELDER = [
+  "projectId",
+  "requirementType",
+  "status",
+  "owner",
+  "responsibleGroup",
+] as const;
 
 /**
  * Kernfelder, die ueber den allgemeinen Schreibpfad aenderbar sind.
@@ -117,12 +125,19 @@ export function alsKern(werte: Record<string, unknown>): {
   requirementType: string;
   status: string;
   owner: string;
+  responsibleGroup: string | null;
 } {
+  const gruppe = werte["responsibleGroup"];
+
   return {
     projectId: String(werte["projectId"]),
     requirementType: String(werte["requirementType"]),
     status: String(werte["status"]),
     owner: String(werte["owner"]),
+    // Nicht ueber String(): Aus `null` wuerde die Zeichenkette "null", und die Gruppe
+    // "null" gehoert niemandem - der Zweig in der Richtlinie griffe nie, und im Feld
+    // stuende ein Wert, der wie einer aussieht.
+    responsibleGroup: gruppe === undefined || gruppe === null ? null : String(gruppe),
   };
 }
 

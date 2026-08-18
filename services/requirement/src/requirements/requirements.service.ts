@@ -313,12 +313,14 @@ export class RequirementsService {
       // Sichtbarkeit an diesem Feld - ein Vertipper kostete den Anwender sonst den
       // Zugriff auf die eigene Anforderung, ohne dass irgendwo ein Fehler entstuende.
       const verantwortlich = eingabe.owner ?? benutzer.username;
+      const zustaendigeGruppe = eingabe.responsibleGroup ?? null;
       const vorhaben: Feldvorhaben[] = Object.entries(
         feldwerte({
           projectId: eingabe.projectId,
           requirementType: eingabe.requirementType,
           status: workflow.initialState,
           owner: verantwortlich,
+          responsibleGroup: zustaendigeGruppe,
           dynamicAttributes: pruefung.werte,
         }),
       )
@@ -348,6 +350,7 @@ export class RequirementsService {
         tenant: eingabe.tenant,
         status: workflow.initialState,
         owner: verantwortlich,
+        responsibleGroup: eingabe.responsibleGroup ?? null,
         sourceSystem: herkunft,
         externalId: eingabe.externalId ?? null,
         // Die geprueften Werte, nicht die eingereichten: Vorgabewerte sind ergaenzt,
@@ -449,6 +452,7 @@ export class RequirementsService {
       requirementType: bestand.requirementType,
       status: zielzustand,
       owner: bestand.owner,
+      responsibleGroup: bestand.responsibleGroup,
       dynamicAttributes: bestand.dynamicAttributes,
       heldFields: bestand.heldFields,
       changeKind: "transition",
@@ -488,6 +492,7 @@ export class RequirementsService {
       requirementType: bestand.requirementType,
       status: zustand,
       owner: bestand.owner,
+      responsibleGroup: bestand.responsibleGroup,
       dynamicAttributes: bestand.dynamicAttributes,
       heldFields: bestand.heldFields,
       changeKind: "state_assignment",
@@ -616,6 +621,7 @@ export class RequirementsService {
       // Unveraendert: Gehoben wird die Fassung, nicht der Zustand (ADR-0025 Punkt 5).
       status: bestand.status,
       owner: bestand.owner,
+      responsibleGroup: bestand.responsibleGroup,
       dynamicAttributes: bestand.dynamicAttributes,
       heldFields: bestand.heldFields,
       workflowBindung: { definitionId: ziel.id, version: ziel.version },
@@ -662,15 +668,18 @@ export class RequirementsService {
     externalId: string,
     benutzer: AuthenticatedUser,
   ): Promise<RequirementRow> {
-    const bestand = await this.repository.findBySource(sourceSystem, externalId);
+    const bestand = await this.repository.findBySource(
+      sourceSystem,
+      externalId,
+      await this.opa.sichtbarkeit(benutzer),
+    );
 
-    if (bestand === undefined || !benutzer.tenants.includes(bestand.tenant)) {
+    if (bestand === undefined) {
       throw new NotFoundException(new RequirementNotFoundError(sourceSystem, externalId).message);
     }
 
     return bestand;
   }
-
   /**
    * Loest einen Datensatz ueber die interne Kennung auf und prueft die Zugehoerigkeit.
    *
@@ -679,9 +688,9 @@ export class RequirementsService {
    * der eigenen Oberflaeche.
    */
   private async ausKennung(id: string, benutzer: AuthenticatedUser): Promise<RequirementRow> {
-    const bestand = await this.repository.findById(id);
+    const bestand = await this.repository.findById(id, await this.opa.sichtbarkeit(benutzer));
 
-    if (bestand === undefined || !benutzer.tenants.includes(bestand.tenant)) {
+    if (bestand === undefined) {
       throw new NotFoundException(`Anforderung ${id} existiert nicht`);
     }
 
@@ -911,6 +920,7 @@ export class RequirementsService {
       requirementType: bestand.requirementType,
       status: bestand.status,
       owner: bestand.owner,
+      responsibleGroup: bestand.responsibleGroup,
       dynamicAttributes: bestand.dynamicAttributes,
       heldFields,
       changedBy: benutzer.userId,
@@ -928,6 +938,7 @@ export class RequirementsService {
       tenant: row.tenant,
       status: row.status,
       owner: row.owner,
+      responsibleGroup: row.responsibleGroup,
       workflow: { id: row.workflowDefinitionId, version: row.workflowVersion },
       sourceSystem: row.sourceSystem,
       externalId: row.externalId,

@@ -71,4 +71,15 @@ export class CreateRequirementDto {
   @MinLength(1)
   @MaxLength(100)
   tenant!: string;
+
+  @ApiPropertyOptional({
+    maxLength: 200,
+    description:
+      "Zustaendige Gruppe. Ihre Mitglieder sehen und aendern die Anforderung (ADR-0030).",
+  })
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(200)
+  responsibleGroup?: string;
 }

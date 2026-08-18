@@ -29,6 +29,12 @@ sichtbar if {
 	"platform-admin" in input.benutzer.rollen
 }
 
+# Die zustaendige Gruppe - damit eine Anforderung nicht an einer Person haengt (ADR-0030).
+sichtbar if {
+	im_mandanten
+	input.requirement.responsible_group in input.benutzer.gruppen
+}
+
 # Die Mandantengrenze gilt fuer jeden Weg (ADR-0026 Punkt 1). Als eigene Regel, damit sie
 # nicht mehrfach dasteht und beim naechsten Zweig vergessen werden kann.
 im_mandanten if {

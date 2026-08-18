@@ -239,7 +239,7 @@ describe("Anforderungen anlegen", () => {
 
     it("aendert genanntes und laesst nicht genanntes unberuehrt", async () => {
       await post()
-        .send({ ...gueltig, sourceSystem: "sap", externalId: "A-1", owner: "M. Weber" })
+        .send({ ...gueltig, sourceSystem: "sap", externalId: "A-1" })
         .expect(201);
 
       const antwort = await patch("sap", "A-1").send({ owner: "L. Braun" }).expect(200);

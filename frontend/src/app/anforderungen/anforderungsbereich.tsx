@@ -53,6 +53,7 @@ export function Anforderungsbereich({
       projectId: "",
       requirementType: "feature",
       owner: benutzer,
+      responsibleGroup: "",
       dynamicAttributes: {},
     },
     // Diese Pruefung ist Bequemlichkeit, nicht Absicherung. Massgeblich ist der Service -
@@ -116,8 +117,8 @@ export function Anforderungsbereich({
 
         <Paper withBorder p="md" radius="md">
           <form
-            onSubmit={formular.onSubmit((werte) => {
-              anlegen.mutate(werte, {
+            onSubmit={formular.onSubmit(({ responsibleGroup, ...uebrige }) => {
+              anlegen.mutate(responsibleGroup === "" ? uebrige : { ...uebrige, responsibleGroup }, {
                 onSuccess: () => formular.reset(),
                 onError: (fehler) => {
                   // Der Service beanstandet feldbezogen (§6). Ohne diese Zuordnung
@@ -168,6 +169,12 @@ export function Anforderungsbereich({
                   key={formular.key("owner")}
                   {...formular.getInputProps("owner")}
                 />
+                <TextInput
+                  label="Zustaendige Gruppe"
+                  description="Optional. Ihre Mitglieder sehen und aendern die Anforderung"
+                  key={formular.key("responsibleGroup")}
+                  {...formular.getInputProps("responsibleGroup")}
+                />
               </Group>
 
               {definitionen.isFetching ? <Loader size="sm" /> : null}
@@ -217,6 +224,7 @@ export function Anforderungsbereich({
                     <Table.Th>Art</Table.Th>
                     <Table.Th>Status</Table.Th>
                     <Table.Th>Verantwortlich</Table.Th>
+                    <Table.Th>Gruppe</Table.Th>
                     <Table.Th>Attribute</Table.Th>
                     <Table.Th>Fassung</Table.Th>
                   </Table.Tr>
@@ -233,6 +241,7 @@ export function Anforderungsbereich({
                         <Table.Td>{eintrag.requirementType}</Table.Td>
                         <Table.Td>{eintrag.status}</Table.Td>
                         <Table.Td>{eintrag.owner}</Table.Td>
+                        <Table.Td>{eintrag.responsibleGroup ?? "–"}</Table.Td>
                         <Table.Td>
                           {Object.entries(eintrag.dynamicAttributes)
                             .map(([schluessel, wert]) => `${schluessel}: ${String(wert)}`)

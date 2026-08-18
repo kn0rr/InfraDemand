@@ -160,6 +160,18 @@ export const requirements = pgTable(
     owner: text("owner").notNull(),
 
     /**
+     * Zustaendige Gruppe, damit eine Anforderung nicht an einer einzigen Person haengt
+     * (ADR-0030 Punkt 1).
+     *
+     * **Genau eine, und nullbar.** Mehrere waeren nicht zuschneidbar - das Regelfragment
+     * der Teilauswertung verlangt auf der unbekannten Seite einen Skalar. Leer heisst
+     * „keine Vertretung": `NULL IN (...)` ist in SQL nicht wahr, der Zweig greift nicht.
+     *
+     * Wie `tenant` ein Bezeichner aus dem Token und kein Fremdschluessel - die Entitaet
+     * fuehrt erst der Identity & Access Service (M6).
+     */
+    responsibleGroup: text("responsible_group"),
+    /**
      * Der Workflow, unter dem diese Anforderung laeuft, und seine Fassung (§7, ADR-0022).
      *
      * **Gespeichert und nicht abgeleitet.** Ableiten hiesse, den heute fuer
@@ -249,6 +261,7 @@ export const requirementHistory = pgTable(
     tenant: text("tenant").notNull(),
     status: text("status").notNull(),
     owner: text("owner").notNull(),
+    responsibleGroup: text("responsible_group"),
     workflowDefinitionId: uuid("workflow_definition_id").notNull(),
     workflowVersion: integer("workflow_version").notNull(),
     sourceSystem: text("source_system").notNull(),

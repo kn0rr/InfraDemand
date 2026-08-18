@@ -50,12 +50,12 @@ Das gilt für alle Beteiligten, einschließlich der KI in ihrer Beraterrolle
 | A – Transportverschlüsselung und Netzwerk | 7 | 5 | – |
 | *davon Voraussetzung für ADR-0013:* | `PROD-006`, `PROD-007`, `PROD-032` | | |
 | B – Geheimnisse und Zugangsdaten | 5 | 4 | **1** |
-| C – Identität und Zugriff | 15 | 3 | **1** |
+| C – Identität und Zugriff | 17 | 3 | **2** |
 | D – Daten | 7 | 3 | – |
 | E – Container und Lieferkette | 10 | 1 | **2** |
 | F – Betrieb und Verfügbarkeit | 6 | 1 | – |
 | G – Anwendungssicherheit | 10 | 1 | **3** |
-| **Gesamt** | **60** | **18** | **7** |
+| **Gesamt** | **62** | **18** | **8** |
 
 > **Nummern werden nicht neu vergeben.** `PROD-026` ist unbesetzt. Eine Lücke ist kein
 > Fehler – eine wiederverwendete Nummer wäre einer, weil Verweise aus ADRs, Commits und
@@ -392,7 +392,23 @@ Engine nicht wirkt.
 keine Fehler. Genau deshalb steht er in dieser Liste und nicht nur im ADR.
 
 #### PROD-060 — Der Zuschnitt gilt für die Liste, nicht für den direkten Zugriff
-**Schwere:** Hoch · **Status:** Offen · **Betrifft:** §8 · **Verweis:** [ADR-0029](../adr/0029-zuschnitt-der-zustaendigkeit.md) Punkt 4 · **Fundstelle:** `requirements.service.ts`, `ausHerkunft` und `ausKennung`
+**Schwere:** Hoch · **Status:** **Erledigt mit M5.4 (2026-08-17)** · **Betrifft:** §8 · **Verweis:** [ADR-0029](../adr/0029-zuschnitt-der-zustaendigkeit.md) Punkt 4, [ADR-0030](../adr/0030-feldebene-und-vertretung.md) Punkt 2 · **Fundstelle:** `requirements.service.ts`, `ausHerkunft` und `ausKennung`
+
+> **Erledigt am 2026-08-17.** Beide Auflösungspunkte tragen die Bedingung jetzt **in der
+> Abfrage**: Ein nicht sichtbarer Datensatz wird nicht gefunden, und die 404 folgt daraus,
+> statt danebengeprüft zu werden. Die Mandantenprüfung ist entfallen – sie steckt seither in
+> `im_mandanten` und damit in jedem Zweig der Richtlinie.
+>
+> Vorher umgesetzt wurde die Vertretung durch eine Gruppe, wie es die Frist hier verlangte:
+> Ohne sie hinge eine Anforderung an genau einer Person.
+>
+> **Was der Umbau sichtbar gemacht hat:** 48 Integrationstests wurden rot, weil überall ein
+> Vorsystem anlegte und ein Mensch zugriff. Das war kein Fixture-Problem, sondern die
+> Zusicherung selbst – und die Gruppe ist die Antwort darauf, auch in der Wirklichkeit.
+>
+> Was dabei **nicht** gelöst wurde, steht in `PROD-063`: Beide Felder sind Freitext.
+
+Der ursprüngliche Befund, zur Nachvollziehbarkeit:
 
 Seit M5.3 schneidet die Richtlinie den Lesepfad zu: Ein Anwender sieht in der Liste seine
 eigenen Anforderungen, ein Betreiber alle seines Mandanten.
@@ -435,6 +451,59 @@ gehört vor den Abschluss von M5**, und in dieser Reihenfolge.
 Eine Aufteilung nach Lesen und Schreiben ist ausdrücklich **kein** Zwischenweg:
 `ausKennung` bedient beide, und ein Schalter, der sagt „hier weniger prüfen", ist genau die
 Sorte Sonderfall, die der eine Auflösungspunkt vermeiden sollte.
+
+#### PROD-062 — Die zuständige Gruppe ist nur über die Schnittstelle setzbar
+**Schwere:** Mittel · **Status:** Offen · **Betrifft:** §8, §15 · **Verweis:** [ADR-0030](../adr/0030-feldebene-und-vertretung.md) Punkt 1 · **Fundstelle:** `frontend/src/app/anforderungen/`
+
+Die Vertretung steht: Spalte, Anspruch, Richtlinienzweig und Tests. **Die Oberfläche kennt
+sie nicht** – `responsibleGroup` kommt im Frontend nicht vor, weder im Anlageformular noch
+in der Liste.
+
+Damit ist die Gruppe für Anwender unerreichbar, und der Zweck der Vertretung – jemand geht
+in Urlaub, ein Kollege übernimmt – ist über die Oberfläche nicht erfüllbar. Dieselbe Lage
+wie bei `PROD-056`, wo der Mandant an Definitionen nur per SQL zu setzen ist.
+
+**Besonders unangenehm wird es mit `PROD-060`:** Sobald der direkte Zugriff verengt ist,
+entscheidet die Gruppe darüber, wer eine Anforderung überhaupt noch ändern kann. Ein Feld,
+das über die Oberfläche nicht zu setzen ist, wird dann zur Voraussetzung für Arbeit, die
+über die Oberfläche stattfindet.
+
+**Zielzustand:** Ein Feld im Anlageformular, vorbelegt mit nichts, und die Gruppe in der
+Liste sichtbar. Die Auswahl kann bis M6 eine freie Eingabe sein – es gibt keine Liste
+gültiger Gruppen, gegen die geprüft werden könnte, genau wie beim Mandanten.
+
+**Vor `PROD-060`**, nicht danach.
+
+#### PROD-063 — Zugriff hängt an zwei frei beschreibbaren Textfeldern
+**Schwere:** Mittel · **Status:** Offen · **Betrifft:** §8 · **Verweis:** [ADR-0029](../adr/0029-zuschnitt-der-zustaendigkeit.md), [ADR-0030](../adr/0030-feldebene-und-vertretung.md) · **Fundstelle:** `requirement.owner`, `requirement.responsible_group`
+
+Seit M5.3 entscheidet `owner` und seit M5.4 zusätzlich `responsible_group` darüber, wer
+eine Anforderung sieht und ändern darf. **Beide sind Textspalten, die der Aufrufer setzt.**
+Geprüft wird nichts – es gibt weder eine Liste gültiger Anwender noch eine gültiger Gruppen,
+genau wie beim Mandanten ([ADR-0026](../adr/0026-wirksamer-mandant-und-stufung-der-konfiguration.md)
+Punkt 6).
+
+**Vorgeführt am 2026-08-17** beim Umbau von `mandant.integration.spec.ts`: Ein PATCH, der
+`owner` auf einen anderen Namen setzt, nimmt dem Aufrufer den Zugriff auf den eigenen
+Datensatz. Die folgende Abfrage antwortet mit 404. Kein Fehler, keine Warnung – die
+Anforderung ist aus seiner Sicht verschwunden.
+
+Zwei Richtungen, beide ohne Rückmeldung:
+
+- **Selbstaussperrung.** Ein Tippfehler im Namen genügt, und der Datensatz ist für den
+  Verfasser unauffindbar. Bei `responsible_group` dasselbe, nur schwerer zu bemerken – dort
+  fehlt keine eigene Anforderung, sondern die Vertretung greift stillschweigend nicht
+- **Zuschieben.** Wer einen fremden Namen einträgt, legt einen Datensatz in die Liste einer
+  anderen Person. Innerhalb des Mandanten und ohne deren Zutun
+
+**Zielzustand:** Identitäts- und Gruppenbezüge statt Zeichenketten, geprüft gegen den
+Identity & Access Service. Das ist **M6** – vorher gibt es nichts, wogegen geprüft werden
+könnte.
+
+**Was vorher hilft und billig ist:** Die Oberfläche belegt `owner` bereits mit dem
+angemeldeten Anwender vor. Für die Gruppe wäre eine Auswahl aus den eigenen
+Gruppenzugehörigkeiten – die im Token stehen – dasselbe Mittel: Sie verhindert den
+Tippfehler, ohne eine Prüfung zu behaupten, die es nicht gibt.
 
 #### PROD-013 — Passwort-Grant am Frontend-Client aktiviert
 **Schwere:** Kritisch · **Status:** Offen · **Fundstelle:** `infra/keycloak/realms/infrademand.json`, `directAccessGrantsEnabled: true`
