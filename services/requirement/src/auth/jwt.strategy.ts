@@ -10,6 +10,7 @@ export interface JwtPayload {
   preferred_username?: string;
   realm_access?: { roles?: string[] };
   tenants?: string[];
+  groups?: string[];
 }
 
 export interface AuthenticatedUser {
@@ -25,6 +26,11 @@ export interface AuthenticatedUser {
    * geprueft werden koennte. Woher der Anspruch stammt, entscheidet M6.
    */
   tenants: string[];
+  /**
+   * Gruppen, denen dieser Anwender angehoert (ADR-0030 Punkt 1). Wie `tenants` nur ein
+   * Anspruch aus dem Token; woher er stammt, entscheidet M6.
+   */
+  groups: string[];
 }
 
 @Injectable()
@@ -58,6 +64,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       clientId: payload.azp ?? "unbekannt",
       roles: payload.realm_access?.roles ?? [],
       tenants: payload.tenants ?? [],
+      groups: payload.groups ?? [],
     };
   }
 }

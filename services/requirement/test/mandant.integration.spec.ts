@@ -23,6 +23,7 @@ describe("Mandantenzuschnitt (ADR-0026)", () => {
   let ohneZugehoerigkeit: string;
   let alsQuelleEins: string;
   let alsQuelleZwei: string;
+  let alsGruppenmitglied: string;
 
   const anlage = {
     projectId: "11111111-1111-4111-8111-111111111111",
@@ -37,11 +38,17 @@ describe("Mandantenzuschnitt (ADR-0026)", () => {
     process.env["KEYCLOAK_AUDIENCE"] = "requirement-api";
     process.env["DATABASE_URL"] = database.connectionString;
 
-    alsEins = jwks.sign({ sub: "b-1", azp: "frontend", tenants: ["t-eins"] });
-    alsZwei = jwks.sign({ sub: "b-2", azp: "frontend", tenants: ["t-zwei"] });
+    alsEins = jwks.sign({ sub: "b-1", azp: "frontend", tenants: ["t-eins"], groups: ["team-a"] });
+    alsZwei = jwks.sign({ sub: "b-2", azp: "frontend", tenants: ["t-zwei"], groups: ["team-b"] });
     alsBeide = jwks.sign({ sub: "b-3", azp: "frontend", tenants: ["t-eins", "t-zwei"] });
     alsQuelleEins = jwks.sign({ sub: "d-1", azp: "sap", tenants: ["t-eins"] });
     alsQuelleZwei = jwks.sign({ sub: "d-2", azp: "sap", tenants: ["t-zwei"] });
+    alsGruppenmitglied = jwks.sign({
+      sub: "b-7",
+      azp: "frontend",
+      tenants: ["t-eins"],
+      groups: ["team-a"],
+    });
     alsEinsZweiter = jwks.sign({ sub: "b-5", azp: "frontend", tenants: ["t-eins"] });
     alsBetreiber = jwks.sign({
       sub: "b-6",
@@ -83,17 +90,19 @@ describe("Mandantenzuschnitt (ADR-0026)", () => {
   const mit = (token: string) => (methode: "post" | "patch" | "put" | "get", pfad: string) =>
     request(app.getHttpServer())[methode](pfad).set("Authorization", `Bearer ${token}`);
 
-  async function anlegen(token: string, tenant: string, externalId?: string) {
+  async function anlegen(token: string, tenant: string, externalId?: string, gruppe?: string) {
     const antwort = await mit(token)("post", "/v1/requirements")
       .send({
         ...anlage,
         tenant,
         ...(externalId === undefined ? {} : { sourceSystem: "sap", externalId }),
+        ...(gruppe === undefined ? {} : { responsibleGroup: gruppe }),
       })
       .expect(201);
 
     return antwort.body as { id: string; tenant: string };
   }
+
   async function hoheitsregel(field: string, mode: string, tenant: string | null) {
     // Fach- und Historienzeile in einem Zug, aus derselben Ueberlegung wie bei
     // registriereWorkflow: abgeschrieben statt aufgezaehlt.
@@ -197,6 +206,38 @@ describe("Mandantenzuschnitt (ADR-0026)", () => {
 
       expect(antwort.body).toHaveLength(1);
     });
+
+    it("zeigt die Anforderung den Mitgliedern der zustaendigen Gruppe", async () => {
+      await mit(alsEins)("post", "/v1/requirements")
+        .send({ ...anlage, tenant: "t-eins", responsibleGroup: "team-a" })
+        .expect(201);
+
+      const mitglied = await mit(alsGruppenmitglied)("get", "/v1/requirements").expect(200);
+      // Derselbe Mandant, aber weder Eigentuemer noch in der Gruppe.
+      const fremd = await mit(alsEinsZweiter)("get", "/v1/requirements").expect(200);
+
+      expect(mitglied.body).toHaveLength(1);
+      expect(fremd.body).toEqual([]);
+    });
+
+    it("behaelt die Gruppe ueber einen Zustandswechsel", async () => {
+      // Der Fall, den das Pflichtfeld in `RequirementUpdateInput` verhindern soll: `update`
+      // schreibt eine vollstaendige Feldliste. Eine dort vergessene Spalte faellt hier auf
+      // und nicht erst, wenn jemand nach einem Statuswechsel seine Anforderung nicht mehr
+      // findet - und dann ohne Fehlermeldung.
+      const angelegt = await mit(alsEins)("post", "/v1/requirements")
+        .send({ ...anlage, tenant: "t-eins", responsibleGroup: "team-a" })
+        .expect(201);
+
+      await mit(alsEins)("put", `/v1/requirements/${angelegt.body.id}/state`)
+        .send({ toState: "in_pruefung" })
+        .expect(200);
+
+      const danach = await mit(alsGruppenmitglied)("get", "/v1/requirements").expect(200);
+
+      expect(danach.body).toHaveLength(1);
+      expect(danach.body[0].responsibleGroup).toBe("team-a");
+    });
   });
 
   describe("Ein fremder Datensatz sieht aus wie keiner", () => {
@@ -238,9 +279,20 @@ describe("Mandantenzuschnitt (ADR-0026)", () => {
       const eigen = await anlegen(alsEins, "t-eins", "A-2");
 
       await mit(alsEins)("patch", "/v1/requirements/by-source/sap/A-2")
-        .send({ owner: "T. Schmidt" })
+        .send({ requirementType: "bug" })
         .expect(200);
       await mit(alsEins)("get", `/v1/requirements/${eigen.id}/versions`).expect(200);
+    });
+
+    it("auch bei einem fremden Eigentuemer im eigenen Mandanten", async () => {
+      // Die Schliessung von PROD-060: Bisher verbarg die Liste diesen Datensatz, der
+      // direkte Zugriff gab ihn heraus.
+      const fremd = await anlegen(alsEins, "t-eins");
+
+      await mit(alsEinsZweiter)("get", `/v1/requirements/${fremd.id}/versions`).expect(404);
+      await mit(alsEinsZweiter)("put", `/v1/requirements/${fremd.id}/state`)
+        .send({ toState: "in_pruefung" })
+        .expect(404);
     });
   });
 
@@ -315,8 +367,8 @@ describe("Mandantenzuschnitt (ADR-0026)", () => {
       await hoheitsregel("owner", "automatic_wins", null);
       await hoheitsregel("owner", "manual_allowed", "t-eins");
 
-      await anlegen(alsQuelleEins, "t-eins", "M-1");
-      await anlegen(alsQuelleZwei, "t-zwei", "M-2");
+      await anlegen(alsQuelleEins, "t-eins", "M-1", "team-a");
+      await anlegen(alsQuelleZwei, "t-zwei", "M-2", "team-b");
 
       // In t-eins darf die Hand ueberschreiben, was die Quelle gesetzt hat.
       await mit(alsEins)("patch", "/v1/requirements/by-source/sap/M-1")

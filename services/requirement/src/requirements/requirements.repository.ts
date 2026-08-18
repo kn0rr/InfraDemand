@@ -26,6 +26,10 @@ export interface RequirementCreateInput {
   tenant: string;
   status: string;
   owner: string;
+  /**
+   * Zustaendige Gruppe (ADR-0030 Punkt 1). Nullbar - leer heisst „keine Vertretung".
+   */
+  responsibleGroup: string | null;
   sourceSystem: string;
   externalId: string | null;
   dynamicAttributes: Record<string, unknown>;
@@ -46,6 +50,12 @@ export interface RequirementUpdateInput {
   requirementType: string;
   status: string;
   owner: string;
+  /**
+   * Pflichtfeld mit Absicht, obwohl nullbar: `update` schreibt eine vollstaendige
+   * Feldliste. Waere es optional, ginge die Gruppe bei jedem Zustandswechsel still
+   * verloren - so zaehlt der Uebersetzer die fuenf Aufrufstellen auf.
+   */
+  responsibleGroup: string | null;
   dynamicAttributes: Record<string, unknown>;
   changedBy: string;
   changeSource: string;
@@ -191,6 +201,7 @@ export class RequirementsRepository {
             tenant: eingabe.tenant,
             status: eingabe.status,
             owner: eingabe.owner,
+            responsibleGroup: eingabe.responsibleGroup,
             sourceSystem: eingabe.sourceSystem,
             externalId: eingabe.externalId,
             dynamicAttributes: eingabe.dynamicAttributes,
@@ -210,6 +221,7 @@ export class RequirementsRepository {
           tenant: zeile.tenant,
           status: zeile.status,
           owner: zeile.owner,
+          responsibleGroup: zeile.responsibleGroup,
           sourceSystem: zeile.sourceSystem,
           externalId: zeile.externalId,
           dynamicAttributes: zeile.dynamicAttributes,
@@ -250,30 +262,37 @@ export class RequirementsRepository {
     }
 
     await this.db.insert(writeRejections).values(eintraege);
-  }
-
-  /** Zuordnung des fremden Bezeichners auf unseren Datensatz (ADR-0010). */
+  } /**
+   * Auflösung ueber die Herkunft, zugeschnitten durch die Richtlinie (ADR-0030 Punkt 2).
+   *
+   * Die Sichtbarkeit steht **in der Abfrage** und nicht als Pruefung dahinter: Ein nicht
+   * sichtbarer Datensatz wird nicht gefunden, und daraus folgt die 404 von selbst.
+   */
   async findBySource(
     sourceSystem: string,
     externalId: string,
+    sichtbarkeit: Sichtbarkeit,
   ): Promise<RequirementRow | undefined> {
     const [zeile] = await this.db
       .select()
       .from(requirements)
       .where(
-        and(eq(requirements.sourceSystem, sourceSystem), eq(requirements.externalId, externalId)),
+        and(
+          eq(requirements.sourceSystem, sourceSystem),
+          eq(requirements.externalId, externalId),
+          alsBedingung(sichtbarkeit, FELDER_BESTAND),
+        ),
       )
       .limit(1);
 
     return zeile;
   }
 
-  /** Zugriff ueber die interne Kennung - der Weg der eigenen Oberflaeche. */
-  async findById(id: string): Promise<RequirementRow | undefined> {
+  async findById(id: string, sichtbarkeit: Sichtbarkeit): Promise<RequirementRow | undefined> {
     const [zeile] = await this.db
       .select()
       .from(requirements)
-      .where(eq(requirements.id, id))
+      .where(and(eq(requirements.id, id), alsBedingung(sichtbarkeit, FELDER_BESTAND)))
       .limit(1);
 
     return zeile;
@@ -296,6 +315,7 @@ export class RequirementsRepository {
           requirementType: eingabe.requirementType,
           status: eingabe.status,
           owner: eingabe.owner,
+          responsibleGroup: eingabe.responsibleGroup,
           dynamicAttributes: eingabe.dynamicAttributes,
           updatedAt: new Date(),
           version: sql`${requirements.version} + 1`,
@@ -326,6 +346,7 @@ export class RequirementsRepository {
         tenant: zeile.tenant,
         status: zeile.status,
         owner: zeile.owner,
+        responsibleGroup: zeile.responsibleGroup,
         sourceSystem: zeile.sourceSystem,
         heldFields: zeile.heldFields,
         externalId: zeile.externalId,

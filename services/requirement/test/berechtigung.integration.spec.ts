@@ -45,11 +45,13 @@ describe("Sichtbarkeit ueber die Richtlinie (M5.2)", () => {
     tenants: string[],
     kennung: string,
     rollen: string[] = [],
+    gruppen: string[] = [],
   ): AuthenticatedUser => ({
     userId: kennung,
     username: kennung,
     clientId: "frontend",
     roles: rollen,
+    groups: gruppen,
     tenants,
   });
 

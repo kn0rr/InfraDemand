@@ -16,6 +16,7 @@ export interface Formularwerte {
   projectId: string;
   requirementType: string;
   owner: string;
+  responsibleGroup: string;
   dynamicAttributes: Record<string, unknown>;
 }
 

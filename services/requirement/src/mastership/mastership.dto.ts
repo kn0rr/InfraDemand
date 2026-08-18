@@ -12,7 +12,13 @@ export const HOHEITSMODI = mastershipMode.enumValues;
  * ueber die Servicegrenze (ADR-0010) und keine fachlichen Werte, um die zwei Quellen
  * streiten koennten.
  */
-export const REGELBARE_KERNFELDER = ["projectId", "requirementType", "status", "owner"] as const;
+export const REGELBARE_KERNFELDER = [
+  "projectId",
+  "requirementType",
+  "status",
+  "owner",
+  "responsibleGroup",
+] as const;
 
 export class MastershipRuleResponse {
   @ApiProperty({ format: "uuid" })

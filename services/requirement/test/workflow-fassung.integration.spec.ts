@@ -21,7 +21,6 @@ describe("Gebundene Workflow-Fassung (ADR-0025)", () => {
     projectId: "11111111-1111-4111-8111-111111111111",
     tenant: "t-eins",
     requirementType: "feature",
-    owner: "M. Weber",
     sourceSystem: "sap",
   };
 

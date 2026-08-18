@@ -67,6 +67,14 @@ export class RequirementResponse {
   externalId!: string | null;
 
   @ApiProperty({
+    type: String,
+    nullable: true,
+    description:
+      "Zustaendige Gruppe. Ihre Mitglieder sehen und aendern die Anforderung; leer heisst keine Vertretung (ADR-0030).",
+  })
+  responsibleGroup!: string | null;
+
+  @ApiProperty({
     type: "object",
     additionalProperties: true,
     description:

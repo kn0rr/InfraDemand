@@ -637,6 +637,8 @@ export interface components {
             projectId: string;
             /** @example feature */
             requirementType: string;
+            /** @description Zustaendige Gruppe. Ihre Mitglieder sehen und aendern die Anforderung (ADR-0030). */
+            responsibleGroup?: string;
             /**
              * @description Herkunft der Daten (§19.1). Ohne Angabe: eigene Erfassung.
              * @example sap
@@ -783,6 +785,8 @@ export interface components {
             projectId: string;
             /** @example feature */
             requirementType: string;
+            /** @description Zustaendige Gruppe. Ihre Mitglieder sehen und aendern die Anforderung; leer heisst keine Vertretung (ADR-0030). */
+            responsibleGroup: string | null;
             /**
              * @description Herkunftssystem des Datensatzes (§19.1). Eigene Erfassung: infrademand.
              * @example infrademand
@@ -831,6 +835,8 @@ export interface components {
             projectId: string;
             /** @example feature */
             requirementType: string;
+            /** @description Zustaendige Gruppe. Ihre Mitglieder sehen und aendern die Anforderung; leer heisst keine Vertretung (ADR-0030). */
+            responsibleGroup: string | null;
             /**
              * @description Herkunftssystem des Datensatzes (§19.1). Eigene Erfassung: infrademand.
              * @example infrademand

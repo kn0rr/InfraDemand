@@ -21,7 +21,6 @@ describe("Zustandswechsel", () => {
   const anlage = {
     projectId: "11111111-1111-4111-8111-111111111111",
     requirementType: "feature",
-    owner: "M. Weber",
     tenant: "t-eins",
     sourceSystem: "sap",
   };
@@ -611,7 +610,6 @@ describe("Zustandswechsel", () => {
           projectId: "11111111-1111-4111-8111-111111111111",
           requirementType: "feature",
           tenant: "t-eins",
-          owner: "M. Weber",
         })
         .expect(201);
 

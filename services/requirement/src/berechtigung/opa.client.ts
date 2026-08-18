@@ -40,6 +40,7 @@ export class OpaClient {
           mandanten: benutzer.tenants,
           kennung: benutzer.username,
           rollen: benutzer.roles,
+          gruppen: benutzer.groups,
         },
       },
       unknowns: UNBEKANNT,

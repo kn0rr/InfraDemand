@@ -21,11 +21,13 @@ export type Feldabbildung = Readonly<Record<string, PgColumn>>;
 export const FELDER_BESTAND: Feldabbildung = {
   "requirement.tenant": requirements.tenant,
   "requirement.owner": requirements.owner,
+  "requirement.responsible_group": requirements.responsibleGroup,
 };
 
 export const FELDER_HISTORIE: Feldabbildung = {
   "requirement.tenant": requirementHistory.tenant,
   "requirement.owner": requirementHistory.owner,
+  "requirement.responsible_group": requirementHistory.responsibleGroup,
 };
 
 /**

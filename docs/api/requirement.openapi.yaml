@@ -302,6 +302,10 @@ components:
           example: feature
           maxLength: 100
           type: string
+        responsibleGroup:
+          description: Zustaendige Gruppe. Ihre Mitglieder sehen und aendern die Anforderung (ADR-0030).
+          maxLength: 200
+          type: string
         sourceSystem:
           description: 'Herkunft der Daten (§19.1). Ohne Angabe: eigene Erfassung.'
           example: sap
@@ -588,6 +592,13 @@ components:
         requirementType:
           example: feature
           type: string
+        responsibleGroup:
+          description: >-
+            Zustaendige Gruppe. Ihre Mitglieder sehen und aendern die Anforderung; leer heisst keine
+            Vertretung (ADR-0030).
+          type:
+            - string
+            - 'null'
         sourceSystem:
           description: 'Herkunftssystem des Datensatzes (§19.1). Eigene Erfassung: infrademand.'
           example: infrademand
@@ -624,6 +635,7 @@ components:
         - owner
         - sourceSystem
         - externalId
+        - responsibleGroup
         - dynamicAttributes
         - createdAt
         - updatedAt
@@ -675,6 +687,13 @@ components:
         requirementType:
           example: feature
           type: string
+        responsibleGroup:
+          description: >-
+            Zustaendige Gruppe. Ihre Mitglieder sehen und aendern die Anforderung; leer heisst keine
+            Vertretung (ADR-0030).
+          type:
+            - string
+            - 'null'
         sourceSystem:
           description: 'Herkunftssystem des Datensatzes (§19.1). Eigene Erfassung: infrademand.'
           example: infrademand
@@ -720,6 +739,7 @@ components:
         - owner
         - sourceSystem
         - externalId
+        - responsibleGroup
         - dynamicAttributes
         - createdAt
         - updatedAt
