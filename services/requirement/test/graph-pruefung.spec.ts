@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { genannteFelder, pruefeGraph, unerreichbareZustaende } from "../src/workflows/graph-pruefung";
+import {
+  genannteFelder,
+  pruefeGraph,
+  unerreichbareZustaende,
+} from "../src/workflows/graph-pruefung";
 import type { Bedingung, Graph } from "../src/workflows/typen";
 
 function graph(teil: Partial<Graph> = {}): Graph {
@@ -331,48 +335,50 @@ describe("unerreichbareZustaende", () => {
     expect(befunde).toEqual(["verworfen"]);
   });
   describe("genannteFelder", () => {
-  const mitBedingung = (bedingung: Bedingung): Graph =>
-    graph({
-      transitions: [{ from: "neu", to: "erledigt", label: "Abschliessen", bedingungen: [bedingung] }],
+    const mitBedingung = (bedingung: Bedingung): Graph =>
+      graph({
+        transitions: [
+          { from: "neu", to: "erledigt", label: "Abschliessen", bedingungen: [bedingung] },
+        ],
+      });
+
+    it("nennt das Feld einer Identitaetsbedingung mit ihrer Art", () => {
+      expect(genannteFelder(mitBedingung({ art: "identitaet", feld: "owner" }))).toEqual([
+        { feld: "owner", stelle: "transitions[0].bedingungen[0]", art: "identitaet" },
+      ]);
     });
 
-  it("nennt das Feld einer Identitaetsbedingung mit ihrer Art", () => {
-    expect(genannteFelder(mitBedingung({ art: "identitaet", feld: "owner" }))).toEqual([
-      { feld: "owner", stelle: "transitions[0].bedingungen[0]", art: "identitaet" },
-    ]);
-  });
+    it("nennt jedes Pflichtfeld einzeln", () => {
+      const felder = genannteFelder(
+        mitBedingung({ art: "pflichtfelder", felder: ["titel", "budget"] }),
+      );
 
-  it("nennt jedes Pflichtfeld einzeln", () => {
-    const felder = genannteFelder(
-      mitBedingung({ art: "pflichtfelder", felder: ["titel", "budget"] }),
-    );
+      expect(felder.map((eintrag) => eintrag.feld)).toEqual(["titel", "budget"]);
+      expect(felder.every((eintrag) => eintrag.art === "pflichtfelder")).toBe(true);
+    });
 
-    expect(felder.map((eintrag) => eintrag.feld)).toEqual(["titel", "budget"]);
-    expect(felder.every((eintrag) => eintrag.art === "pflichtfelder")).toBe(true);
-  });
+    it("gibt einem Vorbehalt nicht die Art der aeusseren Bedingung", () => {
+      // Der Fall, der sonst niemandem auffiele: Als "identitaet" getagt verlangte die
+      // Pruefung aus ADR-0031 Punkt 4 von `prioritaet` eine Person - und wiese einen
+      // gueltigen Graphen ab. Der Fehler zeigte sich nicht als falsches Verhalten,
+      // sondern als grundlose 400 an einer ganz anderen Stelle.
+      const felder = genannteFelder(
+        mitBedingung({
+          art: "identitaet",
+          feld: "owner",
+          nurWenn: [{ feld: "prioritaet", operator: "istGleich", wert: "hoch" }],
+        }),
+      );
 
-  it("gibt einem Vorbehalt nicht die Art der aeusseren Bedingung", () => {
-    // Der Fall, der sonst niemandem auffiele: Als "identitaet" getagt verlangte die
-    // Pruefung aus ADR-0031 Punkt 4 von `prioritaet` eine Person - und wiese einen
-    // gueltigen Graphen ab. Der Fehler zeigte sich nicht als falsches Verhalten,
-    // sondern als grundlose 400 an einer ganz anderen Stelle.
-    const felder = genannteFelder(
-      mitBedingung({
-        art: "identitaet",
-        feld: "owner",
-                nurWenn: [{ feld: "prioritaet", operator: "istGleich", wert: "hoch" }],
-      }),
-    );
+      expect(felder).toContainEqual({
+        feld: "prioritaet",
+        stelle: "transitions[0].bedingungen[0].nurWenn",
+        art: "vorbehalt",
+      });
+    });
 
-    expect(felder).toContainEqual({
-      feld: "prioritaet",
-      stelle: "transitions[0].bedingungen[0].nurWenn",
-      art: "vorbehalt",
+    it("nennt keine Felder ohne Bedingungen", () => {
+      expect(genannteFelder(graph())).toEqual([]);
     });
   });
-
-  it("nennt keine Felder ohne Bedingungen", () => {
-    expect(genannteFelder(graph())).toEqual([]);
-  });
-});
 });
