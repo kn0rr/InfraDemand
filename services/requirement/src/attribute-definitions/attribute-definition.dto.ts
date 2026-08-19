@@ -61,6 +61,20 @@ export class AttributeDefinitionResponse {
   allowedValues!: string[] | null;
 
   @ApiProperty({
+    type: String,
+    nullable: true,
+    description:
+      "Mandant, fuer den die Definition gilt. Leer heisst: fuer alle (ADR-0026 Punkt 4).",
+  })
+  tenant!: string | null;
+
+  @ApiProperty({
+    type: [String],
+    nullable: true,
+    description: "Rollen, die dieses Attribut sehen duerfen. Leer heisst: alle (ADR-0030 Punkt 3).",
+  })
+  visibleFor!: string[] | null;
+  @ApiProperty({
     description:
       "Ausser Kraft gesetzte Definitionen bleiben bestehen - bestehende Anforderungen " +
       "tragen Werte, die nur mit ihnen deutbar sind.",

@@ -24,6 +24,8 @@ export interface Fassungsnutzung {
 export interface WorkflowDefinitionCreateInput {
   label: string;
   requirementType: string | null;
+  /** Pflichtfeld mit Absicht: So zaehlt der Uebersetzer die Aufrufstelle auf. */
+  tenant: string | null;
   mode: Betriebsart;
   initialState: string;
   states: WorkflowState[];
@@ -154,6 +156,7 @@ export class WorkflowsRepository {
           .values({
             label: eingabe.label,
             requirementType: eingabe.requirementType,
+            tenant: eingabe.tenant,
             // Die Fachtabelle hat keinen Vorgabewert fuer `mode`. Das ist der Gewinn
             // daraus: Der Uebersetzer verlangt die Angabe hier, statt sie stillschweigend
             // auf "internal" zu setzen.

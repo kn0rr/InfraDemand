@@ -22,6 +22,9 @@ export interface AttributeDefinitionCreateInput {
   required: boolean;
   defaultValue: unknown;
   allowedValues: string[] | null;
+  /** Pflichtfelder mit Absicht: So zaehlt der Uebersetzer die Aufrufstellen im Dienst auf. */
+  tenant: string | null;
+  visibleFor: string[] | null;
   changedBy: string;
   changeSource: string;
 }
@@ -105,6 +108,8 @@ export class AttributeDefinitionsRepository {
             required: eingabe.required,
             defaultValue: eingabe.defaultValue,
             allowedValues: eingabe.allowedValues,
+            tenant: eingabe.tenant,
+            visibleFor: eingabe.visibleFor,
           })
           .returning();
 

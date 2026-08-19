@@ -27,6 +27,7 @@ describe("Hoheitsregeln", () => {
     adminToken = jwks.sign({
       sub: "admin-1",
       azp: "frontend",
+      tenants: ["t-eins"],
       realm_access: { roles: ["platform-admin"] },
     });
     autorToken = jwks.sign({
@@ -122,5 +123,22 @@ describe("Hoheitsregeln", () => {
     expect(versionen.body).toHaveLength(2);
     expect(versionen.body[0]).toMatchObject({ mode: "manual_allowed", operation: "insert" });
     expect(versionen.body[1]).toMatchObject({ mode: "automatic_wins", validTo: null });
+  });
+  it("legt eine mandantenspezifische Regel an und gibt sie zurueck", async () => {
+    const antwort = await anlegen()
+      .send({ field: "owner", mode: "automatic_wins", tenant: "t-eins" })
+      .expect(201);
+
+    expect(antwort.body.tenant).toBe("t-eins");
+
+    const { rows } = await pool.query<{ tenant: string }>(
+      "SELECT tenant FROM mastership_rule WHERE field = 'owner'",
+    );
+
+    expect(rows[0]?.tenant).toBe("t-eins");
+  });
+
+  it("weist einen fremden Mandanten mit 403 ab", async () => {
+    await anlegen().send({ field: "owner", mode: "automatic_wins", tenant: "t-drei" }).expect(403);
   });
 });

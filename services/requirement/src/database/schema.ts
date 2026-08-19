@@ -342,6 +342,17 @@ export const attributeDefinitions = pgTable(
     /** Zulaessige Werte bei `enum` und `multi_enum`; sonst leer. */
     allowedValues: jsonb("allowed_values").$type<string[]>(),
     /**
+     * Rollen, die dieses Attribut sehen duerfen (§6, ADR-0030 Punkt 3).
+     *
+     * **Leer heisst: alle.** Die haeufigere Aussage bekommt die kuerzere Schreibweise, und
+     * eine Definition ohne Angabe bleibt sichtbar wie bisher - die Einfuehrung dieser
+     * Spalte aendert an keinem Bestand etwas.
+     *
+     * Nur die Sichtbarkeit. Ob die Editierbarkeit denselben Weg geht, ist als
+     * Folgeentscheidung von ADR-0030 gefuehrt.
+     */
+    visibleFor: jsonb("visible_for").$type<string[]>(),
+    /**
      * Ausser Kraft gesetzte Definitionen bleiben bestehen. Sie werden nicht geloescht,
      * weil bestehende Anforderungen Werte tragen, die nur mit ihnen deutbar sind
      * (ADR-0012 Punkt 6).
@@ -380,6 +391,7 @@ export const attributeDefinitionHistory = pgTable(
     required: boolean("required").notNull(),
     defaultValue: jsonb("default_value"),
     allowedValues: jsonb("allowed_values").$type<string[]>(),
+    visibleFor: jsonb("visible_for").$type<string[]>(),
     active: boolean("active").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull(),

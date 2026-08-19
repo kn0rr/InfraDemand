@@ -86,6 +86,8 @@ function Attributdefinitionen() {
     initialValues: {
       key: "",
       requirementType: "",
+      tenant: "",
+      visibleFor: "",
       label: "",
       dataType: "text",
       allowedValues: "",
@@ -100,7 +102,11 @@ function Attributdefinitionen() {
         <form
           onSubmit={formular.onSubmit((werte) => {
             const listentyp = werte.dataType === "enum" || werte.dataType === "multi_enum";
-
+            // Wie bei den zulaessigen Werten: kommagetrennt eingegeben, als Liste gesendet.
+            const rollen = werte.visibleFor
+              .split(",")
+              .map((eintrag) => eintrag.trim())
+              .filter((eintrag) => eintrag !== "");
             anlegen.mutate(
               {
                 key: werte.key,
@@ -115,6 +121,8 @@ function Attributdefinitionen() {
                         .filter((eintrag) => eintrag !== ""),
                     }
                   : {}),
+                ...(werte.tenant === "" ? {} : { tenant: werte.tenant }),
+                ...(rollen.length === 0 ? {} : { visibleFor: rollen }),
                 required: werte.required,
                 ...(deuteVorgabewert(werte.defaultValue, werte.dataType) === undefined
                   ? {}
@@ -140,6 +148,12 @@ function Attributdefinitionen() {
                 label="Bezeichnung"
                 key={formular.key("label")}
                 {...formular.getInputProps("label")}
+              />
+              <TextInput
+                label="Mandant"
+                description="Leer bedeutet: gilt fuer alle"
+                key={formular.key("tenant")}
+                {...formular.getInputProps("tenant")}
               />
             </Group>
 
@@ -177,6 +191,12 @@ function Attributdefinitionen() {
               key={formular.key("required")}
               {...formular.getInputProps("required", { type: "checkbox" })}
             />
+            <TextInput
+              label="Sichtbar fuer"
+              description="Rollen, durch Komma getrennt. Leer bedeutet: fuer alle"
+              key={formular.key("visibleFor")}
+              {...formular.getInputProps("visibleFor")}
+            />
 
             {anlegen.isError ? (
               <Alert color="red" title="Anlegen fehlgeschlagen">
@@ -201,9 +221,11 @@ function Attributdefinitionen() {
             <Table.Thead>
               <Table.Tr>
                 <Table.Th>Schluessel</Table.Th>
+                <Table.Th>Mandant</Table.Th>
                 <Table.Th>Gilt fuer</Table.Th>
                 <Table.Th>Typ</Table.Th>
                 <Table.Th>Pflicht</Table.Th>
+                <Table.Th>Sichtbar fuer</Table.Th>
                 <Table.Th>Fassung</Table.Th>
                 <Table.Th />
               </Table.Tr>
@@ -212,9 +234,13 @@ function Attributdefinitionen() {
               {definitionen.data.map((definition) => (
                 <Table.Tr key={definition.id} opacity={definition.active ? 1 : 0.5}>
                   <Table.Td>{definition.key}</Table.Td>
+                  <Table.Td>{definition.tenant ?? "alle"}</Table.Td>
                   <Table.Td>{definition.requirementType ?? "alle"}</Table.Td>
                   <Table.Td>{definition.dataType}</Table.Td>
                   <Table.Td>{definition.required ? "ja" : "nein"}</Table.Td>
+                  <Table.Td>
+                    {definition.visibleFor?.length ? definition.visibleFor.join(", ") : "alle"}
+                  </Table.Td>
                   <Table.Td>{definition.version}</Table.Td>
                   <Table.Td>
                     <Button
@@ -261,15 +287,19 @@ function Hoheitsregeln() {
 
   const formular = useForm({
     mode: "uncontrolled",
-    initialValues: { field: "", mode: "automatic_wins" as Hoheitsregel["mode"] },
+    initialValues: { field: "", tenant: "", mode: "automatic_wins" as Hoheitsregel["mode"] },
   });
 
   return (
     <Stack gap="lg" pt="md">
       <Paper withBorder p="md" radius="md">
         <form
-          onSubmit={formular.onSubmit((werte) => {
-            anlegen.mutate(werte, { onSuccess: () => formular.reset() });
+          onSubmit={formular.onSubmit(({ tenant, ...uebrige }) => {
+            // Leer heisst „fuer alle", nicht „leere Zeichenkette" - das DTO verlangt
+            // mindestens ein Zeichen und wiese "" ab.
+            anlegen.mutate(tenant === "" ? uebrige : { ...uebrige, tenant }, {
+              onSuccess: () => formular.reset(),
+            });
           })}
         >
           <Stack gap="sm">
@@ -283,6 +313,12 @@ function Hoheitsregeln() {
                 description="Kernfeld wie owner oder Schluessel eines Attributs"
                 key={formular.key("field")}
                 {...formular.getInputProps("field")}
+              />
+              <TextInput
+                label="Mandant"
+                description="Leer bedeutet: gilt fuer alle"
+                key={formular.key("tenant")}
+                {...formular.getInputProps("tenant")}
               />
               <Select
                 label="Regel"
@@ -316,6 +352,7 @@ function Hoheitsregeln() {
             <Table.Tr>
               <Table.Th>Feld</Table.Th>
               <Table.Th>Regel</Table.Th>
+              <Table.Th>Mandant</Table.Th>
               <Table.Th>Fassung</Table.Th>
             </Table.Tr>
           </Table.Thead>
@@ -323,6 +360,7 @@ function Hoheitsregeln() {
             {regeln.data.map((regel) => (
               <Table.Tr key={regel.id}>
                 <Table.Td>{regel.field}</Table.Td>
+                <Table.Td>{regel.tenant ?? "alle"}</Table.Td>
                 <Table.Td>
                   <Select
                     data={MODI}

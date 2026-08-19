@@ -74,12 +74,24 @@ components:
           type:
             - string
             - 'null'
+        tenant:
+          description: 'Mandant, fuer den die Definition gilt. Leer heisst: fuer alle (ADR-0026 Punkt 4).'
+          type:
+            - string
+            - 'null'
         updatedAt:
           format: date-time
           type: string
         version:
           example: 1
           type: integer
+        visibleFor:
+          description: 'Rollen, die dieses Attribut sehen duerfen. Leer heisst: alle (ADR-0030 Punkt 3).'
+          items:
+            type: string
+          type:
+            - array
+            - 'null'
       required:
         - id
         - key
@@ -89,6 +101,8 @@ components:
         - required
         - defaultValue
         - allowedValues
+        - tenant
+        - visibleFor
         - active
         - createdAt
         - updatedAt
@@ -157,6 +171,11 @@ components:
           type:
             - string
             - 'null'
+        tenant:
+          description: 'Mandant, fuer den die Definition gilt. Leer heisst: fuer alle (ADR-0026 Punkt 4).'
+          type:
+            - string
+            - 'null'
         updatedAt:
           format: date-time
           type: string
@@ -171,6 +190,13 @@ components:
         version:
           example: 1
           type: integer
+        visibleFor:
+          description: 'Rollen, die dieses Attribut sehen duerfen. Leer heisst: alle (ADR-0030 Punkt 3).'
+          items:
+            type: string
+          type:
+            - array
+            - 'null'
       required:
         - id
         - key
@@ -180,6 +206,8 @@ components:
         - required
         - defaultValue
         - allowedValues
+        - tenant
+        - visibleFor
         - active
         - createdAt
         - updatedAt
@@ -256,6 +284,15 @@ components:
           example: bestellung
           maxLength: 100
           type: string
+        tenant:
+          description: Mandant, fuer den die Definition gilt. Ohne Angabe fuer alle (ADR-0026 Punkt 4).
+          maxLength: 100
+          type: string
+        visibleFor:
+          description: Rollen, die dieses Attribut sehen duerfen. Ohne Angabe alle (§6, ADR-0030 Punkt 3).
+          items:
+            type: string
+          type: array
       required:
         - key
         - label
@@ -272,6 +309,10 @@ components:
             - manual_allowed
             - automatic_wins
             - manual_locked
+          type: string
+        tenant:
+          description: Mandant, fuer den die Regel gilt. Ohne Angabe fuer alle (ADR-0026 Punkt 4).
+          maxLength: 100
           type: string
       required:
         - field
@@ -348,6 +389,10 @@ components:
           items:
             $ref: '#/components/schemas/WorkflowStateDto'
           type: array
+        tenant:
+          description: Mandant, fuer den der Workflow gilt. Ohne Angabe fuer alle (ADR-0026 Punkt 4).
+          maxLength: 100
+          type: string
         transitions:
           items:
             $ref: '#/components/schemas/WorkflowTransitionDto'
@@ -442,6 +487,11 @@ components:
             - manual_locked
           example: automatic_wins
           type: string
+        tenant:
+          description: 'Mandant, fuer den die Regel gilt. Leer heisst: fuer alle.'
+          type:
+            - string
+            - 'null'
         updatedAt:
           format: date-time
           type: string
@@ -452,6 +502,7 @@ components:
         - id
         - field
         - mode
+        - tenant
         - bindings
         - createdAt
         - updatedAt
@@ -497,6 +548,11 @@ components:
             - update
             - delete
           type: string
+        tenant:
+          description: 'Mandant, fuer den die Regel gilt. Leer heisst: fuer alle.'
+          type:
+            - string
+            - 'null'
         updatedAt:
           format: date-time
           type: string
@@ -515,6 +571,7 @@ components:
         - id
         - field
         - mode
+        - tenant
         - bindings
         - createdAt
         - updatedAt
@@ -557,6 +614,10 @@ components:
         requirementType:
           example: feature
           maxLength: 100
+          type: string
+        responsibleGroup:
+          description: Zustaendige Gruppe. Ihre Mitglieder sehen und aendern die Anforderung (ADR-0030).
+          maxLength: 200
           type: string
       type: object
     RequirementResponse:
@@ -1057,6 +1118,11 @@ components:
           items:
             $ref: '#/components/schemas/WorkflowStateResponse'
           type: array
+        tenant:
+          description: 'Mandant, fuer den der Workflow gilt. Leer heisst: fuer alle.'
+          type:
+            - string
+            - 'null'
         transitions:
           items:
             $ref: '#/components/schemas/WorkflowTransitionResponse'
@@ -1079,6 +1145,7 @@ components:
         - id
         - label
         - requirementType
+        - tenant
         - mode
         - initialState
         - states
@@ -1133,6 +1200,11 @@ components:
           items:
             $ref: '#/components/schemas/WorkflowStateResponse'
           type: array
+        tenant:
+          description: 'Mandant, fuer den der Workflow gilt. Leer heisst: fuer alle.'
+          type:
+            - string
+            - 'null'
         transitions:
           items:
             $ref: '#/components/schemas/WorkflowTransitionResponse'
@@ -1163,6 +1235,7 @@ components:
         - id
         - label
         - requirementType
+        - tenant
         - mode
         - initialState
         - states

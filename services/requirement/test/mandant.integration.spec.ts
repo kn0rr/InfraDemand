@@ -238,6 +238,20 @@ describe("Mandantenzuschnitt (ADR-0026)", () => {
       expect(danach.body).toHaveLength(1);
       expect(danach.body[0].responsibleGroup).toBe("team-a");
     });
+    it("laesst die Gruppe nachtraeglich setzen", async () => {
+      // Eine Vertretung entsteht, wenn jemand ausfaellt - also spaeter, nicht bei der
+      // Anlage. Ohne diesen Test war die Spalte nur beim Anlegen beschreibbar, und ein
+      // PATCH darauf verschwand wortlos.
+      await anlegen(alsEins, "t-eins", "G-1");
+
+      await mit(alsEins)("patch", "/v1/requirements/by-source/sap/G-1")
+        .send({ responsibleGroup: "team-a" })
+        .expect(200);
+
+      expect(
+        (await mit(alsGruppenmitglied)("get", "/v1/requirements").expect(200)).body,
+      ).toHaveLength(1);
+    });
   });
 
   describe("Ein fremder Datensatz sieht aus wie keiner", () => {

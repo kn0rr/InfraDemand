@@ -538,10 +538,14 @@ export interface components {
             required: boolean;
             /** @description Anforderungstyp, fuer den die Definition gilt. Leer bedeutet: fuer alle. */
             requirementType: string | null;
+            /** @description Mandant, fuer den die Definition gilt. Leer heisst: fuer alle (ADR-0026 Punkt 4). */
+            tenant: string | null;
             /** Format: date-time */
             updatedAt: string;
             /** @example 1 */
             version: number;
+            /** @description Rollen, die dieses Attribut sehen duerfen. Leer heisst: alle (ADR-0030 Punkt 3). */
+            visibleFor: string[] | null;
         };
         AttributeDefinitionVersionResponse: {
             /** @description Ausser Kraft gesetzte Definitionen bleiben bestehen - bestehende Anforderungen tragen Werte, die nur mit ihnen deutbar sind. */
@@ -570,6 +574,8 @@ export interface components {
             required: boolean;
             /** @description Anforderungstyp, fuer den die Definition gilt. Leer bedeutet: fuer alle. */
             requirementType: string | null;
+            /** @description Mandant, fuer den die Definition gilt. Leer heisst: fuer alle (ADR-0026 Punkt 4). */
+            tenant: string | null;
             /** Format: date-time */
             updatedAt: string;
             /** Format: date-time */
@@ -578,6 +584,8 @@ export interface components {
             validTo: string | null;
             /** @example 1 */
             version: number;
+            /** @description Rollen, die dieses Attribut sehen duerfen. Leer heisst: alle (ADR-0030 Punkt 3). */
+            visibleFor: string[] | null;
         };
         BedingungsverstossResponse: {
             /**
@@ -615,12 +623,18 @@ export interface components {
              * @example bestellung
              */
             requirementType?: string;
+            /** @description Mandant, fuer den die Definition gilt. Ohne Angabe fuer alle (ADR-0026 Punkt 4). */
+            tenant?: string;
+            /** @description Rollen, die dieses Attribut sehen duerfen. Ohne Angabe alle (§6, ADR-0030 Punkt 3). */
+            visibleFor?: string[];
         };
         CreateMastershipRuleDto: {
             /** @example owner */
             field: string;
             /** @enum {string} */
             mode: "manual_allowed" | "automatic_wins" | "manual_locked";
+            /** @description Mandant, fuer den die Regel gilt. Ohne Angabe fuer alle (ADR-0026 Punkt 4). */
+            tenant?: string;
         };
         CreateRequirementDto: {
             dynamicAttributes?: {
@@ -666,6 +680,8 @@ export interface components {
              */
             requirementType?: string;
             states: components["schemas"]["WorkflowStateDto"][];
+            /** @description Mandant, fuer den der Workflow gilt. Ohne Angabe fuer alle (ADR-0026 Punkt 4). */
+            tenant?: string;
             transitions: components["schemas"]["WorkflowTransitionDto"][];
         };
         FesthaltungUebersicht: {
@@ -710,6 +726,8 @@ export interface components {
              * @enum {string}
              */
             mode: "manual_allowed" | "automatic_wins" | "manual_locked";
+            /** @description Mandant, fuer den die Regel gilt. Leer heisst: fuer alle. */
+            tenant: string | null;
             /** Format: date-time */
             updatedAt: string;
             /** @example 1 */
@@ -739,6 +757,8 @@ export interface components {
             mode: "manual_allowed" | "automatic_wins" | "manual_locked";
             /** @enum {string} */
             operation: "insert" | "update" | "delete";
+            /** @description Mandant, fuer den die Regel gilt. Leer heisst: fuer alle. */
+            tenant: string | null;
             /** Format: date-time */
             updatedAt: string;
             /** Format: date-time */
@@ -764,6 +784,8 @@ export interface components {
             projectId?: string;
             /** @example feature */
             requirementType?: string;
+            /** @description Zustaendige Gruppe. Ihre Mitglieder sehen und aendern die Anforderung (ADR-0030). */
+            responsibleGroup?: string;
         };
         RequirementResponse: {
             /** Format: date-time */
@@ -991,6 +1013,8 @@ export interface components {
             /** @description Anforderungstyp, fuer den der Workflow gilt. Leer bedeutet: fuer alle uebrigen. */
             requirementType: string | null;
             states: components["schemas"]["WorkflowStateResponse"][];
+            /** @description Mandant, fuer den der Workflow gilt. Leer heisst: fuer alle. */
+            tenant: string | null;
             transitions: components["schemas"]["WorkflowTransitionResponse"][];
             /** @description Zustaende, die vom Anfangszustand aus nicht erreichbar sind. Kein Fehler - ein Graph im Aufbau ist unvollstaendig, nicht falsch -, aber ein Hinweis fuer die Verwaltungsoberflaeche. */
             unreachableStates: string[];
@@ -1022,6 +1046,8 @@ export interface components {
             /** @description Anforderungstyp, fuer den der Workflow gilt. Leer bedeutet: fuer alle uebrigen. */
             requirementType: string | null;
             states: components["schemas"]["WorkflowStateResponse"][];
+            /** @description Mandant, fuer den der Workflow gilt. Leer heisst: fuer alle. */
+            tenant: string | null;
             transitions: components["schemas"]["WorkflowTransitionResponse"][];
             /** @description Zustaende, die vom Anfangszustand aus nicht erreichbar sind. Kein Fehler - ein Graph im Aufbau ist unvollstaendig, nicht falsch -, aber ein Hinweis fuer die Verwaltungsoberflaeche. */
             unreachableStates: string[];

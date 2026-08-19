@@ -16,10 +16,11 @@ export async function registriereAttribut(
     required?: boolean;
     allowedValues?: string[] | null;
     tenant?: string | null;
+    visibleFor?: string[] | null;
   },
 ): Promise<void> {
   await pool.query(
-    "INSERT INTO attribute_definition (key, requirement_type, label, data_type, required, allowed_values, tenant) VALUES ($1, $2, $3, $4, $5, $6, $7) ON CONFLICT DO NOTHING",
+    "INSERT INTO attribute_definition (key, requirement_type, label, data_type, required, allowed_values, tenant, visible_for) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) ON CONFLICT DO NOTHING",
     [
       attribut.key,
       attribut.requirementType ?? null,
@@ -28,6 +29,7 @@ export async function registriereAttribut(
       attribut.required ?? false,
       attribut.allowedValues === undefined ? null : JSON.stringify(attribut.allowedValues),
       attribut.tenant ?? null,
+      attribut.visibleFor === undefined ? null : JSON.stringify(attribut.visibleFor),
     ],
   );
 }

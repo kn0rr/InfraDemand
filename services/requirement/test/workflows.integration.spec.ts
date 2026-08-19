@@ -45,7 +45,7 @@ describe("Workflow-Definitionen", () => {
     adminToken = jwks.sign({
       sub: "admin-1",
       azp: "frontend",
-      preferred_username: "test.admin",
+      tenants: ["t-eins"],
       realm_access: { roles: ["platform-admin"] },
     });
     autorToken = jwks.sign({
@@ -500,6 +500,92 @@ describe("Workflow-Definitionen", () => {
         .expect(400);
 
       expect(antwort.body.message).toContain("nicht auf jedem Weg");
+    });
+  });
+  describe("Mandant (ADR-0026)", () => {
+    it("legt einen mandantenspezifischen Workflow an und gibt ihn zurueck", async () => {
+      const antwort = await alsAdmin()
+        .send({
+          label: "Ablauf t-eins",
+          tenant: "t-eins",
+          initialState: "neu",
+          states: [{ key: "neu", label: "Neu" }],
+          transitions: [],
+        })
+        .expect(201);
+
+      expect(antwort.body.tenant).toBe("t-eins");
+
+      const { rows } = await pool.query<{ tenant: string }>(
+        "SELECT tenant FROM workflow_definition WHERE label = 'Ablauf t-eins'",
+      );
+
+      expect(rows[0]?.tenant).toBe("t-eins");
+    });
+
+    it("weist einen fremden Mandanten mit 403 ab", async () => {
+      await alsAdmin()
+        .send({
+          label: "Fremd",
+          tenant: "t-drei",
+          initialState: "neu",
+          states: [{ key: "neu", label: "Neu" }],
+          transitions: [],
+        })
+        .expect(403);
+    });
+
+    it("laesst einen mandantenspezifischen Workflow das Attribut seines Mandanten nennen", async () => {
+      // Die Kopplung, die mit dem Mandanten entstand: `pruefeFeldnamen` fragte die
+      // Definitionen mit `null` ab, also nur die plattformweiten. Dieser Workflow waere
+      // damit an seinem eigenen Attribut gescheitert - mit "unbekanntes Feld".
+      await registriereAttribut(pool, { key: "mandantenfeld", tenant: "t-eins" });
+
+      await alsAdmin()
+        .send({
+          label: "Mit Mandantenfeld",
+          tenant: "t-eins",
+          initialState: "neu",
+          states: [
+            { key: "neu", label: "Neu" },
+            { key: "geprueft", label: "Geprueft", final: true },
+          ],
+          transitions: [
+            {
+              from: "neu",
+              to: "geprueft",
+              label: "Pruefen",
+              bedingungen: [{ art: "pflichtfelder", felder: ["mandantenfeld"] }],
+            },
+          ],
+        })
+        .expect(201);
+    });
+
+    it("weist einen plattformweiten Workflow ab, der ein Mandantenfeld nennt", async () => {
+      // Die Gegenrichtung, und sie ist der Grund fuer die Null-Bedeutung (ADR-0024 Punkt 7):
+      // Fuer jeden anderen Mandanten waere die Bedingung nicht auswertbar und der Uebergang
+      // dauerhaft gesperrt - ohne dass jemand sieht, warum.
+      await registriereAttribut(pool, { key: "mandantenfeld", tenant: "t-eins" });
+
+      await alsAdmin()
+        .send({
+          label: "Plattformweit mit Mandantenfeld",
+          initialState: "neu",
+          states: [
+            { key: "neu", label: "Neu" },
+            { key: "geprueft", label: "Geprueft", final: true },
+          ],
+          transitions: [
+            {
+              from: "neu",
+              to: "geprueft",
+              label: "Pruefen",
+              bedingungen: [{ art: "pflichtfelder", felder: ["mandantenfeld"] }],
+            },
+          ],
+        })
+        .expect(400);
     });
   });
 });

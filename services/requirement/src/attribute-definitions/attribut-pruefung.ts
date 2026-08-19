@@ -15,6 +15,8 @@ export interface GeltendeDefinition {
   required: boolean;
   defaultValue: unknown;
   allowedValues: string[] | null;
+  /** Rollen, die das Attribut sehen duerfen. Leer heisst: alle (ADR-0030 Punkt 3). */
+  visibleFor: string[] | null;
 }
 
 export interface AttributFehler {

@@ -10,6 +10,7 @@ function definition(teil: Partial<GeltendeDefinition>): GeltendeDefinition {
     required: false,
     defaultValue: null,
     allowedValues: null,
+    visibleFor: null,
     ...teil,
   };
 }

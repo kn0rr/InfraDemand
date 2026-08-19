@@ -20,6 +20,7 @@ export default async function AnforderungenSeite() {
       benutzer={sitzung.benutzername ?? ""}
       istAdmin={(sitzung.rollen ?? []).includes("platform-admin")}
       mandanten={sitzung.mandanten ?? []}
+      rollen={sitzung.rollen ?? []}
     />
   );
 }

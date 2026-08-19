@@ -89,3 +89,24 @@ export function deuteAntwort(rumpf: unknown): Sichtbarkeit {
 
   return { art: "bedingung", bedingung: abfrage as unknown as UcastKnoten };
 }
+
+/**
+ * Deutet die Antwort der Feldsicht.
+ *
+ * **Eine leere Menge ist eine gueltige Auskunft, ein fehlendes `result` nicht.** Die
+ * Auswertung liefert bei nichts Verborgenem `{"result":[]}`; kommt `{}`, ist etwas
+ * schiefgegangen - und „nichts verborgen" waere dann die gefaehrlichste Auslegung.
+ */
+export function deuteFeldsicht(rumpf: unknown): ReadonlySet<string> {
+  if (!istObjekt(rumpf) || !Array.isArray((rumpf as Record<string, unknown>)["result"])) {
+    throw new Error("Antwort der Feldsicht enthaelt kein deutbares `result`");
+  }
+
+  const schluessel = (rumpf as { result: unknown[] }).result;
+
+  if (schluessel.some((eintrag) => typeof eintrag !== "string")) {
+    throw new Error("Feldsicht lieferte etwas anderes als Schluessel");
+  }
+
+  return new Set(schluessel as string[]);
+}

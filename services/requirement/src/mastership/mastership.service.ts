@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
@@ -49,6 +50,11 @@ export class MastershipService {
     benutzer: AuthenticatedUser,
   ): Promise<MastershipRuleResponse> {
     await this.pruefeFeld(eingabe.field);
+    // Wie bei den Attributdefinitionen (ADR-0026 Punkt 3): Die Auswahl kommt vom Aufrufer,
+    // aber er kann nur einen der eigenen Mandanten waehlen.
+    if (eingabe.tenant !== undefined && !benutzer.tenants.includes(eingabe.tenant)) {
+      throw new ForbiddenException(`Sie gehoeren dem Mandanten "${eingabe.tenant}" nicht an`);
+    }
 
     try {
       const zeile = await this.repository.create({
@@ -56,6 +62,7 @@ export class MastershipService {
         mode: eingabe.mode,
         changedBy: benutzer.userId,
         changeSource: benutzer.clientId,
+        tenant: eingabe.tenant ?? null,
       });
 
       return MastershipService.toResponse(zeile);
@@ -131,6 +138,7 @@ export class MastershipService {
       field: row.field,
       mode: row.mode,
       bindings: row.bindings,
+      tenant: row.tenant,
       createdAt: row.createdAt.toISOString(),
       updatedAt: row.updatedAt.toISOString(),
       version: row.version,

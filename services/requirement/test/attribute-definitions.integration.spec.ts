@@ -33,7 +33,7 @@ describe("Attributdefinitionen", () => {
     adminToken = jwks.sign({
       sub: "admin-1",
       azp: "frontend",
-      preferred_username: "test.admin",
+      tenants: ["t-eins"],
       realm_access: { roles: ["platform-admin"] },
     });
     autorToken = jwks.sign({
@@ -245,6 +245,38 @@ describe("Attributdefinitionen", () => {
         .expect(200);
 
       expect(antwort.body).toHaveLength(0);
+    });
+  });
+  describe("Mandant und Sichtbarkeit (ADR-0026, ADR-0030)", () => {
+    it("legt eine mandantenspezifische Definition an und gibt sie zurueck", async () => {
+      const antwort = await alsAdmin()
+        .send({
+          key: "kosten",
+          label: "Kosten",
+          dataType: "text",
+          tenant: "t-eins",
+          visibleFor: ["controller"],
+        })
+        .expect(201);
+
+      expect(antwort.body).toMatchObject({ tenant: "t-eins", visibleFor: ["controller"] });
+
+      // Gegen die Datenbank, weil der Uebersetzer die INSERT-Stelle nicht sieht: Nullbare
+      // Spalten sind bei Drizzle im `values()`-Objekt optional. Genau dort ist
+      // `responsibleGroup` durchgefallen - der Wert reiste durch zwei Typen und wurde am
+      // Ende verworfen.
+      const { rows } = await pool.query<{ tenant: string; visible_for: string[] }>(
+        "SELECT tenant, visible_for FROM attribute_definition WHERE key = 'kosten'",
+      );
+
+      expect(rows[0]).toEqual({ tenant: "t-eins", visible_for: ["controller"] });
+    });
+
+    it("weist einen fremden Mandanten mit 403 ab", async () => {
+      // 403 und nicht 404: Der Rumpf ist wohlgeformt, es fehlt die Zugehoerigkeit.
+      await alsAdmin()
+        .send({ key: "prio", label: "Prio", dataType: "text", tenant: "t-drei" })
+        .expect(403);
     });
   });
 });
