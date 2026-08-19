@@ -1,6 +1,10 @@
 import { PgDialect } from "drizzle-orm/pg-core";
 import { describe, expect, it } from "vitest";
-import { deuteAntwort, type Sichtbarkeit } from "../src/berechtigung/sichtbarkeit.typen";
+import {
+  deuteAntwort,
+  deuteFeldsicht,
+  type Sichtbarkeit,
+} from "../src/berechtigung/sichtbarkeit.typen";
 
 import {
   alsBedingung,
@@ -47,6 +51,23 @@ describe("deuteAntwort", () => {
     expect(() => deuteAntwort({ result: { query: { type: "compound" } } })).toThrow();
     expect(() => deuteAntwort({ result: "ja" })).toThrow();
     expect(() => deuteAntwort("ja")).toThrow();
+  });
+});
+describe("deuteFeldsicht", () => {
+  it("deutet eine leere Menge als nichts verborgen", () => {
+    expect(deuteFeldsicht({ result: [] }).size).toBe(0);
+  });
+
+  it("deutet die Schluessel", () => {
+    expect([...deuteFeldsicht({ result: ["kosten"] })]).toEqual(["kosten"]);
+  });
+
+  it("wirft bei fehlendem result, statt nichts zu verbergen", () => {
+    // `{}` heisst „etwas ging schief". Es als „nichts verborgen" zu lesen waere die
+    // gefaehrlichste Auslegung - dieselbe Falle wie bei der Sichtbarkeit.
+    expect(() => deuteFeldsicht({})).toThrow();
+    expect(() => deuteFeldsicht({ result: "kosten" })).toThrow();
+    expect(() => deuteFeldsicht({ result: [42] })).toThrow();
   });
 });
 

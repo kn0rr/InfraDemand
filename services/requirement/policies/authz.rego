@@ -21,3 +21,9 @@ allow if {
 	input.method == "GET"
 	input.path == ["health"]
 }
+
+# Die Feldsichtbarkeit - gewoehnliche Auswertung, deshalb /v1/data statt /v1/compile.
+allow if {
+	input.method == "POST"
+	input.path == ["v1", "data", "anforderungen", "felder", "verborgen"]
+}

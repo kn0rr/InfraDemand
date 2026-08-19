@@ -35,3 +35,9 @@ test_fremder_auswertungspfad_ist_verboten if {
 test_bereitschaft_ist_erlaubt if {
 	allow with input as {"method": "GET", "path": ["health"]}
 }
+test_feldsichtbarkeit_ist_erlaubt if {
+	allow with input as {
+		"method": "POST",
+		"path": ["v1", "data", "anforderungen", "felder", "verborgen"],
+	}
+}

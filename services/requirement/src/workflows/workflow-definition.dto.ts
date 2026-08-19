@@ -235,6 +235,12 @@ export class WorkflowDefinitionResponse {
     description: "Anforderungstyp, fuer den der Workflow gilt. Leer bedeutet: fuer alle uebrigen.",
   })
   requirementType!: string | null;
+  @ApiProperty({
+    type: String,
+    nullable: true,
+    description: "Mandant, fuer den der Workflow gilt. Leer heisst: fuer alle.",
+  })
+  tenant!: string | null;
 
   @ApiProperty({
     enum: WORKFLOW_BETRIEBSARTEN,

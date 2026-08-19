@@ -50,12 +50,12 @@ Das gilt für alle Beteiligten, einschließlich der KI in ihrer Beraterrolle
 | A – Transportverschlüsselung und Netzwerk | 7 | 5 | – |
 | *davon Voraussetzung für ADR-0013:* | `PROD-006`, `PROD-007`, `PROD-032` | | |
 | B – Geheimnisse und Zugangsdaten | 5 | 4 | **1** |
-| C – Identität und Zugriff | 17 | 3 | **2** |
+| C – Identität und Zugriff | 18 | 3 | **4** |
 | D – Daten | 7 | 3 | – |
 | E – Container und Lieferkette | 10 | 1 | **2** |
 | F – Betrieb und Verfügbarkeit | 6 | 1 | – |
 | G – Anwendungssicherheit | 10 | 1 | **3** |
-| **Gesamt** | **62** | **18** | **8** |
+| **Gesamt** | **63** | **18** | **10** |
 
 > **Nummern werden nicht neu vergeben.** `PROD-026` ist unbesetzt. Eine Lücke ist kein
 > Fehler – eine wiederverwendete Nummer wäre einer, weil Verweise aus ADRs, Commits und
@@ -453,7 +453,18 @@ Eine Aufteilung nach Lesen und Schreiben ist ausdrücklich **kein** Zwischenweg:
 Sorte Sonderfall, die der eine Auflösungspunkt vermeiden sollte.
 
 #### PROD-062 — Die zuständige Gruppe ist nur über die Schnittstelle setzbar
-**Schwere:** Mittel · **Status:** Offen · **Betrifft:** §8, §15 · **Verweis:** [ADR-0030](../adr/0030-feldebene-und-vertretung.md) Punkt 1 · **Fundstelle:** `frontend/src/app/anforderungen/`
+**Schwere:** Mittel · **Status:** **Erledigt mit M5.4 (2026-08-19)** · **Betrifft:** §8, §15 · **Verweis:** [ADR-0030](../adr/0030-feldebene-und-vertretung.md) Punkt 1 · **Fundstelle:** `frontend/src/app/anforderungen/`
+
+> **Erledigt am 2026-08-19**, beide Fälle: Die Gruppe hat ein Feld im Anlageformular und
+> eine Spalte in der Liste, die Feldsichtbarkeit ein Feld und eine Spalte in der
+> Verwaltungsoberfläche.
+>
+> **Dabei ist ein Widerspruch aufgefallen und mitbehoben worden:** Das Anlageformular bot
+> Eingabefelder für Attribute an, die der Anwender anschließend nicht sehen darf. Er hätte
+> einen Wert eingetragen, gespeichert – und ihn nie wieder gesehen; beim nächsten Bearbeiten
+> stünde das Feld leer, obwohl es gefüllt ist. `istSichtbar` filtert die angebotenen Felder
+> jetzt mit. Die Regel steht damit an zwei Orten, und der Kommentar an der Filterstelle sagt,
+> welcher maßgeblich ist: die Engine.
 
 Die Vertretung steht: Spalte, Anspruch, Richtlinienzweig und Tests. **Die Oberfläche kennt
 sie nicht** – `responsibleGroup` kommt im Frontend nicht vor, weder im Anlageformular noch
@@ -473,6 +484,20 @@ Liste sichtbar. Die Auswahl kann bis M6 eine freie Eingabe sein – es gibt kein
 gültiger Gruppen, gegen die geprüft werden könnte, genau wie beim Mandanten.
 
 **Vor `PROD-060`**, nicht danach.
+
+> **Zweiter Fall mit der Feldebene, 2026-08-19.** `visibleFor` an der Attributdefinition
+> ist über die Schnittstelle setzbar, in der Verwaltungsoberfläche nicht. Ein Administrator
+> kann ein Attribut anlegen, aber nicht bestimmen, wer es sehen darf – und genau das ist
+> nach §6 der Zweck der Angabe.
+>
+> **Als Nachtrag und nicht als eigener Eintrag**, weil Ursache und Behebung dieselben sind:
+> ein Feld in einem Formular, das es schon gibt. `PROD-061` warnt ausdrücklich davor, gleiche
+> Ursachen zu vervielfachen.
+>
+> Damit sind es drei Angaben, die die Oberfläche nicht setzen kann: der Mandant an
+> Definitionen (`PROD-056`), die zuständige Gruppe und die Feldsichtbarkeit. **Alle drei vor
+> dem Abschluss von M5**, sonst ist die Konfigurierbarkeit aus §6 eine Zusicherung an
+> Aufrufer der Schnittstelle und nicht an Administratoren.
 
 #### PROD-063 — Zugriff hängt an zwei frei beschreibbaren Textfeldern
 **Schwere:** Mittel · **Status:** Offen · **Betrifft:** §8 · **Verweis:** [ADR-0029](../adr/0029-zuschnitt-der-zustaendigkeit.md), [ADR-0030](../adr/0030-feldebene-und-vertretung.md) · **Fundstelle:** `requirement.owner`, `requirement.responsible_group`
@@ -504,6 +529,31 @@ könnte.
 angemeldeten Anwender vor. Für die Gruppe wäre eine Auswahl aus den eigenen
 Gruppenzugehörigkeiten – die im Token stehen – dasselbe Mittel: Sie verhindert den
 Tippfehler, ohne eine Prüfung zu behaupten, die es nicht gibt.
+
+#### PROD-064 — Eigenerfasste Anforderungen sind über keine Schnittstelle änderbar
+**Schwere:** Mittel · **Status:** Offen · **Betrifft:** §16, §19.2 · **Fundstelle:** `requirements.controller.ts`, einzige PATCH-Route
+
+Es gibt genau einen Änderungsweg: `PATCH /v1/requirements/by-source/:sourceSystem/:externalId`.
+**Ein `PATCH /v1/requirements/:id` existiert nicht.** Eine über die Oberfläche erfasste
+Anforderung hat keinen externen Bezeichner und ist damit über den allgemeinen Schreibpfad
+unerreichbar. Änderbar ist an ihr ausschließlich der Zustand (`PUT :id/state`) und die
+Workflow-Fassung.
+
+**Bis M5.4 folgenlos**, weil die Oberfläche kein Änderungsformular hat und niemand es
+vermisste. Mit der Vertretung ändert sich das: Die zuständige Gruppe ist das Feld, das man
+am ehesten nachträglich setzt – wenn jemand ausfällt –, und sie ist an genau den
+Datensätzen unerreichbar, die über die Oberfläche entstehen.
+
+§19.2 verlangt drei gleichrangige Eingangswege mit demselben Verarbeitungspfad. Für das
+**Ändern** ist die manuelle Erfassung derzeit nicht gleichrangig, sondern gar nicht
+vorhanden.
+
+**Zielzustand:** Eine PATCH-Route über die Kennung, die denselben Dienstaufruf benutzt wie
+die vorhandene. Der Auflösungspunkt `ausKennung` steht bereits und trägt seit M5.4 auch den
+Zuschnitt – es fehlt die Controller-Methode und ihre Vertragsbeschreibung.
+
+**Woran es auffiel:** an einem Test, der die Gruppe nachträglich setzen wollte und 404
+bekam. Nicht an der Oberfläche, die den Fall gar nicht erst anbietet.
 
 #### PROD-013 — Passwort-Grant am Frontend-Client aktiviert
 **Schwere:** Kritisch · **Status:** Offen · **Fundstelle:** `infra/keycloak/realms/infrademand.json`, `directAccessGrantsEnabled: true`
@@ -795,7 +845,25 @@ Das Frontend hat bewusst keine eigene Datenhaltung. Die Entscheidung braucht dah
 eigenes ADR und ist im Index der vertagten Entscheidungen geführt.
 
 #### PROD-056 — Mandantenspezifische Konfiguration ist lesbar, aber über keine Schnittstelle anlegbar
-**Schwere:** Mittel · **Status:** Offen · **Betrifft:** §8, §15 · **Verweis:** [ADR-0026](../adr/0026-wirksamer-mandant-und-stufung-der-konfiguration.md) Punkt 4 · **Fundstelle:** `attribute-definitions.service.ts` `create`/`update`, `mastership.service.ts`, `workflows.service.ts`
+**Schwere:** Mittel · **Status:** **Erledigt mit M5.4 (2026-08-19)** · **Betrifft:** §8, §15 · **Verweis:** [ADR-0026](../adr/0026-wirksamer-mandant-und-stufung-der-konfiguration.md) Punkt 4 · **Fundstelle:** `attribute-definitions.service.ts` `create`/`update`, `mastership.service.ts`, `workflows.service.ts`
+
+> **Erledigt am 2026-08-19.** Alle drei Konfigurationsobjekte nehmen einen Mandanten über
+> die Schnittstelle an und tragen ein Feld in der Verwaltungsoberfläche: Attributdefinition,
+> Hoheitsregel, Workflow-Definition. Geprüft wird gegen die Zugehörigkeiten im Token – ein
+> fremder Mandant wird mit 403 abgewiesen.
+>
+> **Der Mandant fehlt bewusst in allen Änderungs-DTOs.** Er gehört zur Identität der
+> Definition – er steht in deren Eindeutigkeit –, und ihn zu ändern wäre kein Ändern,
+> sondern ein Verschieben zwischen Mandanten.
+>
+> **Nicht erledigt und ausdrücklich getrennt:** die Anzeige, welche Definition für eine
+> gegebene Kombination *tatsächlich* gilt. Sie steht als Folgeentscheidung in ADR-0026 und
+> ist mit der Rangfolge aus Punkt 5 die eigentlich schwierige Hälfte.
+>
+> Was mit dem Mandanten **nicht** eingeführt wurde: die Unterscheidung zwischen einem
+> Administrator eines Mandanten und einem Betreiber der Plattform. Ein leerer Mandant heißt
+> „für alle", und setzen darf ihn jeder `platform-admin`. Das ist keine Verschlechterung –
+> heute ist jede Definition plattformweit –, aber es bleibt für M6.
 
 ADR-0026 Punkt 4 stuft die Konfiguration: plattformweite Vorgabe plus mandantenspezifische
 Ergänzung, für Attributdefinitionen, Hoheitsregeln und Workflow-Definitionen. Die Spalte

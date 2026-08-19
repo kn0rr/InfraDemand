@@ -1,7 +1,7 @@
 import { Injectable, Logger, ServiceUnavailableException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import type { AuthenticatedUser } from "../auth/jwt.strategy";
-import { deuteAntwort, type Sichtbarkeit } from "./sichtbarkeit.typen";
+import { deuteAntwort, deuteFeldsicht, type Sichtbarkeit } from "./sichtbarkeit.typen";
 
 /** Der eine freigegebene Auswertungspfad (siehe policies/authz.rego). */
 const PFAD = "/v1/compile/anforderungen/sichtbarkeit/sichtbar";
@@ -11,6 +11,9 @@ const PFAD = "/v1/compile/anforderungen/sichtbarkeit/sichtbar";
  * auf Tabelle und Spalte - er ist an das Schema gebunden und nicht frei waehlbar.
  */
 const UNBEKANNT = ["input.requirement"];
+
+/** Der zweite freigegebene Auswertungspfad (siehe policies/authz.rego). */
+const FELDER_PFAD = "/v1/data/anforderungen/felder/verborgen";
 
 @Injectable()
 export class OpaClient {
@@ -79,5 +82,48 @@ export class OpaClient {
     );
 
     return sichtbarkeit;
+  }
+
+  /**
+   * Welche Attributschluessel dem Aufrufer vorenthalten werden.
+   *
+   * Gewoehnliche Auswertung statt Teilauswertung: Die Zeile steht fest, es geht um ihre
+   * Ausgabe. Deshalb `/v1/data` und kein `unknowns`.
+   */
+  async verborgeneFelder(
+    definitionen: readonly { key: string; visibleFor: string[] | null }[],
+    benutzer: AuthenticatedUser,
+  ): Promise<ReadonlySet<string>> {
+    const eingabe = {
+      input: {
+        benutzer: { rollen: benutzer.roles },
+        definitionen: definitionen.map((definition) => ({
+          key: definition.key,
+          sichtbarFuer: definition.visibleFor ?? [],
+        })),
+      },
+    };
+
+    let rumpf: unknown;
+
+    try {
+      const antwort = await fetch(`${this.basis}${FELDER_PFAD}`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(eingabe),
+        signal: AbortSignal.timeout(this.zeitgrenzeMs),
+      });
+
+      if (!antwort.ok) {
+        throw new Error(`Feldsicht antwortete mit ${antwort.status}`);
+      }
+
+      rumpf = await antwort.json();
+    } catch (fehler) {
+      this.logger.error(`Feldsicht nicht moeglich: ${String(fehler)}`);
+      throw new ServiceUnavailableException("Berechtigungspruefung nicht verfuegbar");
+    }
+
+    return deuteFeldsicht(rumpf);
   }
 }

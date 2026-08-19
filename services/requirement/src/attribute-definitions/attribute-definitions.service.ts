@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
@@ -64,6 +65,7 @@ export class AttributeDefinitionsService {
       required: zeile.required,
       defaultValue: zeile.defaultValue,
       allowedValues: zeile.allowedValues,
+      visibleFor: zeile.visibleFor,
     }));
   }
 
@@ -88,6 +90,12 @@ export class AttributeDefinitionsService {
       throw new BadRequestException(`"${eingabe.key}" ist ein Kernfeld und kein Attributname`);
     }
 
+    // Wie beim Anlegen einer Anforderung (ADR-0026 Punkt 3): Die Auswahl kommt vom
+    // Aufrufer, aber er kann nur einen der eigenen Mandanten waehlen.
+    if (eingabe.tenant !== undefined && !benutzer.tenants.includes(eingabe.tenant)) {
+      throw new ForbiddenException(`Sie gehoeren dem Mandanten "${eingabe.tenant}" nicht an`);
+    }
+
     AttributeDefinitionsService.pruefeWerteliste(eingabe.dataType, eingabe.allowedValues);
 
     try {
@@ -99,6 +107,8 @@ export class AttributeDefinitionsService {
         required: eingabe.required ?? false,
         defaultValue: eingabe.defaultValue ?? null,
         allowedValues: eingabe.allowedValues ?? null,
+        tenant: eingabe.tenant ?? null,
+        visibleFor: eingabe.visibleFor ?? null,
         changedBy: benutzer.userId,
         changeSource: benutzer.clientId,
       });
@@ -167,6 +177,8 @@ export class AttributeDefinitionsService {
       required: row.required,
       defaultValue: row.defaultValue,
       allowedValues: row.allowedValues,
+      tenant: row.tenant,
+      visibleFor: row.visibleFor,
       active: row.active,
       createdAt: row.createdAt.toISOString(),
       updatedAt: row.updatedAt.toISOString(),

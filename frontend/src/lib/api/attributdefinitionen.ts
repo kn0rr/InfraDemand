@@ -34,6 +34,20 @@ export function useAttributdefinitionen(requirementType: string) {
     },
   });
 }
+/**
+ * Darf der Anwender den Wert dieses Attributs sehen (§6, ADR-0030 Punkt 3)?
+ *
+ * Leere oder fehlende Angabe heisst: alle. Hier und nicht in der Komponente, damit die
+ * Regel pruefbar ist, ohne ein Formular zu bedienen.
+ */
+export function istSichtbar(definition: Attributdefinition, rollen: readonly string[]): boolean {
+  return (
+    definition.visibleFor === null ||
+    definition.visibleFor === undefined ||
+    definition.visibleFor.length === 0 ||
+    definition.visibleFor.some((rolle) => rollen.includes(rolle))
+  );
+}
 
 /**
  * Anforderungstypen, fuer die es Definitionen gibt.

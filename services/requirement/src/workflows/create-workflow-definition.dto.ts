@@ -32,6 +32,15 @@ export class CreateWorkflowDefinitionDto {
   @IsString()
   @MaxLength(100)
   requirementType?: string;
+  @ApiPropertyOptional({
+    maxLength: 100,
+    description: "Mandant, fuer den der Workflow gilt. Ohne Angabe fuer alle (ADR-0026 Punkt 4).",
+  })
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(100)
+  tenant?: string;
 
   @ApiPropertyOptional({ enum: WORKFLOW_BETRIEBSARTEN, default: "internal" })
   @IsOptional()

@@ -19,6 +19,7 @@ import { useForm } from "@mantine/form";
 import { Fragment, useEffect, useState } from "react";
 import { AttributFehler, useAnforderungAnlegen, useAnforderungen } from "@/lib/api/anforderungen";
 import {
+  istSichtbar,
   useAttributdefinitionen,
   useBekannteAnforderungstypen,
   useHoheitsregeln,
@@ -36,10 +37,12 @@ export function Anforderungsbereich({
   benutzer,
   istAdmin,
   mandanten,
+  rollen,
 }: {
   benutzer: string;
   istAdmin: boolean;
   mandanten: string[];
+  rollen: string[];
 }) {
   const anforderungen = useAnforderungen();
   const anlegen = useAnforderungAnlegen();
@@ -79,8 +82,12 @@ export function Anforderungsbereich({
       .map((regel) => regel.field),
   );
 
+  // Ein Feld, dessen Wert der Anwender nicht sehen darf, wird ihm auch nicht zur Eingabe
+  // angeboten. Sonst traegt er einen Wert ein, der danach aus seiner Sicht verschwindet -
+  // und beim naechsten Bearbeiten steht das Feld leer, obwohl es gefuellt ist.
   const bedienbar = (definitionen.data ?? []).filter(
-    (definition) => definition.active && !gesperrt.has(definition.key),
+    (definition) =>
+      definition.active && !gesperrt.has(definition.key) && istSichtbar(definition, rollen),
   );
   // Genau eine Zeile offen: Zwei gleichzeitig geoeffnete Bereiche mit Schaltflaechen
   // laden zum Verwechseln ein, welche Anforderung gerade gemeint ist.

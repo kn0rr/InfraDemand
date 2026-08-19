@@ -1,5 +1,5 @@
-import { ApiProperty } from "@nestjs/swagger";
-import { IsIn, IsString, MaxLength, MinLength } from "class-validator";
+import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
+import { IsIn, IsOptional, IsString, MaxLength, MinLength } from "class-validator";
 import { mastershipMode } from "../database/schema";
 
 /** Zulaessige Regelwerte, abgeleitet aus dem Schema - eine Quelle, keine zweite Liste. */
@@ -39,6 +39,13 @@ export class MastershipRuleResponse {
       "Quelle das Feld bespielt. manual_locked: manuelle Aenderung ist immer verboten.",
   })
   mode!: (typeof HOHEITSMODI)[number];
+
+  @ApiProperty({
+    type: String,
+    nullable: true,
+    description: "Mandant, fuer den die Regel gilt. Leer heisst: fuer alle.",
+  })
+  tenant!: string | null;
 
   @ApiProperty({
     type: "object",
@@ -86,6 +93,16 @@ export class CreateMastershipRuleDto {
   @ApiProperty({ enum: HOHEITSMODI })
   @IsIn([...HOHEITSMODI])
   mode!: (typeof HOHEITSMODI)[number];
+
+  @ApiPropertyOptional({
+    maxLength: 100,
+    description: "Mandant, fuer den die Regel gilt. Ohne Angabe fuer alle (ADR-0026 Punkt 4).",
+  })
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(100)
+  tenant?: string;
 }
 
 /** `field` fehlt: Es bezeichnet die Regel. Ein anderes Feld ist eine andere Regel. */

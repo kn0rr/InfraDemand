@@ -69,4 +69,24 @@ export class CreateAttributeDefinitionDto {
   @IsString({ each: true })
   @ArrayMinSize(1)
   allowedValues?: string[];
+
+  @ApiPropertyOptional({
+    maxLength: 100,
+    description: "Mandant, fuer den die Definition gilt. Ohne Angabe fuer alle (ADR-0026 Punkt 4).",
+  })
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(100)
+  tenant?: string;
+
+  @ApiPropertyOptional({
+    type: [String],
+    description:
+      "Rollen, die dieses Attribut sehen duerfen. Ohne Angabe alle (§6, ADR-0030 Punkt 3).",
+  })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  visibleFor?: string[];
 }

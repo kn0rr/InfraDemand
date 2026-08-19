@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
@@ -85,7 +86,11 @@ export class WorkflowsService {
    * dauerhaft gesperrt, und auffallen wuerde es erst, wenn jemand feststeckt. Deshalb
    * beim Speichern.
    */
-  private async pruefeFeldnamen(graph: Graph, requirementType: string | null): Promise<void> {
+  private async pruefeFeldnamen(
+    graph: Graph,
+    tenant: string | null,
+    requirementType: string | null,
+  ): Promise<void> {
     const genannt = genannteFelder(graph);
 
     if (genannt.length === 0) {
@@ -95,8 +100,12 @@ export class WorkflowsService {
     // Leerer Anforderungstyp trifft keinen typbezogenen Eintrag - uebrig bleiben genau
     // die allgemeinen Definitionen. Das ist fuer einen allgemeinen Workflow das
     // Richtige, und "" kann kein echter Typ sein (MinLength(1) im DTO).
+    // Der Mandant des Workflows, nicht `null`: Ein mandantenspezifischer Workflow darf die
+    // Attribute seines Mandanten nennen. Bleibt er leer, liefert `geltendeDefinitionen` nur
+    // die plattformweiten - und genau das ist fuer einen plattformweiten Workflow richtig,
+    // denn er darf kein Feld nennen, das nur ein Mandant hat (ADR-0024 Punkt 7).
     const definitionen = await this.attributeDefinitions.geltendeDefinitionen(
-      null,
+      tenant,
       requirementType ?? "",
     );
 
@@ -184,6 +193,9 @@ export class WorkflowsService {
       label: zustand.label,
       final: zustand.final === true,
     }));
+    if (eingabe.tenant !== undefined && !benutzer.tenants.includes(eingabe.tenant)) {
+      throw new ForbiddenException(`Sie gehoeren dem Mandanten "${eingabe.tenant}" nicht an`);
+    }
 
     WorkflowsService.pruefeGraphOderWirf(
       { initialState: eingabe.initialState, states, transitions: eingabe.transitions },
@@ -192,6 +204,7 @@ export class WorkflowsService {
 
     await this.pruefeFeldnamen(
       { initialState: eingabe.initialState, states, transitions: eingabe.transitions },
+      eingabe.tenant ?? null,
       eingabe.requirementType ?? null,
     );
 
@@ -199,6 +212,7 @@ export class WorkflowsService {
       const zeile = await this.repository.create({
         label: eingabe.label,
         requirementType: eingabe.requirementType ?? null,
+        tenant: eingabe.tenant ?? null,
         mode,
         initialState: eingabe.initialState,
         states,
@@ -239,6 +253,7 @@ export class WorkflowsService {
 
     await this.pruefeFeldnamen(
       { initialState: eingabe.initialState, states, transitions: eingabe.transitions },
+      bestand.tenant,
       bestand.requirementType,
     );
     try {
@@ -285,6 +300,7 @@ export class WorkflowsService {
       id: row.id,
       label: row.label,
       requirementType: row.requirementType,
+      tenant: row.tenant,
       mode: row.mode,
       initialState: row.initialState,
       // Ausgeschrieben und nicht durchgereicht: Kaeme spaeter ein internes Feld an den

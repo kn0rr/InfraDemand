@@ -45,6 +45,7 @@ interface Formularwerte {
   id: string | null;
   label: string;
   requirementType: string;
+  tenant: string;
   mode: "internal" | "external";
   active: boolean;
   initialState: string;
@@ -57,6 +58,7 @@ const LEER: Formularwerte = {
   id: null,
   label: "",
   requirementType: "",
+  tenant: "",
   mode: "internal",
   active: true,
   initialState: "",
@@ -131,14 +133,16 @@ export function Workflows() {
         {
           ...graph,
           ...(werte.requirementType === "" ? {} : { requirementType: werte.requirementType }),
+          ...(werte.tenant === "" ? {} : { tenant: werte.tenant }),
         },
         { onSuccess: () => formular.setValues(LEER) },
       );
       return;
     }
 
-    // `requirementType` fehlt bewusst: Er bezeichnet, wofuer der Workflow gilt, und ist
-    // unveraenderlich (ADR-0022).
+    // `requirementType` und `tenant` fehlen bewusst: Sie bezeichnen, wofuer der Workflow
+    // gilt, gehoeren zu seiner Identitaet und sind unveraenderlich (ADR-0022, ADR-0026).
+
     aendern.mutate({ id: werte.id, ...graph, active: werte.active });
   };
 
@@ -167,6 +171,11 @@ export function Workflows() {
                 description="Leer: gilt fuer alle Arten ohne eigenen Workflow"
                 disabled={formular.values.id !== null}
                 {...formular.getInputProps("requirementType")}
+              />
+              <TextInput
+                label="Mandant"
+                description="Leer bedeutet: gilt fuer alle"
+                {...formular.getInputProps("tenant")}
               />
             </Group>
 
@@ -365,6 +374,7 @@ export function Workflows() {
                 <Table.Th>Art</Table.Th>
                 <Table.Th>Betriebsart</Table.Th>
                 <Table.Th>Zustaende</Table.Th>
+                <Table.Th>Mandant</Table.Th>
                 <Table.Th>Fassung</Table.Th>
                 <Table.Th>Aktiv</Table.Th>
                 <Table.Th />
@@ -376,6 +386,7 @@ export function Workflows() {
                   <Table.Td>{workflow.label}</Table.Td>
                   <Table.Td>{workflow.requirementType ?? "alle"}</Table.Td>
                   <Table.Td>{workflow.mode}</Table.Td>
+                  <Table.Td>{workflow.tenant ?? "alle"}</Table.Td>
                   <Table.Td>{workflow.states.length}</Table.Td>
                   <Table.Td>{workflow.version}</Table.Td>
                   <Table.Td>{workflow.active ? "ja" : "nein"}</Table.Td>

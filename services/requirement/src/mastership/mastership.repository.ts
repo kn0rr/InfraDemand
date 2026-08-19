@@ -14,6 +14,8 @@ import { DuplicateMastershipRuleError, MastershipRuleNotFoundError } from "./mas
 export interface MastershipRuleInput {
   field: string;
   mode: MastershipRuleRow["mode"];
+  /** Pflichtfeld mit Absicht: So zaehlt der Uebersetzer die Aufrufstelle im Dienst auf. */
+  tenant: string | null;
   changedBy: string;
   changeSource: string;
 }
@@ -47,7 +49,7 @@ export class MastershipRepository {
       return await this.db.transaction(async (tx) => {
         const [zeile] = await tx
           .insert(mastershipRules)
-          .values({ field: eingabe.field, mode: eingabe.mode })
+          .values({ field: eingabe.field, mode: eingabe.mode, tenant: eingabe.tenant })
           .returning();
 
         if (!zeile) {

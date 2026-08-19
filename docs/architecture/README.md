@@ -342,7 +342,7 @@ jetzt M6; die übrigen Meilensteine rücken um eins.
 | **M5.1** | Der wirksame Mandant: Begriff, Herkunft, Zuschnitt am Datensatz | Eine Abfrage weiß, in wessen Namen sie läuft | abgeschlossen |
 | **M5.2** | Policy-Engine: Wahl, Anbindung, Regeln als versionierte Artefakte | Eine Berechtigung ist prüfbar und auditierbar, nicht verstreut | abgeschlossen ([ADR-0028](../adr/0028-policy-engine-opa-als-sidecar.md)) |
 | **M5.3** | Objektbezug, soweit die Daten ihn hergeben: Mandant und Eigentümer. Die Engine übernimmt den Lesezuschnitt | Die Engine wirkt (`PROD-059`); Zuschnitt am Objekt statt nur am Mandanten | Liste umgestellt, direkter Zugriff offen (`PROD-060`) |
-| **M5.4** | Feldebene (§6, §8); dazu die Vertretung durch eine Gruppe und die Verengung des direkten Zugriffs (`PROD-060`) | Ein Feld ist für den einen sichtbar und für den anderen nicht; eine Anforderung hängt nicht an einer einzigen Person | offen |
+| **M5.4** | Feldebene (§6, §8); dazu die Vertretung durch eine Gruppe und die Verengung des direkten Zugriffs (`PROD-060`) | Ein Feld ist für den einen sichtbar und für den anderen nicht; eine Anforderung hängt nicht an einer einzigen Person | abgeschlossen ([ADR-0030](../adr/0030-feldebene-und-vertretung.md)) |
 | **M5.5** | Attributdatentyp „Person" | `identitaet` aus ADR-0024 wird benutzbar | offen |
 
 **M5.1 umfasst auch die Stufung der Konfiguration** ([ADR-0026](../adr/0026-wirksamer-mandant-und-stufung-der-konfiguration.md)

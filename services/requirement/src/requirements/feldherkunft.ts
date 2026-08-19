@@ -105,7 +105,12 @@ export const KERNFELDER = [
  * `KERNFELDER` bleibt vollstaendig - fuer Hoheitsregeln und Festhaltungen zaehlt `status`
  * weiterhin. Das Duerfen und das Wohin sind zwei Fragen (ADR-0022 Punkt 8).
  */
-export const PATCHBARE_KERNFELDER = ["projectId", "requirementType", "owner"] as const;
+export const PATCHBARE_KERNFELDER = [
+  "projectId",
+  "requirementType",
+  "owner",
+  "responsibleGroup",
+] as const;
 
 /**
  * Vergleich zweier Feldwerte. Siehe `gleich` weiter oben - dieselbe Begruendung, und

@@ -114,6 +114,9 @@ export class RequirementsService {
         ? {}
         : { requirementType: eingabe.requirementType }),
       ...(eingabe.owner === undefined ? {} : { owner: eingabe.owner }),
+      ...(eingabe.responsibleGroup === undefined
+        ? {}
+        : { responsibleGroup: eingabe.responsibleGroup }),
       ...(eingabe.dynamicAttributes ?? {}),
     };
 
@@ -224,7 +227,7 @@ export class RequirementsService {
       workflowBindung,
     });
 
-    return RequirementsService.toResponse(zeile);
+    return RequirementsService.toResponse(zeile, await this.feldsicht(zeile, benutzer));
   }
 
   /**
@@ -245,7 +248,14 @@ export class RequirementsService {
         ? await this.repository.findAll(sichtbarkeit)
         : await this.repository.findAsOf(new Date(stichtag), sichtbarkeit);
 
-    return zeilen.map(RequirementsService.toResponse);
+    const sichten = await this.feldsichten(zeilen, benutzer);
+
+    return zeilen.map((zeile) =>
+      RequirementsService.toResponse(
+        zeile,
+        sichten.get(RequirementsService.feldsichtSchluessel(zeile)) ?? new Set(),
+      ),
+    );
   }
 
   async findVersions(
@@ -257,7 +267,14 @@ export class RequirementsService {
     const bestand = await this.ausKennung(id, benutzer);
     const versionen = await this.repository.findVersions(bestand.id);
 
-    return versionen.map(RequirementsService.toVersionResponse);
+    const sichten = await this.feldsichten(versionen, benutzer);
+
+    return versionen.map((version) =>
+      RequirementsService.toVersionResponse(
+        version,
+        sichten.get(RequirementsService.feldsichtSchluessel(version)) ?? new Set(),
+      ),
+    );
   }
 
   async create(
@@ -362,9 +379,7 @@ export class RequirementsService {
         changeSource: benutzer.clientId,
       });
 
-      return RequirementsService.toResponse(zeile);
-
-      return RequirementsService.toResponse(zeile);
+      return RequirementsService.toResponse(zeile, await this.feldsicht(zeile, benutzer));
     } catch (fehler) {
       if (fehler instanceof DynamicAttributeValidationError) {
         throw new BadRequestException({
@@ -410,7 +425,7 @@ export class RequirementsService {
       // §19.1: Wiederholte Uebermittlung desselben Datensatzes erzeugt keine Dubletten.
       // Ein Import liefert den Zustand bei jedem Lauf mit; jedes Mal eine Version zu
       // schreiben hiesse, Aenderungen zu verzeichnen, die keine waren.
-      return RequirementsService.toResponse(bestand);
+      return RequirementsService.toResponse(bestand, await this.feldsicht(bestand, benutzer));
     }
 
     // Einmal gelesen, zweimal gebraucht: fuer die Eintritte des Vier-Augen-Prinzips und
@@ -461,7 +476,7 @@ export class RequirementsService {
       changeSource: benutzer.clientId,
     });
 
-    return RequirementsService.toResponse(zeile);
+    return RequirementsService.toResponse(zeile, await this.feldsicht(zeile, benutzer));
   }
 
   /**
@@ -501,7 +516,7 @@ export class RequirementsService {
       changeSource: benutzer.clientId,
     });
 
-    return RequirementsService.toResponse(zeile);
+    return RequirementsService.toResponse(zeile, await this.feldsicht(zeile, benutzer));
   }
 
   /**
@@ -603,7 +618,7 @@ export class RequirementsService {
       // Schon auf dem heutigen Stand. Eine Version dafuer zu schreiben hiesse, eine
       // Aenderung zu verzeichnen, die keine war (§19.1) - dieselbe Ueberlegung wie beim
       // Wechsel auf denselben Zustand.
-      return RequirementsService.toResponse(bestand);
+      return RequirementsService.toResponse(bestand, await this.feldsicht(bestand, benutzer));
     }
 
     if (!ziel.states.some((zustand) => zustand.key === bestand.status)) {
@@ -631,7 +646,7 @@ export class RequirementsService {
       changeSource: benutzer.clientId,
     });
 
-    return RequirementsService.toResponse(zeile);
+    return RequirementsService.toResponse(zeile, await this.feldsicht(zeile, benutzer));
   }
 
   /**
@@ -679,6 +694,51 @@ export class RequirementsService {
     }
 
     return bestand;
+  }
+
+  /**
+   * Die verborgenen Attributschluessel fuer eine Zeile.
+   *
+   * Je Zeile die Definitionen ihres Mandanten und ihrer Art - die Sichtbarkeit ist gestuft
+   * wie jede andere Angabe der Definition (ADR-0026 Punkt 5).
+   */
+  private async feldsicht(
+    zeile: { tenant: string; requirementType: string },
+    benutzer: AuthenticatedUser,
+  ): Promise<ReadonlySet<string>> {
+    const definitionen = await this.attributeDefinitions.geltendeDefinitionen(
+      zeile.tenant,
+      zeile.requirementType,
+    );
+
+    return this.opa.verborgeneFelder(definitionen, benutzer);
+  }
+
+  /**
+   * Dasselbe fuer mehrere Zeilen, mit **einem** Aufruf je Kombination aus Mandant und Art.
+   *
+   * Nicht je Zeile: Eine Liste aus fuenfzig Anforderungen derselben Art braucht eine
+   * Auskunft, nicht fuenfzig.
+   */
+  private async feldsichten(
+    zeilen: readonly { tenant: string; requirementType: string }[],
+    benutzer: AuthenticatedUser,
+  ): Promise<Map<string, ReadonlySet<string>>> {
+    const sichten = new Map<string, ReadonlySet<string>>();
+
+    for (const zeile of zeilen) {
+      const schluessel = RequirementsService.feldsichtSchluessel(zeile);
+
+      if (!sichten.has(schluessel)) {
+        sichten.set(schluessel, await this.feldsicht(zeile, benutzer));
+      }
+    }
+
+    return sichten;
+  }
+
+  private static feldsichtSchluessel(zeile: { tenant: string; requirementType: string }): string {
+    return `${zeile.tenant}\u0000${zeile.requirementType}`;
   }
   /**
    * Loest einen Datensatz ueber die interne Kennung auf und prueft die Zugehoerigkeit.
@@ -927,10 +987,32 @@ export class RequirementsService {
       changeSource: benutzer.clientId,
     });
 
-    return RequirementsService.toResponse(zeile);
+    return RequirementsService.toResponse(zeile, await this.feldsicht(zeile, benutzer));
+  }
+  /**
+   * **Das Feld fehlt, es steht nicht auf `null`.** Bei den uebrigen Feldern heisst `null`
+   * bereits „nicht gesetzt" - beides zu vermengen machte die Aussagen ununterscheidbar.
+   *
+   * Im Contract kostet das nichts: `dynamicAttributes` traegt `additionalProperties`, und
+   * ein verborgenes Attribut sieht aus wie ein nie gesetztes (ADR-0030 Punkt 3).
+   */
+  private static ohneVerborgene(
+    werte: Record<string, unknown>,
+    verborgen: ReadonlySet<string>,
+  ): Record<string, unknown> {
+    if (verborgen.size === 0) {
+      return werte;
+    }
+
+    return Object.fromEntries(
+      Object.entries(werte).filter(([schluessel]) => !verborgen.has(schluessel)),
+    );
   }
 
-  private static toResponse(row: RequirementRow): RequirementResponse {
+  private static toResponse(
+    row: RequirementRow,
+    verborgen: ReadonlySet<string>,
+  ): RequirementResponse {
     return {
       id: row.id,
       projectId: row.projectId,
@@ -943,16 +1025,19 @@ export class RequirementsService {
       sourceSystem: row.sourceSystem,
       externalId: row.externalId,
       heldFields: row.heldFields,
-      dynamicAttributes: row.dynamicAttributes,
+      dynamicAttributes: RequirementsService.ohneVerborgene(row.dynamicAttributes, verborgen),
       createdAt: row.createdAt.toISOString(),
       updatedAt: row.updatedAt.toISOString(),
       version: row.version,
     };
   }
 
-  private static toVersionResponse(row: RequirementHistoryRow): RequirementVersionResponse {
+  private static toVersionResponse(
+    row: RequirementHistoryRow,
+    verborgen: ReadonlySet<string>,
+  ): RequirementVersionResponse {
     return {
-      ...RequirementsService.toResponse(row),
+      ...RequirementsService.toResponse(row, verborgen),
       validFrom: row.validFrom.toISOString(),
       validTo: row.validTo?.toISOString() ?? null,
       operation: row.operation,
