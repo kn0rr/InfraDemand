@@ -310,6 +310,7 @@ export const attributeDataType = pgEnum("attribute_data_type", [
   "date",
   "enum",
   "multi_enum",
+  "person",
 ]);
 
 /**

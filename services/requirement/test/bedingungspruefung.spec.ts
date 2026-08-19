@@ -8,13 +8,16 @@ import type { Bedingung } from "../src/workflows/typen";
 function kontext(teil: Partial<Vorgangskontext> = {}): Vorgangskontext {
   return {
     feldwerte: {
-      owner: "benutzer-1",
+      owner: "m.weber",
       kostenschaetzung: 10000,
       kategorie: "legacy",
       standardkonform: true,
       abweichungsbegruendung: "",
     },
-    ausloeser: { userId: "benutzer-1", roles: ["requirement-author"] },
+    // Kennung und Subjektkennung bewusst verschieden. Genau ihre Gleichheit hat den Fehler
+    // aus ADR-0031 zwei Meilensteine lang verdeckt: Der Vergleich gelang im Test und
+    // nirgends sonst.
+    ausloeser: { userId: "benutzer-1", kennung: "m.weber", roles: ["requirement-author"] },
     eintritte: new Map([
       ["neu", "benutzer-1"],
       ["in_pruefung", "benutzer-2"],
@@ -67,7 +70,7 @@ describe("identitaet", () => {
 
   it("weist eine andere ab", () => {
     const verstoesse = pruefe([{ art: "identitaet", feld: "owner" }], {
-      ausloeser: { userId: "benutzer-9", roles: [] },
+      ausloeser: { userId: "benutzer-9", kennung: "l.braun", roles: [] },
     });
 
     expect(verstoesse).toHaveLength(1);

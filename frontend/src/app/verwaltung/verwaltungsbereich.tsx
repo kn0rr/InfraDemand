@@ -32,7 +32,7 @@ import {
 
 import { Workflows } from "./workflows";
 
-const DATENTYPEN = ["text", "number", "boolean", "date", "enum", "multi_enum"] as const;
+const DATENTYPEN = ["text", "number", "boolean", "date", "enum", "multi_enum", "person"] as const;
 
 const MODI: { value: Hoheitsregel["mode"]; label: string }[] = [
   { value: "manual_allowed", label: "Manuell erlaubt (Vorgabe)" },

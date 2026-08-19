@@ -67,6 +67,7 @@ Zulässige Status: `Vorgeschlagen`, `Angenommen`, `Abgelehnt`, `Ersetzt durch AD
 | [0028](0028-policy-engine-opa-als-sidecar.md) | Policy-Engine OPA als Sidecar | Angenommen | 2026-08-13 |
 | [0029](0029-zuschnitt-der-zustaendigkeit.md) | Zuschnitt der Zuständigkeit und Grenzen des Objektbezugs | Angenommen | 2026-08-14 |
 | [0030](0030-feldebene-und-vertretung.md) | Feldebene und Vertretung | Angenommen | 2026-08-17 |
+| [0031](0031-personenfelder-und-identitaetsvergleich.md) | Personenfelder und Identitätsvergleich | Angenommen | 2026-08-19 |
 
 ## Offene, bewusst vertagte Entscheidungen
 

@@ -50,12 +50,12 @@ Das gilt für alle Beteiligten, einschließlich der KI in ihrer Beraterrolle
 | A – Transportverschlüsselung und Netzwerk | 7 | 5 | – |
 | *davon Voraussetzung für ADR-0013:* | `PROD-006`, `PROD-007`, `PROD-032` | | |
 | B – Geheimnisse und Zugangsdaten | 5 | 4 | **1** |
-| C – Identität und Zugriff | 18 | 3 | **4** |
+| C – Identität und Zugriff | 19 | 3 | **4** |
 | D – Daten | 7 | 3 | – |
 | E – Container und Lieferkette | 10 | 1 | **2** |
 | F – Betrieb und Verfügbarkeit | 6 | 1 | – |
 | G – Anwendungssicherheit | 10 | 1 | **3** |
-| **Gesamt** | **63** | **18** | **10** |
+| **Gesamt** | **64** | **18** | **10** |
 
 > **Nummern werden nicht neu vergeben.** `PROD-026` ist unbesetzt. Eine Lücke ist kein
 > Fehler – eine wiederverwendete Nummer wäre einer, weil Verweise aus ADRs, Commits und
@@ -554,6 +554,43 @@ Zuschnitt – es fehlt die Controller-Methode und ihre Vertragsbeschreibung.
 
 **Woran es auffiel:** an einem Test, der die Gruppe nachträglich setzen wollte und 404
 bekam. Nicht an der Oberfläche, die den Fall gar nicht erst anbietet.
+
+#### PROD-065 — Eine Umbenennung in Keycloak verwaist jeden Datensatz, der den Namen nennt
+**Schwere:** Hoch · **Status:** Offen · **Betrifft:** §8, §13 · **Verweis:** [ADR-0031](../adr/0031-personenfelder-und-identitaetsvergleich.md) · **Fundstelle:** `requirement.owner`, `requirement.responsible_group`, jedes Attribut vom Typ `person`
+
+Personen- und Gruppenbezüge werden als **Benutzername** gespeichert (`preferred_username`),
+nicht als Subjektkennung – begründet in [ADR-0031](../adr/0031-personenfelder-und-identitaetsvergleich.md)
+Punkt 1: Ohne Verzeichnis wäre eine Kennung nicht anzeigbar. Der Preis steht hier.
+
+**Nicht dasselbe wie `PROD-063`.** Dort schreibt ein Aufrufer einen falschen Wert. Hier war
+der Wert richtig und wird falsch, **ohne dass jemand den Datensatz anfasst.** Eine
+Umbenennung in Keycloak – Heirat, Namenskorrektur, geänderte Namenskonvention – geschieht
+außerhalb dieser Anwendung und bleibt hier unbemerkt.
+
+Zwei Folgen, die zweite ist die ernstere:
+
+- **Verlust des Zugangs.** Die eigenen Anforderungen sind nach der Umbenennung nicht mehr
+  sichtbar. Kein Fehler, keine Warnung – die Liste ist leer, als hätte es sie nie gegeben.
+  Dasselbe für `responsible_group`, wenn eine Gruppe umbenannt wird: Die Vertretung greift
+  stillschweigend nicht mehr
+- **Übernahme durch einen Dritten.** Ein Benutzername wird durch die Umbenennung wieder
+  frei. Wer ihn danach bekommt, **erbt den Lesezugriff auf die Datensätze des Vorgängers** –
+  denn geprüft wird die Zeichenkette, und die stimmt wieder. Das ist keine theoretische
+  Verkettung: Vor- und Nachname als Kennungsschema machen eine Wiedervergabe
+  wahrscheinlicher, nicht unwahrscheinlicher
+
+**Woran es auffiele:** an nichts. Keine der beiden Folgen erzeugt einen Fehler, einen
+Auditeintrag oder eine abweichende Zeile. Der Datensatz ist unverändert und trotzdem falsch
+zugeordnet.
+
+**Zielzustand:** Identitäts- und Gruppenbezüge als stabile Referenz auf den Identity &
+Access Service, aufgelöst zur Anzeige. Das ist **M6** – vorher gibt es nichts, worauf
+referenziert werden könnte, und keine Migration, die den Bestand umstellen könnte.
+
+**Was vorher hilft:** Umbenennungen im Realm bis dahin organisatorisch ausschließen und
+Benutzernamen nicht wiedervergeben. Das ist eine Betriebsauflage, keine technische
+Maßnahme – sie gehört in die Betriebsdokumentation der Realm-Verwaltung, sonst kennt sie
+niemand, der sie einhalten müsste.
 
 #### PROD-013 — Passwort-Grant am Frontend-Client aktiviert
 **Schwere:** Kritisch · **Status:** Offen · **Fundstelle:** `infra/keycloak/realms/infrademand.json`, `directAccessGrantsEnabled: true`

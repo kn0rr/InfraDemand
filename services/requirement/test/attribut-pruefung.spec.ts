@@ -180,4 +180,21 @@ describe("Pruefung dynamischer Attribute", () => {
       ).toHaveLength(1);
     });
   });
+  describe("person", () => {
+    it("nimmt einen Benutzernamen an", () => {
+      const { fehler } = pruefeDynamischeAttribute({ pruefer: "m.weber" }, [
+        definition({ key: "pruefer", dataType: "person" }),
+      ]);
+
+      expect(fehler).toEqual([]);
+    });
+
+    it("weist alles ab, was keine Zeichenkette ist", () => {
+      const { fehler } = pruefeDynamischeAttribute({ pruefer: 42 }, [
+        definition({ key: "pruefer", dataType: "person" }),
+      ]);
+
+      expect(fehler[0]?.message).toContain("Benutzernamen");
+    });
+  });
 });

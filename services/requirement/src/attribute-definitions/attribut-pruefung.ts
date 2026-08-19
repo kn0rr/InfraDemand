@@ -71,6 +71,13 @@ function pruefeWert(wert: unknown, definition: GeltendeDefinition): string | nul
     case "text":
       return typeof wert === "string" ? null : `"${name}" erwartet Text`;
 
+    case "person":
+      // Wie Text geprueft - und mehr ist es bis M6 auch nicht: Es gibt kein Verzeichnis,
+      // gegen das ein Benutzername zu pruefen waere (ADR-0031 Punkt 5). Der Typ traegt
+      // seine Bedeutung in der Verwendung, nicht in der Validierung: `identitaet` darf
+      // nur ein solches Feld nennen.
+      return typeof wert === "string" ? null : `"${name}" erwartet einen Benutzernamen`;
+
     case "number":
       return typeof wert === "number" && Number.isFinite(wert)
         ? null

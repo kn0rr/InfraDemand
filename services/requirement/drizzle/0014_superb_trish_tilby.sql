@@ -1,0 +1,1 @@
+ALTER TYPE "public"."attribute_data_type" ADD VALUE 'person';

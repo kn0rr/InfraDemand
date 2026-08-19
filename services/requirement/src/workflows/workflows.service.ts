@@ -126,6 +126,32 @@ export class WorkflowsService {
           .join("; "),
       );
     }
+
+    // ADR-0031 Punkt 4: `identitaet` vergleicht den Ausloesenden mit dem Feldwert. Nennt
+    // sie ein Feld, das keine Person enthaelt, ist die Bedingung nicht falsch, sondern
+    // **nie erfuellbar** - der Uebergang waere dauerhaft gesperrt, und niemand saehe,
+    // warum. Genau dieser Fehler hat zwei Meilensteine ueberlebt.
+    const personenfelder = new Set<string>([
+      "owner",
+      ...definitionen
+        .filter((definition) => definition.dataType === "person")
+        .map((definition) => definition.key),
+    ]);
+
+    const keinePerson = genannt.filter(
+      (eintrag) => eintrag.art === "identitaet" && !personenfelder.has(eintrag.feld),
+    );
+
+    if (keinePerson.length > 0) {
+      throw new BadRequestException(
+        keinePerson
+          .map(
+            (eintrag) =>
+              `${eintrag.stelle}: "${eintrag.feld}" enthaelt keine Person - "identitaet" verlangt "owner" oder ein Attribut vom Typ "person"`,
+          )
+          .join("; "),
+      );
+    }
   }
 
   /**
