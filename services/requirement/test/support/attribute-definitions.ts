@@ -1,4 +1,5 @@
 import type { Pool } from "pg";
+import type { AttributeDefinitionRow } from "../../src/database/schema";
 
 /**
  * Traegt eine Attributdefinition unmittelbar in die Datenbank ein.
@@ -11,7 +12,7 @@ export async function registriereAttribut(
   attribut: {
     key: string;
     label?: string;
-    dataType?: "text" | "number" | "boolean" | "date" | "enum" | "multi_enum";
+    dataType?: AttributeDefinitionRow["dataType"];
     requirementType?: string | null;
     required?: boolean;
     allowedValues?: string[] | null;

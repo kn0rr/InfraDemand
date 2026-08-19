@@ -440,7 +440,7 @@ export class RequirementsService {
 
       const verstoesse = pruefeUebergangsbedingungen(uebergang.bedingungen ?? [], {
         feldwerte: feldwerte(bestand),
-        ausloeser: { userId: benutzer.userId, roles: benutzer.roles },
+        ausloeser: { userId: benutzer.userId, kennung: benutzer.username, roles: benutzer.roles },
         eintritte: eintritte(versionen),
         begruendung,
       });
@@ -558,7 +558,7 @@ export class RequirementsService {
     const versionen = await this.repository.findVersions(bestand.id);
     const kontext = {
       feldwerte: feldwerte(bestand),
-      ausloeser: { userId: benutzer.userId, roles: benutzer.roles },
+      ausloeser: { userId: benutzer.userId, kennung: benutzer.username, roles: benutzer.roles },
       eintritte: eintritte(versionen),
       // Bewusst leer: Die Begruendung entsteht erst beim Ausloesen. Ihr Fehlen ist kein
       // Hinderungsgrund, sondern eine Eingabeanforderung - siehe unten.

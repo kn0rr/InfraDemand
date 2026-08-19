@@ -17,6 +17,7 @@ describe("Zustandswechsel", () => {
   let pool: Pool;
   let alsMensch: string;
   let alsAdmin: string;
+  let alsPerson: string;
 
   const anlage = {
     projectId: "11111111-1111-4111-8111-111111111111",
@@ -33,7 +34,19 @@ describe("Zustandswechsel", () => {
     process.env["KEYCLOAK_AUDIENCE"] = "requirement-api";
     process.env["DATABASE_URL"] = database.connectionString;
 
-    alsMensch = jwks.sign({ sub: "benutzer-1", azp: "frontend", tenants: ["t-eins"] });
+    alsMensch = jwks.sign({
+      sub: "benutzer-1",
+      azp: "frontend",
+      tenants: ["t-eins"],
+      groups: ["team-a"],
+    });
+    alsPerson = jwks.sign({
+      sub: "b-9",
+      azp: "frontend",
+      preferred_username: "m.weber",
+      tenants: ["t-eins"],
+      groups: ["team-a"],
+    });
     alsAdmin = jwks.sign({
       sub: "admin-1",
       azp: "frontend",
@@ -748,6 +761,53 @@ describe("Zustandswechsel", () => {
         "get",
         "/v1/requirements/11111111-1111-4111-8111-111111111111/transitions",
       ).expect(404);
+    });
+  });
+  describe("Identitaet (ADR-0024, behoben mit ADR-0031)", () => {
+    const mitIdentitaet = () =>
+      registriereWorkflow(pool, null, {
+        initialState: "neu",
+        states: [
+          { key: "neu", label: "Neu" },
+          { key: "geprueft", label: "Geprueft", final: true },
+        ],
+        transitions: [
+          {
+            from: "neu",
+            to: "geprueft",
+            label: "Pruefen",
+            bedingungen: [{ art: "identitaet", feld: "owner" }],
+          },
+        ],
+      });
+
+    // Ueber die Gruppe sichtbar, damit der zweite Test 409 bekommt und nicht 404: Er soll
+    // zeigen, dass jemand den Vorgang sieht und trotzdem nicht ausloesen darf.
+    const anlegenAlsPerson = (externalId: string) =>
+      mit(alsPerson)("post", "/v1/requirements")
+        .send({ ...anlage, externalId, responsibleGroup: "team-a" })
+        .expect(201);
+
+    it("laesst die im Feld genannte Person durch", async () => {
+      // **Der Benutzername unterscheidet sich hier von der Subjektkennung.** Mit dem alten
+      // Vergleich stuenden "m.weber" und "b-9" gegeneinander, und dieser Uebergang waere
+      // fuer *jeden* gesperrt gewesen - auch fuer die genannte Person. Genau deshalb hat
+      // ein Token ohne `preferred_username` den Fehler nie gezeigt.
+      await mitIdentitaet();
+      await anlegenAlsPerson("I-1");
+
+      await mit(alsPerson)("put", zustand("I-1")).send({ toState: "geprueft" }).expect(200);
+    });
+
+    it("weist eine andere Person ab", async () => {
+      await mitIdentitaet();
+      await anlegenAlsPerson("I-2");
+
+      const antwort = await mit(alsMensch)("put", zustand("I-2"))
+        .send({ toState: "geprueft" })
+        .expect(409);
+
+      expect(antwort.body.conditions[0].kind).toBe("identitaet");
     });
   });
 });

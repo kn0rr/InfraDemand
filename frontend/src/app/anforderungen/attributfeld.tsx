@@ -2,6 +2,7 @@
 
 import { Checkbox, MultiSelect, NumberInput, Select, TextInput } from "@mantine/core";
 import type { UseFormReturnType } from "@mantine/form";
+import type { ReactElement } from "react";
 import type { Attributdefinition } from "@/lib/api/attributdefinitionen";
 
 /**
@@ -33,7 +34,7 @@ interface Eigenschaften {
  * ([ADR-0016](../../../docs/adr/0016-ui-grundlage-und-datenzugriff-im-frontend.md)):
  * Jeder Typ braucht ein Bedienelement und einen Pruefer, und beides ist Code.
  */
-export function Attributfeld({ definition, formular }: Eigenschaften) {
+export function Attributfeld({ definition, formular }: Eigenschaften): ReactElement {
   const pfad = `dynamicAttributes.${definition.key}`;
   const schluessel = formular.key(pfad);
   const beschriftung = { label: definition.label, withAsterisk: definition.required };
@@ -41,7 +42,19 @@ export function Attributfeld({ definition, formular }: Eigenschaften) {
   switch (definition.dataType) {
     case "text":
       return <TextInput key={schluessel} {...beschriftung} {...formular.getInputProps(pfad)} />;
-
+    case "person":
+      // Freie Eingabe eines Benutzernamens, kein Verzeichnis dahinter (ADR-0031 Punkt 5).
+      // Der Hinweis sagt das ausdruecklich: Ein Auswahlfeld wuerde eine Pruefung
+      // versprechen, die es bis M6 nicht gibt, und ein Tippfehler bliebe folgenlos
+      // sichtbar statt still zu wirken (`PROD-065`).
+      return (
+        <TextInput
+          key={schluessel}
+          description="Benutzername, wie er in der Anmeldung erscheint"
+          {...beschriftung}
+          {...formular.getInputProps(pfad)}
+        />
+      );
     case "number":
       return <NumberInput key={schluessel} {...beschriftung} {...formular.getInputProps(pfad)} />;
 

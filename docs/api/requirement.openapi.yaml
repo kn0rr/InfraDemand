@@ -46,6 +46,7 @@ components:
             - date
             - enum
             - multi_enum
+            - person
           example: text
           type: string
         defaultValue:
@@ -137,6 +138,7 @@ components:
             - date
             - enum
             - multi_enum
+            - person
           example: text
           type: string
         defaultValue:
@@ -253,6 +255,7 @@ components:
             - date
             - enum
             - multi_enum
+            - person
           example: text
           type: string
         defaultValue:
@@ -914,6 +917,7 @@ components:
             - date
             - enum
             - multi_enum
+            - person
           type: string
         defaultValue:
           description: Vorgabewert, dem Datentyp entsprechend.

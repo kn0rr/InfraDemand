@@ -526,7 +526,7 @@ export interface components {
              * @example text
              * @enum {string}
              */
-            dataType: "text" | "number" | "boolean" | "date" | "enum" | "multi_enum";
+            dataType: "text" | "number" | "boolean" | "date" | "enum" | "multi_enum" | "person";
             /** @description Vorgabewert, dem Datentyp entsprechend. */
             defaultValue: string | number | boolean | string[] | null;
             /** Format: uuid */
@@ -560,7 +560,7 @@ export interface components {
              * @example text
              * @enum {string}
              */
-            dataType: "text" | "number" | "boolean" | "date" | "enum" | "multi_enum";
+            dataType: "text" | "number" | "boolean" | "date" | "enum" | "multi_enum" | "person";
             /** @description Vorgabewert, dem Datentyp entsprechend. */
             defaultValue: string | number | boolean | string[] | null;
             /** Format: uuid */
@@ -606,7 +606,7 @@ export interface components {
              * @example text
              * @enum {string}
              */
-            dataType: "text" | "number" | "boolean" | "date" | "enum" | "multi_enum";
+            dataType: "text" | "number" | "boolean" | "date" | "enum" | "multi_enum" | "person";
             /** @description Vorgabewert, dem Datentyp entsprechend. */
             defaultValue?: string | number | boolean | string[] | null;
             /**
@@ -928,7 +928,7 @@ export interface components {
             active: boolean;
             allowedValues?: string[];
             /** @enum {string} */
-            dataType: "text" | "number" | "boolean" | "date" | "enum" | "multi_enum";
+            dataType: "text" | "number" | "boolean" | "date" | "enum" | "multi_enum" | "person";
             /** @description Vorgabewert, dem Datentyp entsprechend. */
             defaultValue?: string | number | boolean | string[] | null;
             label: string;

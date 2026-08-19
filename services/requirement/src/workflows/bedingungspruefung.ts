@@ -10,7 +10,13 @@ import type { Bedingung, Bedingungsart, Vergleich } from "./typen";
 export interface Vorgangskontext {
   /** Kernfelder und dynamische Attribute in einem flachen Feldraum. */
   feldwerte: Readonly<Record<string, unknown>>;
-  ausloeser: { userId: string; roles: readonly string[] };
+  /**
+   * Der Ausloesende in **zwei** Begriffen, und das ist Absicht (ADR-0031 Punkt 2):
+   * `userId` ist die Subjektkennung und Grundlage von `changed_by` - `vier_augen`
+   * vergleicht dagegen. `kennung` ist der Benutzername, und den tragen Personenfelder.
+   * Beides in einem Wert zu fuehren war der Fehler, den ADR-0031 behebt.
+   */
+  ausloeser: { userId: string; kennung: string; roles: readonly string[] };
   /**
    * Wer den Eintritt in einen Zustand ausgeloest hat, aus der Versionshistorie.
    * Fehlt ein Zustand, wurde er nie durchlaufen.
@@ -181,7 +187,7 @@ function pruefeAnforderung(bedingung: Bedingung, kontext: Vorgangskontext): Bedi
     }
 
     case "identitaet":
-      return gleich(kontext.feldwerte[bedingung.feld], kontext.ausloeser.userId)
+      return gleich(kontext.feldwerte[bedingung.feld], kontext.ausloeser.kennung)
         ? []
         : [
             {

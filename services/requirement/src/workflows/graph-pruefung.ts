@@ -1,4 +1,4 @@
-import type { Bedingung, Betriebsart, Graph, Vergleich } from "./typen";
+import type { Bedingung, Bedingungsart, Betriebsart, Graph, Vergleich } from "./typen";
 import { VERGLEICHSOPERATOREN } from "./typen";
 
 export interface Graphfehler {
@@ -375,24 +375,32 @@ export function unerreichbareZustaende(graph: Graph): string[] {
  * gibt, steht in den Attributdefinitionen, und die sind Laufzeitdaten (ADR-0024 Punkt 8).
  * Dieses Modul liefert die Frage, der Service die Antwort.
  */
-export function genannteFelder(graph: Graph): { feld: string; stelle: string }[] {
-  const gefunden: { feld: string; stelle: string }[] = [];
+/** Woher ein genanntes Feld stammt. `vorbehalt` sind die Felder aus `nurWenn`. */
+type Feldherkunft = Bedingungsart | "vorbehalt";
+
+export function genannteFelder(
+  graph: Graph,
+): { feld: string; stelle: string; art: Feldherkunft }[] {
+  const gefunden: { feld: string; stelle: string; art: Feldherkunft }[] = [];
 
   for (const [index, uebergang] of graph.transitions.entries()) {
     for (const [nummer, bedingung] of (uebergang.bedingungen ?? []).entries()) {
       const stelle = `transitions[${index}].bedingungen[${nummer}]`;
 
       for (const vergleich of bedingung.nurWenn ?? []) {
-        gefunden.push({ feld: vergleich.feld, stelle: `${stelle}.nurWenn` });
+        // Nicht die Art der aeusseren Bedingung: Ein Vorbehalt vergleicht mit einem Wert,
+        // nicht mit dem Ausloesenden. Als "identitaet" getagt verlangte die Pruefung in
+        // ADR-0031 Punkt 4 von ihm eine Person.
+        gefunden.push({ feld: vergleich.feld, stelle: `${stelle}.nurWenn`, art: "vorbehalt" });
       }
 
       if (bedingung.art === "identitaet" || bedingung.art === "feldwert") {
-        gefunden.push({ feld: bedingung.feld, stelle });
+        gefunden.push({ feld: bedingung.feld, stelle, art: bedingung.art });
       }
 
       if (bedingung.art === "pflichtfelder") {
         for (const feld of bedingung.felder) {
-          gefunden.push({ feld, stelle });
+          gefunden.push({ feld, stelle, art: bedingung.art });
         }
       }
     }

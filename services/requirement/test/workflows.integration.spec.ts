@@ -588,4 +588,44 @@ describe("Workflow-Definitionen", () => {
         .expect(400);
     });
   });
+  describe("Personenfelder (ADR-0031 Punkt 4)", () => {
+    const mitIdentitaetAuf = (feld: string) => ({
+      label: `Ablauf ${feld}`,
+      initialState: "neu",
+      states: [
+        { key: "neu", label: "Neu" },
+        { key: "geprueft", label: "Geprueft", final: true },
+      ],
+      transitions: [
+        {
+          from: "neu",
+          to: "geprueft",
+          label: "Pruefen",
+          bedingungen: [{ art: "identitaet", feld }],
+        },
+      ],
+    });
+
+    it("laesst identitaet auf owner zu", async () => {
+      await alsAdmin().send(mitIdentitaetAuf("owner")).expect(201);
+    });
+
+    it("weist identitaet auf ein Textattribut ab", async () => {
+      // Der Fall, der die Pruefung rechtfertigt: Ein Textfeld enthaelt keine Person. Der
+      // Vergleich mit dem Ausloesenden traefe nie zu - der Uebergang waere dauerhaft
+      // gesperrt, und niemand saehe, warum. Genau so ist `identitaet` zwei Meilensteine
+      // lang wirkungslos geblieben.
+      await registriereAttribut(pool, { key: "notiz" });
+
+      const antwort = await alsAdmin().send(mitIdentitaetAuf("notiz")).expect(400);
+
+      expect(antwort.body.message).toContain("keine Person");
+    });
+
+    it("laesst identitaet auf ein Personenattribut zu", async () => {
+      await registriereAttribut(pool, { key: "pruefer", dataType: "person" });
+
+      await alsAdmin().send(mitIdentitaetAuf("pruefer")).expect(201);
+    });
+  });
 });
