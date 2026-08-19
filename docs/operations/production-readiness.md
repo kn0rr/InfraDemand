@@ -50,12 +50,12 @@ Das gilt für alle Beteiligten, einschließlich der KI in ihrer Beraterrolle
 | A – Transportverschlüsselung und Netzwerk | 7 | 5 | – |
 | *davon Voraussetzung für ADR-0013:* | `PROD-006`, `PROD-007`, `PROD-032` | | |
 | B – Geheimnisse und Zugangsdaten | 5 | 4 | **1** |
-| C – Identität und Zugriff | 19 | 3 | **4** |
+| C – Identität und Zugriff | 20 | 3 | **4** |
 | D – Daten | 7 | 3 | – |
 | E – Container und Lieferkette | 10 | 1 | **2** |
 | F – Betrieb und Verfügbarkeit | 6 | 1 | – |
 | G – Anwendungssicherheit | 10 | 1 | **3** |
-| **Gesamt** | **64** | **18** | **10** |
+| **Gesamt** | **65** | **18** | **10** |
 
 > **Nummern werden nicht neu vergeben.** `PROD-026` ist unbesetzt. Eine Lücke ist kein
 > Fehler – eine wiederverwendete Nummer wäre einer, weil Verweise aus ADRs, Commits und
@@ -591,6 +591,48 @@ referenziert werden könnte, und keine Migration, die den Bestand umstellen kön
 Benutzernamen nicht wiedervergeben. Das ist eine Betriebsauflage, keine technische
 Maßnahme – sie gehört in die Betriebsdokumentation der Realm-Verwaltung, sonst kennt sie
 niemand, der sie einhalten müsste.
+
+#### PROD-066 — Eine Sichtbarkeitsregel auf ein Kernfeld bliebe folgenlos
+**Schwere:** Mittel · **Status:** Offen · **Betrifft:** §6, §8 · **Verweis:** [ADR-0030](../adr/0030-feldebene-und-vertretung.md) Punkt 5 · **Fundstelle:** `policies/felder.rego`, `requirements.service.ts` `ohneVerborgene`
+
+[ADR-0030](../adr/0030-feldebene-und-vertretung.md) Punkt 5 sagt: „Kernfelder haben keine
+Definition; ihre Sichtbarkeit steht in der Richtlinie." **Umgesetzt ist das nicht.** M5.4
+wurde bewusst auf dynamische Attribute eingegrenzt – die Einengung ist richtig, ihre
+Dokumentation ist es nicht.
+
+Zwei voneinander unabhängige Gründe, aus denen eine Regel auf ein Kernfeld nicht wirkte:
+
+- `felder.rego` bildet `verborgen` ausschließlich aus `input.definitionen`. Ein Kernfeld hat
+  keine Definition und kann in der Menge strukturell nicht auftauchen
+- `ohneVerborgene` filtert allein `row.dynamicAttributes`. Selbst wenn die Menge ein
+  Kernfeld enthielte, bliebe die Antwort unverändert
+
+**Das Verhalten ist derzeit gewollt.** Kernfelder für jeden sichtbar zu halten, der den
+Datensatz überhaupt sieht, ist aus Transparenzgründen vertretbar: Wer eine Anforderung in
+seiner Liste hat, soll wissen, wem sie gehört und in welchem Zustand sie ist.
+
+**Das Risiko liegt nicht im Verhalten, sondern im Text.** Wer Punkt 5 liest, schreibt eine
+Regel auf `owner` oder `status`, sieht keinen Fehler, keine Warnung und keine Wirkung. OPA
+wertet sie aus, der Dienst ignoriert das Ergebnis. Ein solcher Irrtum fällt nicht beim
+Schreiben der Regel auf, sondern erst, wenn jemand prüft, ob das Feld tatsächlich fehlt –
+und danach sucht nur, wer es bereits vermutet.
+
+**Zielzustand, in dieser Reihenfolge:**
+
+1. **Sofort und billig:** Ein zweites Regelwerk in `felder.rego`, das Kernfelder aufnimmt,
+   ist ohne den Dienst wirkungslos – die Richtlinie darf deshalb bis dahin nicht so aussehen,
+   als könnte sie es. Ein Kommentar an der Regel genügt nicht; ADR-0030 Punkt 5 gehört
+   berichtigt oder als vertagt gekennzeichnet
+2. **Wenn ein Kernfeld tatsächlich verborgen werden soll:** `ohneVerborgene` auf die
+   Kernfelder ausdehnen – und dann trifft ein, was ADR-0030 unter „Negativ" vorhergesagt hat:
+   Der Contract weist die Kernfelder als Pflichtfelder aus, und sie optional zu machen ist für
+   jeden bestehenden Konsumenten brechend. Der Weg dafür steht bereit (`PROD-061`,
+   [ADR-0027](../adr/0027-ausnahmen-von-der-kompatibilitaetsgarantie.md)), der Zeitpunkt ist
+   **vor** dem ersten externen Konsumenten der bessere
+
+**Woran es auffiel:** beim Nachziehen der Meilensteintabelle nach M5.5 – nicht an einem Test.
+Es gibt keinen, der scheitern könnte: Das erwartete Verhalten und das tatsächliche sind
+identisch, solange niemand eine solche Regel schreibt.
 
 #### PROD-013 — Passwort-Grant am Frontend-Client aktiviert
 **Schwere:** Kritisch · **Status:** Offen · **Fundstelle:** `infra/keycloak/realms/infrademand.json`, `directAccessGrantsEnabled: true`

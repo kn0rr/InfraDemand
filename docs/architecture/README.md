@@ -192,7 +192,7 @@ nacheinander. Die Begründung steht in
 | **M2** | Frontend-Durchstich: Anmeldung, Liste, Anlegen, generierter API-Client | abgeschlossen |
 | **M3** | Dynamisches Attributmodell (§6) und Datenhoheit (§19.3) | abgeschlossen |
 | **M4** | Workflow-Engine (§7) | abgeschlossen |
-| **M5** | Feingranulares Berechtigungsmodell (§8) im Requirement Service | offen |
+| **M5** | Feingranulares Berechtigungsmodell (§8) im Requirement Service | abgeschlossen |
 | **M6** | Identity & Access Service als eigener Dienst (§5) – Mandanten, Service Accounts, Rollenverwaltung | offen |
 | **M7** | Infrastructure Service, Bereitstellungskategorien und Service-Katalog (§17, §18) | offen |
 | **M8** | Capacity Service, Overhead-Berechnung und Forecasting (§9, §18) | offen |
@@ -341,9 +341,9 @@ jetzt M6; die übrigen Meilensteine rücken um eins.
 |---|---|---|---|
 | **M5.1** | Der wirksame Mandant: Begriff, Herkunft, Zuschnitt am Datensatz | Eine Abfrage weiß, in wessen Namen sie läuft | abgeschlossen |
 | **M5.2** | Policy-Engine: Wahl, Anbindung, Regeln als versionierte Artefakte | Eine Berechtigung ist prüfbar und auditierbar, nicht verstreut | abgeschlossen ([ADR-0028](../adr/0028-policy-engine-opa-als-sidecar.md)) |
-| **M5.3** | Objektbezug, soweit die Daten ihn hergeben: Mandant und Eigentümer. Die Engine übernimmt den Lesezuschnitt | Die Engine wirkt (`PROD-059`); Zuschnitt am Objekt statt nur am Mandanten | Liste umgestellt, direkter Zugriff offen (`PROD-060`) |
+| **M5.3** | Objektbezug, soweit die Daten ihn hergeben: Mandant und Eigentümer. Die Engine übernimmt den Lesezuschnitt | Die Engine wirkt (`PROD-059`); Zuschnitt am Objekt statt nur am Mandanten | abgeschlossen ([ADR-0029](../adr/0029-zuschnitt-der-zustaendigkeit.md)); der direkte Zugriff folgte mit M5.4 (`PROD-060`) |
 | **M5.4** | Feldebene (§6, §8); dazu die Vertretung durch eine Gruppe und die Verengung des direkten Zugriffs (`PROD-060`) | Ein Feld ist für den einen sichtbar und für den anderen nicht; eine Anforderung hängt nicht an einer einzigen Person | abgeschlossen ([ADR-0030](../adr/0030-feldebene-und-vertretung.md)) |
-| **M5.5** | Attributdatentyp „Person" | `identitaet` aus ADR-0024 wird benutzbar | offen |
+| **M5.5** | Attributdatentyp „Person"; dazu der Identitätsvergleich, der ihn erst wirksam macht | `identitaet` aus ADR-0024 wird benutzbar | abgeschlossen ([ADR-0031](../adr/0031-personenfelder-und-identitaetsvergleich.md)) |
 
 **M5.1 umfasst auch die Stufung der Konfiguration** ([ADR-0026](../adr/0026-wirksamer-mandant-und-stufung-der-konfiguration.md)
 Punkt 4 und 5): Attributdefinitionen, Hoheitsregeln und Workflows tragen einen Mandanten,
@@ -355,13 +355,11 @@ Der Zuschnitt am Datensatz hängt an genau zwei Stellen: `ausHerkunft` und `ausK
 wird. Beide prüfen die Zugehörigkeit und antworten für einen fremden Mandanten mit **404,
 nicht 403** – dass ein Datensatz existiert, ist selbst eine Auskunft.
 
-**Was daran offen bleibt: Die zweite Stufe ist über keine Schnittstelle anlegbar**
-(`PROD-056`). Nicht nur die Verwaltungsoberfläche hat kein Feld dafür – auch die Anlege-
-und Änderungs-DTOs der drei Konfigurationsobjekte reichen keinen Mandanten durch. `tenant`
-kommt in allen drei Diensten ausschließlich auf dem Lesepfad vor. Mandantenspezifische
-Definitionen entstehen heute nur per direktem SQL, wie es die Testhelfer tun. Das gehört
-vor den Abschluss von M5 behoben – vorher gilt die Zusicherung aus ADR-0026 Punkt 4 nur
-für das Lesen.
+**Die zweite Stufe war lange nur lesbar** (`PROD-056`): Weder die Verwaltungsoberfläche noch
+die Anlege- und Änderungs-DTOs der drei Konfigurationsobjekte reichten einen Mandanten
+durch; mandantenspezifische Definitionen entstanden ausschließlich per direktem SQL, wie es
+die Testhelfer tun. Mit M5.4 erledigt – die Zusicherung aus ADR-0026 Punkt 4 gilt seither
+für das Schreiben wie für das Lesen.
 
 **M5.2 – was vor der Umsetzung geprüft wurde.**
 [ADR-0028](../adr/0028-policy-engine-opa-als-sidecar.md) macht die partielle Auswertung zur
