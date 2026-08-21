@@ -435,6 +435,74 @@ Auflösung ausdrücklich. Ohne sie ist „Mandantenzuschnitt" nicht umsetzbar.
 sie in der Antwort – ein Vertrag, der sie als Pflichtfelder ausweist, wäre dann falsch. Die
 Frage, wie Feldebene und Contract zusammengehen, fällt dort und nicht früher.
 
+### M6 im Detail
+
+M6 setzt §5 um – den Identity & Access Service als eigenen Dienst. Die Richtung steht mit
+[ADR-0032](../adr/0032-herkunft-der-identitaetsansprueche.md): Zugehörigkeiten als
+Keycloak-Gruppen, in den Fachdaten der unveränderliche Bezeichner statt des Namens.
+
+**Der Meilenstein hat einen Schwerpunkt, den man ihm nicht ansieht.** Er heißt „eigener
+Dienst", aber der Aufwand liegt nicht im Dienst – der ist überschaubar. Er liegt darin, einen
+Bestand umzustellen, der heute Namen als Schlüssel benutzt, **ohne die Zusicherung aus
+[ADR-0012](../adr/0012-vollstaendige-versionierung-mit-zeitbezug.md) zu verletzen**.
+
+| | Inhalt | Beweist | Stand |
+|---|---|---|---|
+| **M6.1** | Herkunft der Ansprüche: Realm auf Gruppen umstellen, Testbenutzer mit **unterschiedlicher** Zugehörigkeit (`PROD-067`) | Der Anspruch entsteht dort, wo er verwaltbar ist – und eine echte Anmeldung zeigt ihn | ADR geschrieben, Umsetzung offen |
+| **M6.2** | Der Dienst: Mandant, Gruppe und Person als Fachobjekte mit unveränderlichem Bezeichner; Abbildung Pfad → Bezeichner aus der Admin-API | Es gibt etwas, worauf ein Datensatz verweisen kann | offen |
+| **M6.3** | Auflösung zur Anzeige: Namen kommen aus dem Dienst, nicht aus der Zeile | Eine Liste zeigt Namen, ohne welche zu speichern | offen |
+| **M6.4** | Migration des Bestands auf Bezeichner – **Historie eingeschlossen** | Ein vergangener Zustand bleibt abfragbar (ADR-0012) | offen |
+| **M6.5** | Prüfung statt Behauptung: `owner`, `responsible_group` und Personenattribute gegen den Dienst geprüft (`PROD-063`, `PROD-065`) | Ein Tippfehler ist ein Fehler und keine stille Aussperrung | offen |
+| **M6.6** | Service Accounts als eigenständige Identitäten mit eigener Auditspur (§4) | Eine automatisierte Aktion ist keinem Menschen zugeordnet | offen |
+| **M6.7** | Zuständigkeit je Bereich als geschachtelte Gruppe (`PROD-017`) | Der Zuschnitt kann mehr als Mandant und Eigentümer | offen |
+
+**M6.1 ist nicht der kostenlose Schritt, nach dem er aussieht.** Der Gruppen-Mapper gibt
+standardmäßig den **vollen Pfad** aus (`full.path=true`), das Attribut gibt heute einen
+schlichten Namen aus. Der Dienst liest den Anspruch, also ändert sich für ihn etwas. Mit
+`full.path=false` bleibt die Umstellung für ihn unsichtbar – **und genau das ist die Falle:**
+Ohne Pfad sind zwei gleichnamige Untergruppen in verschiedenen Bereichen nicht
+unterscheidbar, und das bricht M6.7. Der Schalter ist deshalb bei M6.7 umzulegen, nicht
+später zufällig, und die Abbildung aus M6.2 muss beide Formen aushalten.
+
+**`PROD-067` gehört vor die Umstellung und nicht danach.** Heute trägt kein Benutzer der Realm
+eine Gruppe, und `test-cli` hat den Mapper nicht – die Vertretung aus M5.4 ist über eine echte
+Anmeldung nicht auslösbar. Eine Umstellung, die von einem Zustand ausgeht, den niemand hat
+laufen sehen, prüft nichts.
+
+**M6.4 ist der Schritt, der unterschätzt wird.** Es genügt nicht, die aktuellen Zeilen
+umzuschreiben. §19.4 verlangt, dass der Zustand zu einem **beliebigen vergangenen Zeitpunkt**
+abfragbar bleibt; ein zur Hälfte umgestellter Verlauf verletzt das, und zwar unsichtbar – die
+Abfrage antwortet, nur eben falsch. Die Migration muss deshalb die Historienzeilen
+einschließen und braucht einen Nachweis, der einen Stichtag **vor** und **nach** der
+Umstellung vergleicht.
+
+**M6.5 kommt nach M6.4 und nicht davor.** Eine Prüfung gegen den Dienst, die auf einen
+Bestand voller Namen trifft, weist den Bestand ab. Die Reihenfolge ist dieselbe wie bei
+`PROD-060` in M5.4: erst die Vertretung, dann die Verengung – sonst sperrt die Verengung
+Leute aus, für die es noch keinen Ersatzweg gibt.
+
+**Die Sitzungsmessung ist vor M6.1 zu wiederholen** (`PROD-045`). Die vorliegende stammt aus
+M2.3, kennt weder die Mandanten noch den zweiten Dienst und steht bereits bei 75 %.
+ADR-0032 hält das Budget bewusst frei, indem Bezeichner **nicht** ins Token wandern – aber
+belegt ist das erst mit einer Messung, die den heutigen Anspruchssatz kennt.
+
+**Mit M6 wird der Messaging-Backbone fällig.** Die Wahl zwischen Kafka und NATS ist im
+ADR-Register auf „sobald der zweite Service existiert" datiert, und M6 ist dieser zweite
+Service. Ebenso rückt §13 in Reichweite: mTLS zwischen Diensten ist eine Frage, die sich mit
+einem Dienst nicht stellt.
+
+**Ein Teil von `PROD-017` wartet zu Unrecht auf M6.** Am Anlegen (`@Post()`) und am Ändern
+(`@Patch("by-source/…")`) steht kein `@Rollen` – die Rolle `requirement-author` wird
+**nirgends durchgesetzt**, und daran hat M5 nichts geändert. Der Zuschnitt entscheidet, wer
+einen Datensatz *sieht*; wer überhaupt erfassen darf, wird nicht geprüft. Das braucht weder
+den Dienst noch die Migration und gehört vorgezogen – der Eintrag steht seit dem 8. August
+mit Schwere **Hoch** offen.
+
+**Was M6 nicht auflöst:** Ein eigener Identity Provider je Mandant. ADR-0032 verwirft
+Keycloak-Organizations mit Messungen, hält den Punkt aber ausdrücklich offen – tritt der
+Bedarf ein, ist er neu zu bewerten. Dass das dann die Fachdaten nicht berührt, ist der Zweck
+der Abbildung aus M6.2.
+
 ### Warum diese Reihenfolge
 
 **M1 vor allem anderen**, weil der vertikale Durchstich sämtliche Querschnittsfragen
