@@ -489,11 +489,19 @@ RFC 9457 (`application/problem+json`), einheitlich über alle Services
 Diese Fragen sind erkannt und absichtlich noch nicht beantwortet. Die vollständige Liste
 mit Zeitpunkten steht in [`../adr/README.md`](../adr/README.md#offene-bewusst-vertagte-entscheidungen).
 
-- ORM und Migrationswerkzeug (M1)
-- Policy-Engine für die Feldebene (M5)
-- Regel-Engine für Workflow-Übergänge (M4)
 - Messaging-Backbone zwischen Services (sobald der zweite Service existiert)
 - Reporting-Lesemodell: eigenes Modell oder vorgefertigte Lösung wie Metabase (M8)
+- Regel-Engine für Workflow-Übergänge – **vorerst verneint**
+  ([ADR-0024](../adr/0024-bedingungen-an-workflow-uebergaengen.md) Punkt 9); wieder
+  aufzunehmen, sobald eine Regel entsteht, die für sich gelesen keinen Satz ergibt
+- Wie der Bestand auf Bezeichner statt Namen umgestellt wird, ohne die Zusicherung aus
+  [ADR-0012](../adr/0012-vollstaendige-versionierung-mit-zeitbezug.md) zu verletzen
+  ([ADR-0032](../adr/0032-herkunft-der-identitaetsansprueche.md))
+
+Entschieden und deshalb hier entfernt: ORM und Migrationswerkzeug
+([ADR-0009](../adr/0009-orm-und-migrationswerkzeug.md)), Policy-Engine für die Feldebene
+([ADR-0028](../adr/0028-policy-engine-opa-als-sidecar.md)), Herkunft der
+Identitätsansprüche ([ADR-0032](../adr/0032-herkunft-der-identitaetsansprueche.md)).
 
 ---
 

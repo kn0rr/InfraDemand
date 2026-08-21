@@ -68,6 +68,7 @@ Zulässige Status: `Vorgeschlagen`, `Angenommen`, `Abgelehnt`, `Ersetzt durch AD
 | [0029](0029-zuschnitt-der-zustaendigkeit.md) | Zuschnitt der Zuständigkeit und Grenzen des Objektbezugs | Angenommen | 2026-08-14 |
 | [0030](0030-feldebene-und-vertretung.md) | Feldebene und Vertretung | Angenommen | 2026-08-17 |
 | [0031](0031-personenfelder-und-identitaetsvergleich.md) | Personenfelder und Identitätsvergleich | Angenommen | 2026-08-19 |
+| [0032](0032-herkunft-der-identitaetsansprueche.md) | Herkunft der Identitätsansprüche | Angenommen | 2026-08-21 |
 
 ## Offene, bewusst vertagte Entscheidungen
 
@@ -77,12 +78,12 @@ Zeitpunkt als eigenes ADR nachgezogen.
 | Thema | Vertagt bis | Referenz |
 |---|---|---|
 | Audit-Ereignisschema und Schreibpfad | Meilenstein M1.4 | [ADR-0009](0009-orm-und-migrationswerkzeug.md) |
-| Woher die Mandantenzugehörigkeiten im Token stammen – Keycloak-Organizations oder Gruppen | Meilenstein M6 | [ADR-0026](0026-wirksamer-mandant-und-stufung-der-konfiguration.md) |
-| Woher Zuständigkeit je Bereich und Person kommt – und damit `PROD-017` | Meilenstein M6 | [ADR-0029](0029-zuschnitt-der-zustaendigkeit.md) |
+| ~~Woher die Mandantenzugehörigkeiten im Token stammen~~ – **beantwortet von [ADR-0032](0032-herkunft-der-identitaetsansprueche.md): Keycloak-Gruppen, nicht Organizations** | – | [ADR-0026](0026-wirksamer-mandant-und-stufung-der-konfiguration.md) |
+| ~~Woher Zuständigkeit je Bereich und Person kommt~~ – **beantwortet von [ADR-0032](0032-herkunft-der-identitaetsansprueche.md)**: als Gruppe, weil ein Bereich schachtelt. `PROD-017` bleibt offen, bis es umgesetzt ist | – | [ADR-0029](0029-zuschnitt-der-zustaendigkeit.md) |
 | Ob die Endpunktprüfungen in Richtlinien wandern – **Frist M5.4 verstrichen**, ohne dass ein Anlass entstand; die Guards stehen unverändert daneben | Sobald eine Endpunktprüfung eine Angabe braucht, die nur die Richtlinie kennt | [ADR-0029](0029-zuschnitt-der-zustaendigkeit.md) |
 | ~~Form der Antwort bei verborgenen Feldern~~ – **beantwortet mit M5.4: das Feld fehlt.** `null` hieße bei den übrigen Feldern bereits „nicht gesetzt"; beides zu vermengen machte die Aussagen ununterscheidbar. Für §12 folgenlos, solange nur dynamische Attribute betroffen sind (`additionalProperties`) – für Kernfelder gilt das nicht, siehe `PROD-066` | – | [ADR-0030](0030-feldebene-und-vertretung.md) |
 | Ob Zuschnitt und Feldmenge in einem Aufruf gegen den Sidecar ermittelt werden | Wenn die Latenz gemessen ist | [ADR-0030](0030-feldebene-und-vertretung.md) |
-| Woher der Anspruch `gruppen` stammt – Keycloak-Gruppen oder Organizations | Meilenstein M6, gemeinsam mit den Mandantenzugehörigkeiten | [ADR-0030](0030-feldebene-und-vertretung.md) |
+| ~~Woher der Anspruch `gruppen` stammt~~ – **beantwortet von [ADR-0032](0032-herkunft-der-identitaetsansprueche.md): Keycloak-Gruppen**, derselbe Mechanismus wie für den Mandanten | – | [ADR-0030](0030-feldebene-und-vertretung.md) |
 | Rückmeldung abgewiesener Felder an einen Import | Mit dem Dateiimport | [ADR-0019](0019-verhalten-bei-abgewiesener-schreiboperation.md) |
 | Änderungsprotokoll für den Contract – Form und Ablage | Mit dem ersten Konsumenten außerhalb dieses Repositories | [ADR-0027](0027-ausnahmen-von-der-kompatibilitaetsgarantie.md) |
 | Versionierungsschema der Schnittstelle: Pfad, Kopffeld oder Medientyp | Wenn eine Ausnahme nach ADR-0027 nicht mehr zulässig ist | [ADR-0027](0027-ausnahmen-von-der-kompatibilitaetsgarantie.md) |

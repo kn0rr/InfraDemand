@@ -50,12 +50,12 @@ Das gilt für alle Beteiligten, einschließlich der KI in ihrer Beraterrolle
 | A – Transportverschlüsselung und Netzwerk | 7 | 5 | – |
 | *davon Voraussetzung für ADR-0013:* | `PROD-006`, `PROD-007`, `PROD-032` | | |
 | B – Geheimnisse und Zugangsdaten | 5 | 4 | **1** |
-| C – Identität und Zugriff | 20 | 3 | **4** |
+| C – Identität und Zugriff | 21 | 3 | **4** |
 | D – Daten | 7 | 3 | – |
 | E – Container und Lieferkette | 10 | 1 | **2** |
 | F – Betrieb und Verfügbarkeit | 6 | 1 | – |
 | G – Anwendungssicherheit | 10 | 1 | **3** |
-| **Gesamt** | **65** | **18** | **10** |
+| **Gesamt** | **66** | **18** | **10** |
 
 > **Nummern werden nicht neu vergeben.** `PROD-026` ist unbesetzt. Eine Lücke ist kein
 > Fehler – eine wiederverwendete Nummer wäre einer, weil Verweise aus ADRs, Commits und
@@ -523,7 +523,9 @@ Zwei Richtungen, beide ohne Rückmeldung:
 
 **Zielzustand:** Identitäts- und Gruppenbezüge statt Zeichenketten, geprüft gegen den
 Identity & Access Service. Das ist **M6** – vorher gibt es nichts, wogegen geprüft werden
-könnte.
+könnte. Der Weg dorthin ist mit
+[ADR-0032](../adr/0032-herkunft-der-identitaetsansprueche.md) entschieden: Zugehörigkeiten
+als Keycloak-Gruppen, in den Fachdaten der unveränderliche Bezeichner statt des Namens.
 
 **Was vorher hilft und billig ist:** Die Oberfläche belegt `owner` bereits mit dem
 angemeldeten Anwender vor. Für die Gruppe wäre eine Auswahl aus den eigenen
@@ -587,6 +589,16 @@ zugeordnet.
 Access Service, aufgelöst zur Anzeige. Das ist **M6** – vorher gibt es nichts, worauf
 referenziert werden könnte, und keine Migration, die den Bestand umstellen könnte.
 
+> **Entschieden mit [ADR-0032](../adr/0032-herkunft-der-identitaetsansprueche.md).** Die
+> Stabilität entsteht **nicht im Token** – der Gruppen-Mapper kann keinen Bezeichner
+> ausgeben –, sondern in der Abbildung Pfad → Bezeichner, die der Identity & Access Service
+> aus der Admin-API pflegt. Eine Umbenennung ändert dort den Pfad bei gleichbleibendem
+> Bezeichner, und die Fachdaten merken davon nichts.
+>
+> **Gemessen und verworfen:** Keycloak-Organizations können zwar einen Bezeichner ausgeben,
+> aber der Alias bleibt der **Schlüssel** des Anspruchs – wer ihn liest, hat wieder Namen.
+> Die Messwerte stehen in den Nachweisen des ADR.
+
 **Was vorher hilft:** Umbenennungen im Realm bis dahin organisatorisch ausschließen und
 Benutzernamen nicht wiedervergeben. Das ist eine Betriebsauflage, keine technische
 Maßnahme – sie gehört in die Betriebsdokumentation der Realm-Verwaltung, sonst kennt sie
@@ -633,6 +645,39 @@ und danach sucht nur, wer es bereits vermutet.
 **Woran es auffiel:** beim Nachziehen der Meilensteintabelle nach M5.5 – nicht an einem Test.
 Es gibt keinen, der scheitern könnte: Das erwartete Verhalten und das tatsächliche sind
 identisch, solange niemand eine solche Regel schreibt.
+
+#### PROD-067 — Die Vertretung ist über eine echte Anmeldung nicht auslösbar
+**Schwere:** Mittel · **Status:** Offen · **Betrifft:** §8, §15 · **Verweis:** [ADR-0030](../adr/0030-feldebene-und-vertretung.md) Punkt 1 · **Fundstelle:** `infra/keycloak/realms/infrademand.json`
+
+M5.4 hat die Vertretung durch eine Gruppe geliefert. Der Dienst liest den Anspruch `groups`
+aus dem Zugriffstoken. **Kein Benutzer der Realm trägt das zugehörige Attribut**, und der
+Client `test-cli` hat den Mapper überhaupt nicht – nur `frontend` hat ihn.
+
+Damit ist der Anspruch bei jeder echten Anmeldung leer. Eine Anforderung mit gesetzter
+`responsible_group` ist für niemanden über die Vertretung sichtbar, weil niemand je in einer
+Gruppe ist.
+
+**Warum keine Prüfung das gemeldet hat:** Die Integrationstests signieren ihre Token selbst
+gegen einen eigenen JWKS-Endpunkt und setzen `gruppen` unmittelbar. Sie belegen den Code und
+nicht die Umgebung. Der einzige Test gegen ein echtes Keycloak
+(`auth.keycloak.integration.spec.ts`) bezieht sein Token über `test-cli` – also über den
+Client ohne den Mapper – und prüft die Vertretung nicht.
+
+**Zielzustand:** Beides in der Realm-Datei, und zwar zusammen:
+
+- ein `groups`-Mapper auch an `test-cli`, damit ein Test gegen echtes Keycloak die Vertretung
+  überhaupt prüfen **kann**
+- mindestens ein Testbenutzer mit einer Gruppe, und ein zweiter ohne – ein Test, in dem alle
+  dieselbe Gruppe haben, beweist nichts
+
+**Entschieden mit [ADR-0032](../adr/0032-herkunft-der-identitaetsansprueche.md):** Die Quelle
+wird **nicht** das Benutzerattribut, sondern die Keycloak-Gruppe. Damit ist der Zielmapper
+`oidc-group-membership-mapper` und nicht `oidc-usermodel-attribute-mapper`. **Der Befund
+ändert sich dadurch nicht:** Auch dann braucht die Realm Benutzer mit unterschiedlicher
+Zugehörigkeit, und `test-cli` braucht den Mapper.
+
+**Die Lücke vor der Umstellung zu schließen ist trotzdem richtig** – sonst geht die Umstellung
+von einem Zustand aus, den niemand je hat laufen sehen.
 
 #### PROD-013 — Passwort-Grant am Frontend-Client aktiviert
 **Schwere:** Kritisch · **Status:** Offen · **Fundstelle:** `infra/keycloak/realms/infrademand.json`, `directAccessGrantsEnabled: true`
