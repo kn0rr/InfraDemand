@@ -2,7 +2,7 @@ name: infrademand-local
 
 services:
   postgres:
-    image: postgres:18-alpine@sha256:9a8afca54e7861fd90fab5fdf4c42477a6b1cb7d293595148e674e0a3181de15
+    image: postgres:18-alpine@sha256:10a5c69a83035ab5239f5620d708520e8b28f5aa1f2b20143e6024532edadfb5
     container_name: id-postgres
     environment:
       POSTGRES_USER: postgres
@@ -21,7 +21,7 @@ services:
       start_period: 10s
 
   keycloak:
-    image: quay.io/keycloak/keycloak:26.7.1@sha256:f1f1f01e472c8a78df40d8f2a49a925274eda4d3d80d5f6edbb5c880ee3c01c6
+    image: quay.io/keycloak/keycloak:26.8.1@sha256:a78d6b79572168cb25886b80a8b5b8d4ed4390743e3eecb810538683e209dd6b
     container_name: id-keycloak
     command: ["start-dev", "--import-realm"]
     environment:
@@ -74,7 +74,7 @@ services:
       - ../keycloak/realms:/config:ro
 
   opa:
-    image: openpolicyagent/opa:1.19.0@sha256:8523599954435a3659954ad51ee0304d22bd97576f16cdb02e5e39f38ff3962a
+    image: openpolicyagent/opa:1.22.0@sha256:895872de1e8dc5b82e04f9410d2d1ada2f72d28fdcdba0e8789d91cfc27ec0d0
     container_name: id-opa
     command:
       - "run"
